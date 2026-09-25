@@ -567,13 +567,13 @@ function openOverspend(s){
         ${lenders.length ? `<div class="optrow"><select id="o-cat" aria-label="借用的類別">${lenders.map(o=>`<option value="${esc(o.x.id)}">${esc(o.x.name)}（還剩 ${moneyShort(o.left)}）</option>`).join("")}</select><button class="btn" data-o="cat">借這個</button></div>`
           : `<span class="small muted">沒有類別還剩 ${moneyShort(over)} 以上</span>`}</div>
       <div class="opt"><div class="k"><b>跟下個月借</b><span>${esc(c.name)}在 ${next.m} 月期${nb.avail - over >= 0 ? `會剩 ${moneyShort(nb.avail - over)}` : `會超出 ${moneyShort(over - nb.avail)}`}</span></div><button class="btn" data-o="next">借下個月</button></div>
-      <div class="opt"><div class="k"><b>動用節省結餘</b><span>目前結餘 ${moneyShort(pool)}${pool>=over?`，動用後剩 ${moneyShort(pool-over)}`:"，不夠補這筆"}</span></div><button class="btn" data-o="pool" ${pool>=over?"":"disabled"}>動用結餘</button></div>
+      <div class="opt"><div class="k"><b>動用已節省結餘</b><span>目前結餘 ${moneyShort(pool)}${pool>=over?`，動用後剩 ${moneyShort(pool-over)}`:"，不夠補這筆"}</span></div><button class="btn" data-o="pool" ${pool>=over?"":"disabled"}>動用結餘</button></div>
     </div>
     <p class="small muted" style="margin:0">先不決定的話，這筆會留在首頁「待處理的超支」。</p>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", () => { closeSheet(); render(); });
     sheet.querySelectorAll("[data-o]").forEach(b => b.addEventListener("click", () => {
       const ch = b.dataset.o; resolveOver(s, ch, ch==="cat" ? $("#o-cat", sheet).value : null);
-      closeSheet(); render(); toast(ch==="cat" ? "已向其他類別借用" : ch==="next" ? "已向下個月借用" : "已動用節省結餘");
+      closeSheet(); render(); toast(ch==="cat" ? "已向其他類別借用" : ch==="next" ? "已向下個月借用" : "已從已節省結餘補上");
     }));
   });
 }
@@ -705,7 +705,7 @@ function viewHome(){
     <div class="section"><div class="section-head"><h2>儲蓄</h2><button class="btn ghost small" data-tab="settings">設定</button></div>
       <div class="card setlist">
         <div class="setrow"><div class="k"><b>本期目標儲蓄</b><span>每月先存下來、不拿來花的錢</span></div><span class="num">${target ? money(target) : "未設定"}</span></div>
-        <div class="setrow"><div class="k"><b>節省結餘</b><span>${prevClose ? `上一期轉入 ${moneyShort(prevClose.total)}` : "每期結束後，沒用完的預算會轉進來"}</span></div><span class="num">${money(pool)}</span></div>
+        <div class="setrow"><div class="k"><b>已節省結餘</b><span>${prevClose ? `上一期轉入 ${moneyShort(prevClose.total)}` : "每期結束後，沒用完的預算會轉進來"}</span></div><span class="num">${money(pool)}</span></div>
       </div></div>
     <div class="section"><div class="section-head"><h2>最近紀錄</h2><button class="btn ghost small" data-tab="list">看全部</button></div>
       <div class="card txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到「設定」匯入 Google Sheet。</div>`}</div></div>`;
@@ -815,9 +815,8 @@ function viewSettings(){
       <ul class="issues"><li>類別 ${importPreview.cats.length} 個</li><li>固定收支 ${importPreview.recs.length} 筆</li><li>分期 ${importPreview.insts.length} 筆</li><li>交易 ${importPreview.txs.length} 筆（${esc(importPreview.sheets.join("、")||"無月表")}）</li></ul>
       ${importPreview.issues.length ? `<p style="margin:10px 0 4px;color:var(--warn)">需要注意 ${importPreview.issues.length} 項：</p><ul class="issues">${importPreview.issues.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`:""}
       <div class="rowbtns" style="margin-top:12px"><button class="btn" data-act="imp-cancel">取消</button><button class="btn primary" data-act="imp-go">確認匯入</button></div></div>` : "";
-  const start = s.savingsStart ? periodLabel(fromKey(s.savingsStart)).title : "本期";
   const limited = cats("expense").filter(c => c.monthlyLimit);
-  const poolChips = limited.length ? `<div class="chips" role="group" aria-label="轉入節省結餘的類別">${limited.map(c => `<button class="chip" data-pool="${esc(c.id)}" aria-pressed="${toPool(c)}">${esc(c.name)}</button>`).join("")}</div>`
+  const poolChips = limited.length ? `<div class="chips" role="group" aria-label="可以轉入已節省結餘的類別">${limited.map(c => `<button class="chip" data-pool="${esc(c.id)}" aria-pressed="${toPool(c)}">${esc(c.name)}</button>`).join("")}</div>`
     : `<span class="small muted">先幫類別設每月上限，才能選。</span>`;
   return `<div class="section"><h2>預算週期</h2><div class="card setlist">
       <div class="setrow"><div class="k"><b>月預算從哪天開始</b><span>例如設成發薪日；當月沒有這天就用月底</span></div><select id="set-cycle" aria-label="月預算起始日">${dayOpts}</select></div>
@@ -825,8 +824,8 @@ function viewSettings(){
     </div></div>
     <div class="section"><h2>儲蓄</h2><div class="card setlist">
       <div class="setrow"><div class="k"><b>每月目標儲蓄</b><span>首頁的「可支配」會先扣掉這筆</span></div><input class="inp num" id="set-target" inputmode="numeric" value="${s.savingsTarget||""}" placeholder="0" style="width:120px;text-align:right" aria-label="每月目標儲蓄"></div>
-      <div class="setrow"><div class="k"><b>節省結餘</b><span>從 ${start} 開始累積；整期沒有紀錄的不算</span></div><span class="num">${money(poolBalance())}</span></div>
-      <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>哪些類別沒用完的額度要轉入結餘</b><span>點選切換；只列出有設每月上限的類別</span></div>${poolChips}</div>
+      <div class="setrow"><div class="k"><b>已節省結餘</b><span>從開始記帳開始累積，儲蓄以外的小金庫</span></div><span class="num">${money(poolBalance())}</span></div>
+      <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>可以轉入已節省結餘的類別</b><span>只列出有設每月上限的類別</span></div>${poolChips}</div>
     </div></div>
     <div class="section"><h2>外觀</h2><div class="card setlist">
       <div class="setrow"><div class="k"><b>配色</b><span>深色模式會跟著手機設定</span></div><select id="set-palette" aria-label="配色">${Object.entries(PALETTES).map(([k,v]) => `<option value="${k}" ${(s.palette||"blush")===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
@@ -982,7 +981,7 @@ function openCategory(c){
     </div>
     ${ref ? `<p class="small muted" style="margin:0">依過去 ${ref.n} 個月的紀錄，一年約花 <b class="num">${money(ref.perYear)}</b>${ref.n<12?"（未滿 12 個月，僅供參考）":""}。</p>` : ""}
     <label class="toggle"><input type="checkbox" id="c-warn" ${c.warn?"checked":""}>快用完或超支時提醒我</label>
-    <label class="toggle"><input type="checkbox" id="c-pool" ${(c.toPool ?? !!c.warn)?"checked":""}>每期沒用完的額度轉入節省結餘（需設每月上限）</label>
+    <label class="toggle"><input type="checkbox" id="c-pool" ${(c.toPool ?? !!c.warn)?"checked":""}>每期沒用完的額度轉入已節省結餘（需設每月上限）</label>
     <label class="toggle"><input type="checkbox" id="c-arch" ${c.archived?"checked":""}>停用這個類別（舊紀錄保留）</label>
     <div class="rowbtns"><button class="btn primary" data-save>儲存</button></div>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", closeSheet);
