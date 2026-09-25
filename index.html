@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0B6E66">
+<meta name="theme-color" content="#463F3A">
 <meta name="description" content="幫自己控制衝動消費的記帳 App">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -32,6 +32,7 @@
   --income:#008C7E; --expense:#C27C12; --warn:#9A6408; --warn-soft:#F6E9CF;
   --stamp:#C0392B; --stamp-soft:#F8DEDA;
   --shadow:0 1px 2px rgba(24,41,58,.06),0 8px 24px rgba(24,41,58,.08);
+  --bar:var(--accent); --pos:var(--income); --fab-bg:var(--accent); --fab-ink:var(--accent-ink);
   --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --f-display:"LXGW WenKai TC","Noto Serif TC","Kaiti TC",serif;
   --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
@@ -52,6 +53,32 @@
   --line:#29393D; --accent:#3FB3A6; --accent-ink:#06201D; --accent-soft:#17383A;
   --income:#1FA396; --expense:#C98316; --warn:#E0A94A; --warn-soft:#3A2E17;
   --stamp:#EE7466; --stamp-soft:#3D1F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+}
+/* 奶茶配色：Taupe #463F3A · Grey Olive #8A817C · Silver #BCB8B1 · Parchment #F4F3EE · Powder Blush #E0AFA0 */
+:root[data-palette="blush"]{
+  --paper:#F4F3EE; --surface:#FFFFFF; --sunk:#ECE9E3; --ink:#463F3A; --muted:#6F6762; --faint:#8A817C;
+  --line:#DDD9D2; --accent:#463F3A; --accent-ink:#F4F3EE; --accent-soft:#F3E1DA;
+  --bar:#8A817C; --pos:#3D72A8; --income:#3D72A8; --expense:#C26A50; --warn:#8A6220; --warn-soft:#F2E6CF;
+  --stamp:#B0473A; --stamp-soft:#F6DED8; --fab-bg:#E0AFA0; --fab-ink:#463F3A;
+  --shadow:0 1px 2px rgba(70,63,58,.06),0 8px 24px rgba(70,63,58,.10);
+}
+@media (prefers-color-scheme:dark){
+  :root[data-palette="blush"]:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#1F1B18; --surface:#29241F; --sunk:#332D28; --ink:#F4F3EE; --muted:#BCB8B1; --faint:#8A817C;
+    --line:#3E3731; --accent:#E0AFA0; --accent-ink:#2A2420; --accent-soft:#45322C;
+    --bar:#BCB8B1; --pos:#8DB4DE; --income:#4C80B8; --expense:#C9735A; --warn:#DDAE5C; --warn-soft:#3D3120;
+    --stamp:#EE8C7A; --stamp-soft:#48261F; --fab-bg:#E0AFA0; --fab-ink:#2A2420;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-palette="blush"][data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#1F1B18; --surface:#29241F; --sunk:#332D28; --ink:#F4F3EE; --muted:#BCB8B1; --faint:#8A817C;
+  --line:#3E3731; --accent:#E0AFA0; --accent-ink:#2A2420; --accent-soft:#45322C;
+  --bar:#BCB8B1; --pos:#8DB4DE; --income:#4C80B8; --expense:#C9735A; --warn:#DDAE5C; --warn-soft:#3D3120;
+  --stamp:#EE8C7A; --stamp-soft:#48261F; --fab-bg:#E0AFA0; --fab-ink:#2A2420;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
 }
 *{box-sizing:border-box}
@@ -116,7 +143,7 @@ h2{font-family:var(--f-display);font-weight:700;font-size:18px;margin:0;text-wra
 .bud .l1{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
 .bud .l1 .n{font-weight:500;display:flex;gap:6px;align-items:center;min-width:0}
 .bar{height:8px;border-radius:4px;background:var(--sunk);overflow:hidden}
-.bar > i{display:block;height:100%;border-radius:4px;background:var(--accent);max-width:100%}
+.bar > i{display:block;height:100%;border-radius:4px;background:var(--bar);max-width:100%}
 .bar.warn > i{background:var(--warn)}
 .bar.over > i{background:var(--stamp)}
 .bud .l2{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
@@ -134,7 +161,7 @@ h2{font-family:var(--f-display);font-weight:700;font-size:18px;margin:0;text-wra
 .tx .mid b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tx .mid span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tx .amt{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-weight:500}
-.tx .amt.inc{color:var(--income)}
+.tx .amt.inc{color:var(--pos)}
 .empty{padding:22px 14px;text-align:center;color:var(--muted);font-size:14px}
 
 /* report */
@@ -186,7 +213,7 @@ nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:re
 nav.tabs button{background:none;border:0;padding:10px 0 12px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
 nav.tabs button b{font-family:var(--f-display);font-size:17px;font-weight:400;line-height:1}
 nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
-.fab{position:fixed;z-index:6;right:max(16px,calc(50% - 264px));bottom:calc(76px + env(safe-area-inset-bottom,0px));width:60px;height:60px;border-radius:18px;border:0;background:var(--accent);color:var(--accent-ink);font-size:30px;line-height:1;box-shadow:var(--shadow)}
+.fab{position:fixed;z-index:6;right:max(16px,calc(50% - 264px));bottom:calc(76px + env(safe-area-inset-bottom,0px));width:60px;height:60px;border-radius:18px;border:0;background:var(--fab-bg);color:var(--fab-ink);font-size:30px;line-height:1;box-shadow:var(--shadow)}
 
 /* sheet */
 .scrim{position:fixed;inset:0;background:rgba(10,20,24,.45);z-index:10;display:flex;align-items:flex-end;justify-content:center}
@@ -225,6 +252,8 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .optrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .optrow select{max-width:100%}
 .btn:disabled{opacity:.45;cursor:default}
+.btn,.setrow > .num{white-space:nowrap}
+.setrow > .num{flex-shrink:0}
 .sheet .hint + .hint{margin-top:-6px}
 .sheet table td,.sheet table th{font-size:13px}
 .catrow .small{justify-self:end}
@@ -266,7 +295,8 @@ const DEFAULT_CATS = [
   ["水電瓦斯","expense"],["手機網路","expense"],["醫療與健康","expense"],["訂閱","expense"],["其他支出","expense"],
   ["薪資","income"],["其他收入","income"]
 ].map(([name,type],i)=>({id:"d"+i,name,type,monthlyLimit:null,perTxLimit:null,dailyLimit:null,yearlyLimit:null,warn:false,archived:false,sort:i}));
-const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null };
+const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null, palette: "blush" };
+const PALETTES = { blush: { name: "奶茶", bar: "#463F3A" }, teal: { name: "存摺綠", bar: "#0B6E66" } };
 // collections stored one document per item
 const COLS = ["categories","recurring","runs","installments","adjustments","closings"];
 
@@ -436,6 +466,7 @@ function budgetOf(c, p, excludeId){
 }
 function dayUsed(c, date, excludeId){ return realTx().concat(Object.values(state.installments).flatMap(instPortions)).filter(t => t.categoryId===c.id && t.date===date && t.id!==excludeId).reduce((s,t)=>s+outAmt(t),0); }
 function yearUsed(c, y, excludeId){ const a = `${y}-01-01`, b = `${y}-12-31`; return allTx().filter(t => t.categoryId===c.id && t.date>=a && t.date<=b && t.id!==excludeId).reduce((s,t)=>s+outAmt(t),0); }
+const toPool = c => c.type==="expense" && !!c.monthlyLimit && (c.toPool ?? !!c.warn);
 function poolBalance(){
   const inTotal = Object.values(state.closings).reduce((s,c)=>s+(c.total||0),0);
   const used = Object.values(state.adjustments).filter(a => a.kind==="pool").reduce((s,a)=>s+a.amount,0);
@@ -464,7 +495,7 @@ function closePeriods(){
     if(!state.closings[k]){
       const perCat = {}; let total = 0;
       // a period with no records at all means the app wasn't used; don't count its whole budget as saved
-      if(txIn(p).length) cats("expense").forEach(c => { if(c.monthlyLimit && c.warn){ const s = Math.max(0, budgetOf(c, p).avail); if(s > 0){ perCat[c.id] = s; total += s; } } });
+      if(txIn(p).length) cats("expense").forEach(c => { if(toPool(c)){ const s = Math.max(0, budgetOf(c, p).avail); if(s > 0){ perCat[c.id] = s; total += s; } } });
       put.closing(k, { period: k, perCat, total, at: Date.now() }); changed = true;
     }
     p = shift(p, 1);
@@ -569,7 +600,13 @@ function renderTabs(){
   $("#tabs").innerHTML = TABS.map(([k,g,l]) => `<button data-tab="${k}" ${k===tab?'aria-current="page"':""}><b>${g}</b>${l}</button>`).join("");
 }
 
+function applyPalette(){
+  const k = PALETTES[state.settings.palette] ? state.settings.palette : "blush";
+  if(document.documentElement.dataset.palette !== k) document.documentElement.dataset.palette = k;
+  const meta = document.querySelector('meta[name="theme-color"]'); if(meta) meta.content = PALETTES[k].bar;
+}
 function render(){
+  applyPalette();
   renderTabs();
   const app = $("#app");
   const head = `<header class="top"><div class="brand">額度帳本</div><div class="sync${syncOn?" on":""}" id="sync"><i></i><span>${syncOn?"已同步":"只存在這個瀏覽器"}</span></div></header>`;
@@ -779,13 +816,20 @@ function viewSettings(){
       ${importPreview.issues.length ? `<p style="margin:10px 0 4px;color:var(--warn)">需要注意 ${importPreview.issues.length} 項：</p><ul class="issues">${importPreview.issues.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`:""}
       <div class="rowbtns" style="margin-top:12px"><button class="btn" data-act="imp-cancel">取消</button><button class="btn primary" data-act="imp-go">確認匯入</button></div></div>` : "";
   const start = s.savingsStart ? periodLabel(fromKey(s.savingsStart)).title : "本期";
+  const limited = cats("expense").filter(c => c.monthlyLimit);
+  const poolChips = limited.length ? `<div class="chips" role="group" aria-label="轉入節省結餘的類別">${limited.map(c => `<button class="chip" data-pool="${esc(c.id)}" aria-pressed="${toPool(c)}">${esc(c.name)}</button>`).join("")}</div>`
+    : `<span class="small muted">先幫類別設每月上限，才能選。</span>`;
   return `<div class="section"><h2>預算週期</h2><div class="card setlist">
       <div class="setrow"><div class="k"><b>月預算從哪天開始</b><span>例如設成發薪日；當月沒有這天就用月底</span></div><select id="set-cycle" aria-label="月預算起始日">${dayOpts}</select></div>
       <div class="setrow"><div class="k"><b>一週從哪天開始</b><span>影響首頁「本週支出」</span></div><select id="set-week" aria-label="週起始日"><option value="1" ${s.weekStart===1?"selected":""}>週一</option><option value="0" ${s.weekStart===0?"selected":""}>週日</option></select></div>
     </div></div>
     <div class="section"><h2>儲蓄</h2><div class="card setlist">
       <div class="setrow"><div class="k"><b>每月目標儲蓄</b><span>首頁的「可支配」會先扣掉這筆</span></div><input class="inp num" id="set-target" inputmode="numeric" value="${s.savingsTarget||""}" placeholder="0" style="width:120px;text-align:right" aria-label="每月目標儲蓄"></div>
-      <div class="setrow"><div class="k"><b>節省結餘</b><span>從 ${start} 開始累積；有開提醒的類別，每期沒用完的額度會轉進來（整期沒有紀錄的不算）</span></div><span class="num">${money(poolBalance())}</span></div>
+      <div class="setrow"><div class="k"><b>節省結餘</b><span>從 ${start} 開始累積；整期沒有紀錄的不算</span></div><span class="num">${money(poolBalance())}</span></div>
+      <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>哪些類別沒用完的額度要轉入結餘</b><span>點選切換；只列出有設每月上限的類別</span></div>${poolChips}</div>
+    </div></div>
+    <div class="section"><h2>外觀</h2><div class="card setlist">
+      <div class="setrow"><div class="k"><b>配色</b><span>深色模式會跟著手機設定</span></div><select id="set-palette" aria-label="配色">${Object.entries(PALETTES).map(([k,v]) => `<option value="${k}" ${(s.palette||"blush")===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
     </div></div>
     <div class="section"><div class="section-head"><h2>類別與預算</h2><button class="btn small" data-act="cat-new">新增類別</button></div><div class="card setlist">${catHtml}</div></div>
     <div class="section"><div class="section-head"><h2>固定收支</h2><button class="btn small" data-act="rec-new">新增</button></div><div class="card setlist">${recHtml}
@@ -937,14 +981,15 @@ function openCategory(c){
       ${lim("c-limit","每月上限",c.monthlyLimit)}${lim("c-year","每年上限",c.yearlyLimit)}
     </div>
     ${ref ? `<p class="small muted" style="margin:0">依過去 ${ref.n} 個月的紀錄，一年約花 <b class="num">${money(ref.perYear)}</b>${ref.n<12?"（未滿 12 個月，僅供參考）":""}。</p>` : ""}
-    <label class="toggle"><input type="checkbox" id="c-warn" ${c.warn?"checked":""}>快用完或超支時提醒我（沒用完的額度會轉進節省結餘）</label>
+    <label class="toggle"><input type="checkbox" id="c-warn" ${c.warn?"checked":""}>快用完或超支時提醒我</label>
+    <label class="toggle"><input type="checkbox" id="c-pool" ${(c.toPool ?? !!c.warn)?"checked":""}>每期沒用完的額度轉入節省結餘（需設每月上限）</label>
     <label class="toggle"><input type="checkbox" id="c-arch" ${c.archived?"checked":""}>停用這個類別（舊紀錄保留）</label>
     <div class="rowbtns"><button class="btn primary" data-save>儲存</button></div>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", closeSheet);
     $("[data-save]", sheet).addEventListener("click", () => {
       const name = $("#c-name", sheet).value.trim(); if(!name){ toast("請輸入類別名稱"); return; }
       Object.assign(c, { name, type: $("#c-type", sheet).value, perTxLimit: intOf($("#c-tx", sheet).value), dailyLimit: intOf($("#c-day", sheet).value),
-        monthlyLimit: intOf($("#c-limit", sheet).value), yearlyLimit: intOf($("#c-year", sheet).value), warn: $("#c-warn", sheet).checked, archived: $("#c-arch", sheet).checked });
+        monthlyLimit: intOf($("#c-limit", sheet).value), yearlyLimit: intOf($("#c-year", sheet).value), warn: $("#c-warn", sheet).checked, toPool: $("#c-pool", sheet).checked, archived: $("#c-arch", sheet).checked });
       put.cat(c); closeSheet(); render(); toast("已儲存");
     });
   });
@@ -1093,8 +1138,9 @@ function restoreBackup(obj){
 
 /* ---------- events ---------- */
 document.addEventListener("click", e => {
-  const el = e.target.closest("[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-inst],[data-over]");
+  const el = e.target.closest("[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-inst],[data-over],[data-pool]");
   if(!el || el.closest(".sheet")) return;
+  if(el.dataset.pool){ const c = state.categories[el.dataset.pool]; if(c){ put.cat({...c, toPool: !toPool(c)}); render(); } return; }
   if(el.dataset.tab){ tab = el.dataset.tab; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); return; }
   if(el.dataset.edit){ const t = findTx(el.dataset.edit); t && openEntry(t); return; }
   if(el.dataset.inst){ const i = state.installments[el.dataset.inst]; i && openInstallment(i); return; }
@@ -1125,6 +1171,7 @@ document.addEventListener("change", e => {
   const id = e.target.id;
   if(id==="set-cycle"){ state.settings.cycleStartDay = +e.target.value; put.settings(); viewPeriod = curPeriod(); render(); toast("已更新月預算週期"); }
   else if(id==="set-week"){ state.settings.weekStart = +e.target.value; put.settings(); render(); }
+  else if(id==="set-palette"){ state.settings.palette = e.target.value; put.settings(); render(); }
   else if(id==="set-target"){ state.settings.savingsTarget = intOf(e.target.value) || 0; put.settings(); render(); toast("已更新目標儲蓄"); }
   else if(id==="f-xlsx" && e.target.files[0]){
     const f = e.target.files[0];
