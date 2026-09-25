@@ -243,6 +243,11 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .rowbtns{display:flex;gap:8px}
 .rowbtns .btn{flex:1;padding:12px}
 .rowbtns + .rowbtns{margin-top:-6px}
+.choice{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:12px;padding:12px 12px 6px}
+.choice > b{padding-bottom:4px}
+.choice .opt{padding:12px 0}
+.choice .opt:first-of-type{border-top:0}
+.choice > .btn.ghost{align-self:center}
 .bud .l3{font-size:12px;color:var(--muted)}
 .bud .l3.bad{color:var(--stamp)}
 .instbox{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -908,13 +913,14 @@ function openEntry(existing, refundOf, prefill){
     : refundOf ? { id: uid(), date: todayStr(), type: "refund", categoryId: refundOf.categoryId, amount: refundOf.amount, title: `退款：${refundOf.title || catName(refundOf.categoryId)}`, note: "", refOf: refundOf.id }
     : prefill ? { id: uid(), date: todayStr(), type: prefill.type || "expense", categoryId: prefill.categoryId || null, amount: prefill.amount ?? null, title: prefill.title || "", note: prefill.note || "", favoriteId: prefill.favoriteId, wishId: prefill.wishId }
     : { id: uid(), date: todayStr(), type: "expense", categoryId: null, amount: null, title: "", note: "" };
-  let type = t.type, catId = t.categoryId, confirmDel = false, inst = false, n = 3;
+  let type = t.type, catId = t.categoryId, confirmDel = false, delMode = false, inst = false, n = 3;
   const draw = sheet => {
     const list = usageOrder(type === "refund" ? "expense" : type);
     if(catId && !isRefund && state.categories[catId]?.type !== type) catId = null;
     const heading = isRefund ? (existing ? "編輯退款" : "退貨／退款") : existing ? "編輯紀錄" : t.wishId ? "買了" : "記一筆";
     const favs = !existing && !isRefund && !t.wishId && !t.favoriteId ? favList().filter(favUsable) : [];
     const canSaveFav = !isRefund && !inst && !(t.favoriteId && state.favorites[t.favoriteId]);
+    const refundable = existing && existing.type==="expense";
     sheet.innerHTML = `<div class="hd"><h2>${heading}</h2><button class="btn ghost" data-x>關閉</button></div>
       ${favs.length ? `<div class="favbar" role="group" aria-label="常用">${favs.map(f => `<button class="chip fav" data-favq="${esc(f.id)}">${esc(f.name)}${f.amount ? ` <span class="num">${moneyShort(f.amount)}</span>` : ""}</button>`).join("")}</div>` : ""}
       ${isRefund ? `<div class="hint">退款會算回「${esc(catName(catId))}」，那一期的額度會還回來。</div>`
@@ -929,8 +935,13 @@ function openEntry(existing, refundOf, prefill){
         <label>摘要<input class="inp" id="e-title" value="${esc(t.title)}" placeholder="例如：午餐"></label>
         <label class="full">備註<input class="inp" id="e-note" value="${esc(t.note)}" placeholder="選填"></label>
       </div>
-      ${existing && (existing.type==="expense" || canSaveFav) ? `<div class="rowbtns">${existing.type==="expense" ? `<button class="btn" data-refund>退貨／退款</button>` : ""}${canSaveFav ? `<button class="btn" data-savefav>存成常用</button>` : ""}</div>` : ""}
-      <div class="rowbtns">${existing ? `<button class="btn danger" data-del>${confirmDel?"確定刪除":"刪除"}</button>`:""}${!existing && canSaveFav ? `<button class="btn" data-savefav>存成常用</button>` : ""}<button class="btn primary" data-save>儲存</button></div>`;
+      ${delMode ? `<div class="choice" role="group" aria-label="刪除或退款">
+        <b>這筆要怎麼處理？</b>
+        <div class="opt"><div class="k"><b>記錯了</b><span>整筆刪除，就像沒發生過；額度還回原本那一期</span></div><button class="btn danger" data-delreal>刪除這筆</button></div>
+        <div class="opt"><div class="k"><b>退貨退款</b><span>保留原紀錄，另記一筆退款；可填退回金額和日期，額度還到退款那一期</span></div><button class="btn" data-refund>記退款</button></div>
+        <button class="btn ghost" data-delcancel>取消</button></div>`
+      : `${existing && canSaveFav ? `<div class="rowbtns"><button class="btn" data-savefav>存成常用</button></div>` : ""}
+      <div class="rowbtns">${existing ? `<button class="btn danger" data-del>${refundable ? "刪除／退款" : confirmDel ? "確定刪除" : "刪除"}</button>`:""}${!existing && canSaveFav ? `<button class="btn" data-savefav>存成常用</button>` : ""}<button class="btn primary" data-save>儲存</button></div>`}`;
     const amt = $("#e-amt", sheet);
     const hint = () => {
       const v = intOf(amt.value) || 0; const c = state.categories[catId]; const box = $("#e-hint", sheet);
@@ -965,7 +976,13 @@ function openEntry(existing, refundOf, prefill){
     const nBox = $("#e-n", sheet); nBox && nBox.addEventListener("input", () => { nBox.value = nBox.value.replace(/\D/g,""); n = +nBox.value || 2; hint(); });
     $("[data-x]", sheet).addEventListener("click", closeSheet);
     const del = $("[data-del]", sheet);
-    del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } removeTx(existing, true); closeSheet(); render(); toast("已刪除"); });
+    del && del.addEventListener("click", () => {
+      if(refundable){ delMode = true; draw(sheet); return; }
+      if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; }
+      removeTx(existing, true); closeSheet(); render(); toast("已刪除");
+    });
+    const delReal = $("[data-delreal]", sheet); delReal && delReal.addEventListener("click", () => { removeTx(existing, true); closeSheet(); render(); toast("已刪除"); });
+    const delCancel = $("[data-delcancel]", sheet); delCancel && delCancel.addEventListener("click", () => { delMode = false; draw(sheet); });
     const ref = $("[data-refund]", sheet); ref && ref.addEventListener("click", () => openEntry(null, existing));
     sheet.querySelectorAll("[data-favq]").forEach(b => b.addEventListener("click", () => { const f = state.favorites[b.dataset.favq]; f && quickRecord(f); }));
     const sf = $("[data-savefav]", sheet);
@@ -977,7 +994,8 @@ function openEntry(existing, refundOf, prefill){
       const f = saveFavFrom({ type, categoryId: catId, amount: intOf(amt.value), title: $("#e-title", sheet).value, note: $("#e-note", sheet).value.trim() });
       toast(`已存成常用「${f.name}」${f.amount ? "" : "（金額每次輸入）"}`);
     });
-    $("[data-save]", sheet).addEventListener("click", () => {
+    const saveBtn = $("[data-save]", sheet);
+    saveBtn && saveBtn.addEventListener("click", () => {
       const v = intOf(amt.value); const date = $("#e-date", sheet).value;
       if(!v){ toast("請輸入金額"); amt.focus(); return; }
       if(!catId){ toast("請選一個類別"); return; }
