@@ -238,7 +238,8 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .fields input,.fields select,.field input,.field select{font-size:15px;color:var(--ink);width:100%;min-width:0}
 .fields > *{min-width:0}
 .toggle{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink)}
-.toggle input{width:18px;height:18px;accent-color:var(--accent)}
+.toggle input{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0}
+.toggle input:disabled + *,.toggle:has(input:disabled){color:var(--faint)}
 .rowbtns{display:flex;gap:8px}
 .rowbtns .btn{flex:1;padding:12px}
 .bud .l3{font-size:12px;color:var(--muted)}
@@ -970,7 +971,7 @@ function openInstallment(i){
 
 function openCategory(c){
   const isNew = !c; c = c ? {...c} : { id: uid(), name: "", type: "expense", monthlyLimit: null, perTxLimit: null, dailyLimit: null, yearlyLimit: null, warn: true, archived: false, sort: Object.keys(state.categories).length };
-  const ref = !isNew && c.type==="expense" ? yearlyRef(c) : null;
+  const ref0 = !isNew && c.type==="expense" ? yearlyRef(c) : null; const ref = ref0 && ref0.perYear > 0 ? ref0 : null;
   const lim = (id, label, v) => `<label>${label}<input class="inp num" id="${id}" inputmode="numeric" value="${v ?? ""}" placeholder="不設"></label>`;
   openSheet(`<div class="hd"><h2>${isNew?"新增類別":"編輯類別"}</h2><button class="btn ghost" data-x>關閉</button></div>
     <div class="fields">
@@ -981,14 +982,20 @@ function openCategory(c){
     </div>
     ${ref ? `<p class="small muted" style="margin:0">依過去 ${ref.n} 個月的紀錄，一年約花 <b class="num">${money(ref.perYear)}</b>${ref.n<12?"（未滿 12 個月，僅供參考）":""}。</p>` : ""}
     <label class="toggle"><input type="checkbox" id="c-warn" ${c.warn?"checked":""}>快用完或超支時提醒我</label>
-    <label class="toggle"><input type="checkbox" id="c-pool" ${(c.toPool ?? !!c.warn)?"checked":""}>每期沒用完的額度轉入已節省結餘（需設每月上限）</label>
+    <label class="toggle" id="c-pool-row"><input type="checkbox" id="c-pool" ${c.monthlyLimit && (c.toPool ?? !!c.warn)?"checked":""} ${c.monthlyLimit?"":"disabled"}>每期沒用完的額度轉入已節省結餘<span class="small muted" id="c-pool-note">${c.monthlyLimit?"":"（先設每月上限才能勾選）"}</span></label>
     <label class="toggle"><input type="checkbox" id="c-arch" ${c.archived?"checked":""}>停用這個類別（舊紀錄保留）</label>
     <div class="rowbtns"><button class="btn primary" data-save>儲存</button></div>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", closeSheet);
+    const pool = $("#c-pool", sheet), limitIn = $("#c-limit", sheet);
+    limitIn.addEventListener("input", () => {
+      const has = !!intOf(limitIn.value);
+      if(!has) pool.checked = false; else if(pool.disabled) pool.checked = c.toPool ?? !!$("#c-warn", sheet).checked;
+      pool.disabled = !has; $("#c-pool-note", sheet).textContent = has ? "" : "（先設每月上限才能勾選）";
+    });
     $("[data-save]", sheet).addEventListener("click", () => {
       const name = $("#c-name", sheet).value.trim(); if(!name){ toast("請輸入類別名稱"); return; }
       Object.assign(c, { name, type: $("#c-type", sheet).value, perTxLimit: intOf($("#c-tx", sheet).value), dailyLimit: intOf($("#c-day", sheet).value),
-        monthlyLimit: intOf($("#c-limit", sheet).value), yearlyLimit: intOf($("#c-year", sheet).value), warn: $("#c-warn", sheet).checked, toPool: $("#c-pool", sheet).checked, archived: $("#c-arch", sheet).checked });
+        monthlyLimit: intOf($("#c-limit", sheet).value), yearlyLimit: intOf($("#c-year", sheet).value), warn: $("#c-warn", sheet).checked, toPool: !!intOf($("#c-limit", sheet).value) && $("#c-pool", sheet).checked, archived: $("#c-arch", sheet).checked });
       put.cat(c); closeSheet(); render(); toast("已儲存");
     });
   });
