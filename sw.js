@@ -1,5 +1,5 @@
-// 改了 index.html 或其他檔案後，把版本號加 1，手機才會拿到新版。
-const VERSION = "v1";
+// Bump VERSION after changing any app file so installed copies pick up the new version.
+const VERSION = "v2";
 const CACHE = `quota-ledger-${VERSION}`;
 const APP_SHELL = [
   "./",
@@ -10,7 +10,7 @@ const APP_SHELL = [
   "./icons/apple-touch-icon.png",
   "./icons/icon.svg"
 ];
-// 外部元件另外快取；拿不到也不影響安裝
+// Third-party files are cached separately; failing to fetch them must not block install.
 const EXTRA = ["https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"];
 
 self.addEventListener("install", event => {
@@ -33,7 +33,7 @@ self.addEventListener("fetch", event => {
   const req = event.request;
   if (req.method !== "GET") return;
 
-  // 頁面：先上網拿最新版，離線時用快取
+  // Pages: network first so updates arrive, cached copy when offline.
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req)
@@ -43,7 +43,7 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // 其他檔案（圖示、字型、Excel 元件）：先用快取，背景更新
+  // Other files (icons, fonts, xlsx library): cache first, refresh in the background.
   event.respondWith(
     caches.match(req).then(cached => {
       const network = fetch(req)
