@@ -214,6 +214,20 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .toggle input{width:18px;height:18px;accent-color:var(--accent)}
 .rowbtns{display:flex;gap:8px}
 .rowbtns .btn{flex:1;padding:12px}
+.bud .l3{font-size:12px;color:var(--muted)}
+.bud .l3.bad{color:var(--stamp)}
+.instbox{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.opts{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-top:1px solid var(--line);flex-wrap:wrap}
+.opt:first-child{border-top:0}
+.opt .k{display:flex;flex-direction:column;min-width:0;flex:1 1 180px}
+.opt .k span{font-size:12px;color:var(--muted)}
+.optrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.optrow select{max-width:100%}
+.btn:disabled{opacity:.45;cursor:default}
+.sheet .hint + .hint{margin-top:-6px}
+.sheet table td,.sheet table th{font-size:13px}
+.catrow .small{justify-self:end}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:no-preference){
   .sheet{animation:up .22s ease-out}
@@ -243,6 +257,7 @@ const dim = (y,m) => new Date(y, m, 0).getDate(); // m: 1-12
 const money = n => "NT$ " + Math.round(n).toLocaleString("zh-TW");
 const moneyShort = n => Math.round(n).toLocaleString("zh-TW");
 const todayStr = () => ymd(new Date());
+const intOf = v => { const n = parseInt(String(v ?? "").replace(/\D/g,""), 10); return n > 0 ? n : null; };
 const WEEK = ["日","一","二","三","四","五","六"];
 
 /* ---------- state ---------- */
@@ -250,20 +265,26 @@ const DEFAULT_CATS = [
   ["一般用餐","expense"],["交通","expense"],["娛樂","expense"],["服飾","expense"],["日常用品","expense"],
   ["水電瓦斯","expense"],["手機網路","expense"],["醫療與健康","expense"],["訂閱","expense"],["其他支出","expense"],
   ["薪資","income"],["其他收入","income"]
-].map(([name,type],i)=>({id:"d"+i,name,type,monthlyLimit:null,warn:false,archived:false,sort:i}));
+].map(([name,type],i)=>({id:"d"+i,name,type,monthlyLimit:null,perTxLimit:null,dailyLimit:null,yearlyLimit:null,warn:false,archived:false,sort:i}));
+const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null };
+// collections stored one document per item
+const COLS = ["categories","recurring","runs","installments","adjustments","closings"];
 
-let state = {
-  categories: {}, recurring: {}, runs: {}, months: {},
-  settings: { weekStart: 1, cycleStartDay: 1 }
-};
+let state = { categories: {}, recurring: {}, runs: {}, installments: {}, adjustments: {}, closings: {}, months: {}, settings: {...DEFAULT_SETTINGS} };
 DEFAULT_CATS.forEach(c => state.categories[c.id] = c);
 let usingDefaults = true;
 
 const LS_KEY = "ledger.v1";
+const clone = o => JSON.parse(JSON.stringify(o));
+function normalize(s){
+  const out = { months: s.months || {}, settings: Object.assign({}, DEFAULT_SETTINGS, s.settings || {}) };
+  COLS.forEach(n => out[n] = s[n] || {});
+  return out;
+}
 function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
 function loadLocal(){
   try{ const raw = localStorage.getItem(LS_KEY); if(!raw) return false;
-    const s = JSON.parse(raw); if(s && s.categories){ state = Object.assign(state, s); usingDefaults = false; return true; } }catch(e){}
+    const s = JSON.parse(raw); if(s && s.categories){ state = normalize(s); usingDefaults = false; return true; } }catch(e){}
   return false;
 }
 
@@ -284,11 +305,18 @@ function persistSeedIfNeeded(){
   usingDefaults = false;
   Object.values(state.categories).forEach(c => write("categories/"+c.id, c));
 }
+function putDoc(col, id, v){ persistSeedIfNeeded(); state[col][id] = v; return write(col+"/"+id, v); }
+function delDoc(col, id){ delete state[col][id]; return write(col+"/"+id, null); }
 const put = {
-  cat: c => { persistSeedIfNeeded(); state.categories[c.id] = c; return write("categories/"+c.id, c); },
-  rec: r => { persistSeedIfNeeded(); state.recurring[r.id] = r; return write("recurring/"+r.id, r); },
-  recDel: id => { delete state.recurring[id]; return write("recurring/"+id, null); },
-  run: (key, v) => { state.runs[key] = v; return write("runs/"+key, v); },
+  cat: c => putDoc("categories", c.id, c),
+  rec: r => putDoc("recurring", r.id, r),
+  recDel: id => delDoc("recurring", id),
+  run: (key, v) => putDoc("runs", key, v),
+  inst: i => putDoc("installments", i.id, i),
+  instDel: id => delDoc("installments", id),
+  adj: a => putDoc("adjustments", a.id, a),
+  adjDel: id => delDoc("adjustments", id),
+  closing: (k, v) => putDoc("closings", k, v),
   month: ym => { persistSeedIfNeeded(); const items = state.months[ym] || []; return write("months/"+ym, items.length ? {items} : null); },
   settings: () => { persistSeedIfNeeded(); return write("meta/settings", state.settings); }
 };
@@ -296,41 +324,37 @@ const put = {
 async function connectDb(){
   let d = null;
   try{ d = window.claude && window.claude.use ? await window.claude.use("db") : null; }catch(e){ d = null; }
-  if(!d){ setSync(false); return; }
+  if(!d){ setSync(false); afterLoad(); return; }
   db = d;
-  const loaded = {categories:false,recurring:false,runs:false,months:false,meta:false};
-  const fresh = {categories:{},recurring:{},runs:{},months:{}};
+  const names = [...COLS, "months", "meta"]; const loaded = {}; const fresh = {};
   let first = true;
-  const onErr = () => setSync(false);
+  const applyFresh = () => {
+    COLS.forEach(n => { state[n] = clone(fresh[n] || {}); });
+    const m = {}; Object.entries(fresh.months || {}).forEach(([k,v]) => m[k] = (v.items||[]).map(x=>({...x}))); state.months = m;
+    if(fresh.meta && fresh.meta.settings) state.settings = Object.assign({}, DEFAULT_SETTINGS, fresh.meta.settings);
+    if(!Object.keys(state.categories).length) DEFAULT_CATS.forEach(c => state.categories[c.id] = c);
+  };
   const done = () => {
-    if(!Object.values(loaded).every(Boolean)) return;
+    if(!names.every(n => loaded[n])) return;
     if(first){
       first = false;
-      const empty = !Object.keys(fresh.categories).length && !Object.keys(fresh.months).length && !Object.keys(fresh.recurring).length;
+      const empty = ["categories","months","recurring","installments"].every(n => !Object.keys(fresh[n] || {}).length);
       if(empty){
         // nothing in the cloud yet: keep what this browser has and push it up if it's real data
-        if(!usingDefaults){ pushAll(); }
-        setSync(true); render(); return;
+        if(!usingDefaults) pushAll();
+        setSync(true); render(); afterLoad(); return;
       }
+      usingDefaults = false; applyFresh(); render(); saveLocal(); afterLoad(); return;
     }
-    usingDefaults = false;
-    render(); saveLocal();
+    applyFresh(); render(); saveLocal();
   };
-  const sub = (name, apply) => db.collection(name).onSnapshot(snap => {
-    const obj = {}; snap.docs.forEach(doc => { const v = doc.data(); if(v) obj[doc.id] = v; });
-    apply(obj); loaded[name] = true; setSync(true); done();
-  }, onErr);
-  sub("categories", o => { fresh.categories = o; if(Object.keys(o).length) state.categories = clone(o); });
-  sub("recurring", o => { fresh.recurring = o; if(!first || Object.keys(o).length) state.recurring = clone(o); });
-  sub("runs", o => { fresh.runs = o; if(!first || Object.keys(o).length) state.runs = clone(o); });
-  sub("months", o => { fresh.months = o; const m = {}; Object.entries(o).forEach(([k,v]) => m[k] = (v.items||[]).map(x=>({...x}))); if(!first || Object.keys(m).length) state.months = m; });
-  sub("meta", o => { if(o.settings) state.settings = Object.assign({weekStart:1,cycleStartDay:1}, o.settings); });
+  names.forEach(n => db.collection(n).onSnapshot(snap => {
+    const o = {}; snap.docs.forEach(doc => { const v = doc.data(); if(v) o[doc.id] = v; });
+    fresh[n] = o; loaded[n] = true; setSync(true); done();
+  }, () => setSync(false)));
 }
-const clone = o => JSON.parse(JSON.stringify(o));
 function pushAll(){
-  Object.values(state.categories).forEach(c => write("categories/"+c.id, c));
-  Object.values(state.recurring).forEach(r => write("recurring/"+r.id, r));
-  Object.entries(state.runs).forEach(([k,v]) => write("runs/"+k, v));
+  COLS.forEach(n => Object.entries(state[n]).forEach(([id,v]) => write(n+"/"+id, v)));
   Object.keys(state.months).forEach(ym => put.month(ym));
   write("meta/settings", state.settings);
 }
@@ -345,6 +369,9 @@ function periodOf(dateStr){
   return {y,m};
 }
 function shift(p, n){ let y = p.y, m = p.m + n; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return {y,m}; }
+const pkey = p => `${p.y}-${pad(p.m)}`;
+const fromKey = k => { const [y,m] = k.split("-").map(Number); return {y,m}; };
+const monthsBetween = (a,b) => (b.y-a.y)*12 + (b.m-a.m);
 function periodRange(p){
   const start = cycleStart(p.y,p.m); const nx = shift(p,1);
   const end = new Date(cycleStart(nx.y,nx.m)); end.setDate(end.getDate()-1);
@@ -352,26 +379,100 @@ function periodRange(p){
 }
 function periodLabel(p){
   const [a,b] = periodRange(p); const f = s => { const d = parseYmd(s); return `${d.getMonth()+1}/${d.getDate()}`; };
-  return { title: (state.settings.cycleStartDay||1) === 1 ? `${p.y} 年 ${p.m} 月` : `${p.y} 年 ${p.m} 月期`, range: `${f(a)}–${f(b)}` };
+  return { title: (state.settings.cycleStartDay||1) === 1 ? `${p.y} 年 ${p.m} 月` : `${p.y} 年 ${p.m} 月期`, short: `${p.m} 月期`, range: `${f(a)}–${f(b)}` };
 }
 const samePeriod = (a,b) => a.y===b.y && a.m===b.m;
+const curPeriod = () => periodOf(todayStr());
 
-/* ---------- data helpers ---------- */
-function allTx(){ return Object.values(state.months).flat(); }
+/* ---------- transactions ---------- */
+// Amount a transaction adds to its category's spending: refunds count against it.
+const outAmt = t => t.type==="expense" ? t.amount : t.type==="refund" ? -t.amount : 0;
+function realTx(){ return Object.values(state.months).flat(); }
+function instAmount(inst, k){ return k===0 ? inst.first : inst.per; }
+// Installment portions are generated, not stored: one per period, adjusted for early payoff or cancellation.
+function instPortions(inst){
+  const out = []; const start = fromKey(inst.startPeriod);
+  const endIdx = inst.status !== "active" && inst.endPeriod ? Math.max(0, monthsBetween(start, fromKey(inst.endPeriod))) : null;
+  for(let k=0; k<inst.n; k++){
+    let amt = instAmount(inst, k), note = "";
+    if(endIdx !== null && k > endIdx) break;
+    if(inst.status === "paidoff" && k === endIdx){ amt = 0; for(let j=k; j<inst.n; j++) amt += instAmount(inst, j); note = "提前還清"; }
+    const p = shift(start, k);
+    out.push({ id: `inst-${inst.id}-${k}`, date: k===0 ? inst.date : ymd(cycleStart(p.y,p.m)), type: "expense", categoryId: inst.categoryId, amount: amt,
+      title: `${inst.title}（分期 ${k+1}/${inst.n}）`, note, installmentId: inst.id, k, virtual: true, createdAt: inst.createdAt || 0 });
+  }
+  return out;
+}
+function allTx(){ return realTx().concat(Object.values(state.installments).flatMap(instPortions)); }
 function txIn(p){ const [a,b] = periodRange(p); return allTx().filter(t => t.date >= a && t.date <= b); }
 function cats(type){ return Object.values(state.categories).filter(c => !c.archived && (!type || c.type===type)).sort((a,b)=>(a.sort??0)-(b.sort??0)); }
 function catName(id){ return state.categories[id]?.name || "未分類"; }
-function sumBy(list, type){ return list.filter(t=>t.type===type).reduce((s,t)=>s+t.amount,0); }
-function spentIn(catId, p, excludeId){ return txIn(p).filter(t => t.categoryId===catId && t.type==="expense" && t.id!==excludeId).reduce((s,t)=>s+t.amount,0); }
+const sumIncome = l => l.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
+const sumOut = l => l.reduce((s,t)=>s+outAmt(t),0);
 function usageOrder(type){
   const since = new Date(); since.setDate(since.getDate()-90); const s = ymd(since);
-  const cnt = {}; allTx().forEach(t => { if(t.date>=s) cnt[t.categoryId] = (cnt[t.categoryId]||0)+1; });
+  const cnt = {}; realTx().forEach(t => { if(t.date>=s) cnt[t.categoryId] = (cnt[t.categoryId]||0)+1; });
   return cats(type).sort((a,b) => (cnt[b.id]||0)-(cnt[a.id]||0) || (a.sort??0)-(b.sort??0));
 }
 function addTx(t){ const ym = t.date.slice(0,7); (state.months[ym] ||= []).push(t); return put.month(ym); }
-function removeTx(t){ const ym = t.date.slice(0,7); state.months[ym] = (state.months[ym]||[]).filter(x => x.id!==t.id); return put.month(ym); }
-function findTx(id){ return allTx().find(t => t.id===id); }
+function removeTx(t, dropAdjustments){
+  const ym = t.date.slice(0,7); state.months[ym] = (state.months[ym]||[]).filter(x => x.id!==t.id);
+  if(dropAdjustments) dropAdjFor(t.id);
+  return put.month(ym);
+}
+function dropAdjFor(id){ Object.values(state.adjustments).filter(a => a.txId===id).forEach(a => put.adjDel(a.id)); }
+function findTx(id){ return realTx().find(t => t.id===id); }
 
+/* ---------- budgets ---------- */
+// cap = monthly limit + borrowed in; used = actual + installment portions + occupied (lent out or borrowed by an earlier period)
+function budgetOf(c, p, excludeId){
+  const list = txIn(p).filter(t => t.categoryId===c.id && t.id!==excludeId);
+  const actual = list.filter(t => !t.virtual).reduce((s,t)=>s+outAmt(t),0);
+  const inst = list.filter(t => t.virtual).reduce((s,t)=>s+t.amount,0);
+  const k = pkey(p); let received = 0, occupied = 0;
+  Object.values(state.adjustments).forEach(a => { if(a.categoryId===c.id && a.period===k){ if(a.amount>0) received += a.amount; else occupied -= a.amount; } });
+  const limit = c.monthlyLimit || 0; const cap = limit + received; const used = actual + inst + occupied;
+  return { limit, received, actual, inst, occupied, cap, used, avail: cap - used };
+}
+function dayUsed(c, date, excludeId){ return realTx().concat(Object.values(state.installments).flatMap(instPortions)).filter(t => t.categoryId===c.id && t.date===date && t.id!==excludeId).reduce((s,t)=>s+outAmt(t),0); }
+function yearUsed(c, y, excludeId){ const a = `${y}-01-01`, b = `${y}-12-31`; return allTx().filter(t => t.categoryId===c.id && t.date>=a && t.date<=b && t.id!==excludeId).reduce((s,t)=>s+outAmt(t),0); }
+function poolBalance(){
+  const inTotal = Object.values(state.closings).reduce((s,c)=>s+(c.total||0),0);
+  const used = Object.values(state.adjustments).filter(a => a.kind==="pool").reduce((s,a)=>s+a.amount,0);
+  return inTotal - used;
+}
+function recordedMonths(){
+  const dates = realTx().map(t=>t.date).filter(d => d <= todayStr()).sort();
+  if(!dates.length) return 0;
+  return monthsBetween(periodOf(dates[0]), curPeriod()) + 1;
+}
+function yearlyRef(c){
+  const n = recordedMonths(); if(!n) return null;
+  const total = allTx().filter(t => t.categoryId===c.id && t.date <= todayStr()).reduce((s,t)=>s+outAmt(t),0);
+  return { n, perYear: total / n * 12 };
+}
+
+/* ---------- period closing: unused budget moves into savings ---------- */
+let loadedOnce = false;
+function afterLoad(){ if(loadedOnce) return; loadedOnce = true; closePeriods(); }
+function closePeriods(){
+  const ck = pkey(curPeriod());
+  if(!state.settings.savingsStart){ state.settings.savingsStart = ck; put.settings(); return; }
+  let p = fromKey(state.settings.savingsStart), guard = 0, changed = false;
+  while(pkey(p) < ck && guard++ < 60){
+    const k = pkey(p);
+    if(!state.closings[k]){
+      const perCat = {}; let total = 0;
+      // a period with no records at all means the app wasn't used; don't count its whole budget as saved
+      if(txIn(p).length) cats("expense").forEach(c => { if(c.monthlyLimit && c.warn){ const s = Math.max(0, budgetOf(c, p).avail); if(s > 0){ perCat[c.id] = s; total += s; } } });
+      put.closing(k, { period: k, perCat, total, at: Date.now() }); changed = true;
+    }
+    p = shift(p, 1);
+  }
+  if(changed) render();
+}
+
+/* ---------- recurring ---------- */
 function pendingRecurring(){
   const out = []; const today = todayStr(); const now = new Date();
   const curYm = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
@@ -389,11 +490,74 @@ function pendingRecurring(){
   return out.sort((a,b)=>a.due.localeCompare(b.due));
 }
 
+/* ---------- overspend ---------- */
+// subject: {kind:"tx"|"inst", id, categoryId, date, title}
+function subjectOf(kind, id){
+  if(kind==="tx"){ const t = findTx(id); return t && { kind, id, categoryId: t.categoryId, date: t.date, title: t.title || catName(t.categoryId), amount: t.amount }; }
+  const i = state.installments[id]; return i && { kind, id, categoryId: i.categoryId, date: i.date, title: i.title, amount: i.total };
+}
+function overOf(s){ const c = state.categories[s.categoryId]; if(!c || !c.monthlyLimit) return 0; return Math.max(0, -budgetOf(c, periodOf(s.date)).avail); }
+function setPending(s, on){
+  if(s.kind==="tx"){ const t = findTx(s.id); if(!t) return; const ym = t.date.slice(0,7);
+    state.months[ym] = state.months[ym].map(x => x.id===t.id ? {...x, pendingOverspend: on || undefined} : x); put.month(ym); }
+  else { const i = state.installments[s.id]; if(i) put.inst({...i, pendingOverspend: on || undefined}); }
+}
+function pendingOverspends(){
+  const list = realTx().filter(t => t.pendingOverspend).map(t => subjectOf("tx", t.id));
+  Object.values(state.installments).filter(i => i.pendingOverspend).forEach(i => list.push(subjectOf("inst", i.id)));
+  return list.filter(Boolean);
+}
+function resolveOver(s, choice, fromId){
+  const c = state.categories[s.categoryId]; const p = periodOf(s.date); const k = pkey(p);
+  const over = overOf(s); const base = { txId: s.id, at: Date.now() };
+  if(over > 0){
+    if(choice==="cat"){
+      put.adj({ ...base, id: uid(), period: k, categoryId: c.id, amount: over, kind: "borrow-cat", peer: fromId });
+      put.adj({ ...base, id: uid(), period: k, categoryId: fromId, amount: -over, kind: "borrow-cat", peer: c.id });
+    } else if(choice==="next"){
+      put.adj({ ...base, id: uid(), period: k, categoryId: c.id, amount: over, kind: "borrow-next" });
+      put.adj({ ...base, id: uid(), period: pkey(shift(p,1)), categoryId: c.id, amount: -over, kind: "borrow-next" });
+    } else if(choice==="pool"){
+      put.adj({ ...base, id: uid(), period: k, categoryId: c.id, amount: over, kind: "pool" });
+    }
+  }
+  setPending(s, false);
+}
+function openOverspend(s){
+  const c = state.categories[s.categoryId]; const p = periodOf(s.date); const L = periodLabel(p);
+  const over = overOf(s);
+  if(!over){ setPending(s, false); render(); toast("已經沒有超支了"); return; }
+  const lenders = cats("expense").filter(x => x.id!==c.id && x.monthlyLimit).map(x => ({x, left: budgetOf(x, p).avail})).filter(o => o.left >= over).sort((a,b)=>b.left-a.left);
+  const next = shift(p,1); const nb = budgetOf(c, next); const pool = poolBalance();
+  openSheet(`<div class="hd"><h2>超出預算了</h2><button class="btn ghost" data-x>稍後處理</button></div>
+    <div class="hint over">${s.title && s.title!==c.name ? `「${esc(s.title)}」` : "這筆支出"}讓${esc(c.name)}在 ${L.title} 超出 <b class="num">${money(over)}</b>。這筆錢要從哪裡補？</div>
+    <div class="opts">
+      <div class="opt"><div class="k"><b>跟其他類別借</b><span>本期那個類別的額度會少 ${moneyShort(over)}</span></div>
+        ${lenders.length ? `<div class="optrow"><select id="o-cat" aria-label="借用的類別">${lenders.map(o=>`<option value="${esc(o.x.id)}">${esc(o.x.name)}（還剩 ${moneyShort(o.left)}）</option>`).join("")}</select><button class="btn" data-o="cat">借這個</button></div>`
+          : `<span class="small muted">沒有類別還剩 ${moneyShort(over)} 以上</span>`}</div>
+      <div class="opt"><div class="k"><b>跟下個月借</b><span>${esc(c.name)}在 ${next.m} 月期${nb.avail - over >= 0 ? `會剩 ${moneyShort(nb.avail - over)}` : `會超出 ${moneyShort(over - nb.avail)}`}</span></div><button class="btn" data-o="next">借下個月</button></div>
+      <div class="opt"><div class="k"><b>動用節省結餘</b><span>目前結餘 ${moneyShort(pool)}${pool>=over?`，動用後剩 ${moneyShort(pool-over)}`:"，不夠補這筆"}</span></div><button class="btn" data-o="pool" ${pool>=over?"":"disabled"}>動用結餘</button></div>
+    </div>
+    <p class="small muted" style="margin:0">先不決定的話，這筆會留在首頁「待處理的超支」。</p>`, sheet => {
+    $("[data-x]", sheet).addEventListener("click", () => { closeSheet(); render(); });
+    sheet.querySelectorAll("[data-o]").forEach(b => b.addEventListener("click", () => {
+      const ch = b.dataset.o; resolveOver(s, ch, ch==="cat" ? $("#o-cat", sheet).value : null);
+      closeSheet(); render(); toast(ch==="cat" ? "已向其他類別借用" : ch==="next" ? "已向下個月借用" : "已動用節省結餘");
+    }));
+  });
+}
+function checkOverspend(s){
+  const c = state.categories[s.categoryId];
+  if(!c || c.type!=="expense" || !c.monthlyLimit || !c.warn) return false;
+  if(!overOf(s)) return false;
+  setPending(s, true); openOverspend(s); return true;
+}
+
 /* ---------- UI state ---------- */
 const TABS = [["home","首","首頁"],["list","明","明細"],["report","報","報表"],["settings","設","設定"]];
 let tab = "home";
 try{ const t = localStorage.getItem("ledger.tab"); if(TABS.some(x=>x[0]===t)) tab = t; }catch(e){}
-let viewPeriod = periodOf(todayStr());
+let viewPeriod = curPeriod();
 let importPreview = null;
 
 function toast(msg){
@@ -415,10 +579,10 @@ function render(){
 }
 
 function periodNav(){
-  const L = periodLabel(viewPeriod); const cur = periodOf(todayStr());
+  const L = periodLabel(viewPeriod);
   return `<div class="period"><button class="iconbtn" data-act="prev" aria-label="上一期">‹</button>
     <div class="t"><b>${L.title}</b><span class="num">${L.range}</span></div>
-    <button class="iconbtn" data-act="next" aria-label="下一期" ${samePeriod(viewPeriod,cur)?"disabled":""}>›</button></div>`;
+    <button class="iconbtn" data-act="next" aria-label="下一期">›</button></div>`;
 }
 
 function txRows(list, withDays){
@@ -428,79 +592,114 @@ function txRows(list, withDays){
   sorted.forEach(t => {
     if(withDays && t.date !== lastDay){
       lastDay = t.date; const d = parseYmd(t.date);
-      const dayOut = sorted.filter(x=>x.date===t.date && x.type==="expense").reduce((s,x)=>s+x.amount,0);
+      const dayOut = sumOut(sorted.filter(x=>x.date===t.date));
       html += `<div class="daygrp"><span>${d.getMonth()+1} 月 ${d.getDate()} 日（${WEEK[d.getDay()]}）</span><span class="num">支出 ${moneyShort(dayOut)}</span></div>`;
     }
-    const inc = t.type==="income"; const cn = catName(t.categoryId);
-    const sub = withDays ? cn + (t.note ? " · " + t.note : "") : `${t.date.slice(5).replace("-","/")} · ${cn}`;
-    html += `<button class="tx" data-edit="${esc(t.id)}"><span class="dot${inc?" inc":""}">${esc(cn.slice(0,1))}</span>
+    const plus = t.type==="income" || t.type==="refund"; const cn = catName(t.categoryId);
+    const kind = t.virtual ? "分期" : t.type==="refund" ? "退款" : "";
+    const extra = [kind, t.pendingOverspend ? "超支待處理" : "", t.note].filter(Boolean).join(" · ");
+    const sub = withDays ? [cn, extra].filter(Boolean).join(" · ") : [`${t.date.slice(5).replace("-","/")}`, cn, kind].filter(Boolean).join(" · ");
+    const attr = t.virtual ? `data-inst="${esc(t.installmentId)}"` : `data-edit="${esc(t.id)}"`;
+    html += `<button class="tx" ${attr}><span class="dot${plus?" inc":""}">${esc(cn.slice(0,1))}</span>
       <span class="mid"><b>${esc(t.title || cn)}</b><span>${esc(sub)}</span></span>
-      <span class="amt${inc?" inc":""}">${inc?"+":"−"}${moneyShort(t.amount)}</span></button>`;
+      <span class="amt${plus?" inc":""}">${plus?"+":"−"}${moneyShort(t.amount)}</span></button>`;
   });
   return html;
 }
 
 function budgetRows(p){
-  const list = cats("expense").filter(c => c.monthlyLimit);
-  if(!list.length) return `<div class="empty">還沒有設定預算。到「設定 → 類別與預算」幫想控制的類別設每月上限。</div>`;
+  const list = cats("expense").filter(c => c.monthlyLimit || c.yearlyLimit);
+  if(!list.length) return `<div class="empty">還沒有設定預算。到「設定 → 類別與預算」幫想控制的類別設上限。</div>`;
   return list.map(c => {
-    const spent = spentIn(c.id, p); const pct = spent / c.monthlyLimit; const left = c.monthlyLimit - spent;
-    const cls = pct > 1 ? "over" : pct >= .8 ? "warn" : "";
-    const tag = !c.warn ? `<span class="tag">不提醒</span>` : pct > 1 ? `<span class="stamp">超支</span>` : pct >= .8 ? `<span class="tag warn">快用完</span>` : "";
-    return `<div class="bud">
-      <div class="l1"><span class="n">${esc(c.name)} ${tag}</span><span class="num small">${moneyShort(spent)} / ${moneyShort(c.monthlyLimit)}</span></div>
-      <div class="bar ${cls}" role="progressbar" aria-valuemin="0" aria-valuemax="${c.monthlyLimit}" aria-valuenow="${spent}" aria-label="${esc(c.name)} 已用 ${Math.round(pct*100)}%"><i style="width:${Math.min(100,pct*100)}%"></i></div>
-      <div class="l2"><span>已用 ${Math.round(pct*100)}%</span><span class="num">${left>=0?"還剩 "+moneyShort(left):"超出 "+moneyShort(-left)}</span></div></div>`;
+    let html = `<div class="bud">`;
+    if(c.monthlyLimit){
+      const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1;
+      const cls = pct > 1 ? "over" : pct >= .8 ? "warn" : "";
+      const tag = !c.warn ? `<span class="tag">不提醒</span>` : pct > 1 ? `<span class="stamp">超支</span>` : pct >= .8 ? `<span class="tag warn">快用完</span>` : "";
+      const parts = [];
+      if(b.inst || b.occupied || b.received){
+        parts.push(`實際 ${moneyShort(b.actual)}`);
+        if(b.inst) parts.push(`分期 ${moneyShort(b.inst)}`);
+        if(b.occupied) parts.push(`被占用 ${moneyShort(b.occupied)}`);
+        if(b.received) parts.push(`借入 ${moneyShort(b.received)}`);
+      }
+      html += `<div class="l1"><span class="n">${esc(c.name)} ${tag}</span><span class="num small">${moneyShort(b.used)} / ${moneyShort(b.cap)}</span></div>
+        <div class="bar ${cls}" role="progressbar" aria-valuemin="0" aria-valuemax="${b.cap}" aria-valuenow="${b.used}" aria-label="${esc(c.name)} 已用 ${Math.round(pct*100)}%"><i style="width:${Math.min(100,pct*100)}%"></i></div>
+        <div class="l2"><span>已用 ${Math.round(pct*100)}%</span><span class="num">${b.avail>=0?"還剩 "+moneyShort(b.avail):"超出 "+moneyShort(-b.avail)}</span></div>
+        ${parts.length ? `<div class="l3 num">${parts.join(" · ")}</div>` : ""}`;
+    } else {
+      html += `<div class="l1"><span class="n">${esc(c.name)}</span><span class="small muted">沒有每月上限</span></div>`;
+    }
+    if(c.yearlyLimit){
+      const yu = yearUsed(c, p.y); const over = yu > c.yearlyLimit;
+      html += `<div class="l3 num${over?" bad":""}">${p.y} 年 ${moneyShort(yu)} / ${moneyShort(c.yearlyLimit)}${over?"（超過年度上限）":""}</div>`;
+    }
+    return html + `</div>`;
   }).join("");
 }
 
 function viewHome(){
-  const p = periodOf(todayStr()); const list = txIn(p);
-  const inc = sumBy(list,"income"), out = sumBy(list,"expense"), bal = inc - out;
+  const p = curPeriod(); const list = txIn(p);
+  const inc = sumIncome(list), out = sumOut(list), target = state.settings.savingsTarget || 0, free = inc - out - target;
   const L = periodLabel(p);
-  // this week
   const now = new Date(); const ws = state.settings.weekStart ?? 1;
   const back = (now.getDay() - ws + 7) % 7; const wStart = new Date(now); wStart.setDate(now.getDate()-back);
-  const wOut = allTx().filter(t => t.type==="expense" && t.date >= ymd(wStart) && t.date <= todayStr()).reduce((s,t)=>s+t.amount,0);
+  const wOut = sumOut(allTx().filter(t => t.date >= ymd(wStart) && t.date <= todayStr()));
   const pend = pendingRecurring();
   const pendHtml = pend.length ? `<div class="section"><div class="section-head"><h2>待確認的固定收支</h2><span class="label">${pend.length} 筆</span></div>
     <div class="card pending">${pend.map(x => `<div class="row"><div class="meta"><b>${esc(x.r.title)}</b><span class="small muted">${x.due.slice(5).replace("-","/")} · ${esc(catName(x.r.categoryId))} · ${x.r.type==="income"?"收入":"支出"}</span></div>
       <input class="amtin" id="pa-${esc(x.key)}" inputmode="numeric" value="${x.r.amount}" aria-label="${esc(x.r.title)} 金額">
       <div class="acts"><button class="btn primary" data-confirm="${esc(x.key)}">確認</button><button class="btn ghost" data-skip="${esc(x.key)}">這個月略過</button></div></div>`).join("")}</div></div>` : "";
-  const recent = allTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,10);
+  const overs = pendingOverspends();
+  const overHtml = overs.length ? `<div class="section"><div class="section-head"><h2>待處理的超支</h2><span class="label">${overs.length} 筆</span></div>
+    <div class="card pending">${overs.map(s => `<div class="row"><div class="meta"><b>${esc(s.title)}</b><span class="small muted">${s.date.slice(5).replace("-","/")} · ${esc(catName(s.categoryId))} · 超出 ${moneyShort(overOf(s))}</span></div>
+      <button class="btn" data-over="${s.kind}:${esc(s.id)}">處理</button></div>`).join("")}</div></div>` : "";
+  const pool = poolBalance(); const prevClose = state.closings[pkey(shift(p,-1))];
+  const recent = realTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,10);
   return `<div class="period" style="justify-content:flex-start;gap:10px"><div class="t" style="align-items:flex-start"><b>${L.title}</b><span class="num">${L.range}</span></div></div>
     <div class="card passbook">
       <div><span class="label">支出</span><span class="v">${moneyShort(out)}</span></div>
       <div><span class="label">收入</span><span class="v">${moneyShort(inc)}</span></div>
-      <div><span class="label">結餘</span><span class="v${bal<0?" neg":""}">${bal<0?"−":""}${moneyShort(Math.abs(bal))}</span></div>
+      <div><span class="label">${target?"可支配":"結餘"}</span><span class="v${free<0?" neg":""}">${free<0?"−":""}${moneyShort(Math.abs(free))}</span></div>
     </div>
-    <div class="weekline"><span>本週（週${WEEK[ws]}起）支出 <b class="num">${money(wOut)}</b></span><span>金額單位：新台幣</span></div>
-    ${pendHtml}
+    <div class="weekline"><span>本週（週${WEEK[ws]}起）支出 <b class="num">${money(wOut)}</b></span><span>${target?`已扣目標儲蓄 ${moneyShort(target)}`:"金額單位：新台幣"}</span></div>
+    ${pendHtml}${overHtml}
     <div class="section"><div class="section-head"><h2>預算進度</h2><span class="label">本期</span></div><div class="card budgets">${budgetRows(p)}</div></div>
+    <div class="section"><div class="section-head"><h2>儲蓄</h2><button class="btn ghost small" data-tab="settings">設定</button></div>
+      <div class="card setlist">
+        <div class="setrow"><div class="k"><b>本期目標儲蓄</b><span>每月先存下來、不拿來花的錢</span></div><span class="num">${target ? money(target) : "未設定"}</span></div>
+        <div class="setrow"><div class="k"><b>節省結餘</b><span>${prevClose ? `上一期轉入 ${moneyShort(prevClose.total)}` : "每期結束後，沒用完的預算會轉進來"}</span></div><span class="num">${money(pool)}</span></div>
+      </div></div>
     <div class="section"><div class="section-head"><h2>最近紀錄</h2><button class="btn ghost small" data-tab="list">看全部</button></div>
       <div class="card txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到「設定」匯入 Google Sheet。</div>`}</div></div>`;
 }
 
 function viewList(){
   const list = txIn(viewPeriod);
-  const inc = sumBy(list,"income"), out = sumBy(list,"expense");
-  return periodNav() + `<div class="weekline"><span>支出 <b class="num">${money(out)}</b></span><span>收入 <b class="num">${money(inc)}</b></span></div>
+  return periodNav() + `<div class="weekline"><span>支出 <b class="num">${money(sumOut(list))}</b></span><span>收入 <b class="num">${money(sumIncome(list))}</b></span></div>
     <div class="section"><div class="card txlist">${txRows(list,true)}</div></div>`;
 }
 
 function viewReport(){
-  const list = txIn(viewPeriod); const out = sumBy(list,"expense");
-  const byCat = {}; list.filter(t=>t.type==="expense").forEach(t => byCat[t.categoryId] = (byCat[t.categoryId]||0)+t.amount);
-  const rows = Object.entries(byCat).sort((a,b)=>b[1]-a[1]); const max = rows[0]?.[1] || 1;
-  const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<div class="r"><span class="nm">${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${Math.round(v/out*100)}%</small></span></div>`).join("")}</div>`
+  const list = txIn(viewPeriod); const out = sumOut(list);
+  const byCat = {}; list.forEach(t => { const v = outAmt(t); if(v) byCat[t.categoryId] = (byCat[t.categoryId]||0)+v; });
+  const rows = Object.entries(byCat).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]); const max = rows[0]?.[1] || 1;
+  const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<div class="r"><span class="nm">${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${out>0?Math.round(v/out*100):0}%</small></span></div>`).join("")}</div>`
     : `<div class="empty">這一期沒有支出。</div>`;
+  const n = recordedMonths();
+  const refs = cats("expense").map(c => ({c, r: yearlyRef(c)})).filter(o => o.r && o.r.perYear > 0).sort((a,b)=>b.r.perYear-a.r.perYear);
+  const refHtml = refs.length ? `<div class="tblwrap" style="padding:0 14px 14px"><table><thead><tr><th>類別</th><th>一年約</th><th>年度上限</th></tr></thead><tbody>
+      ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.perYear)}</td><td>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) : "—"}</td></tr>`).join("")}</tbody></table></div>`
+    : `<div class="empty">還沒有足夠的紀錄。</div>`;
   return periodNav() + `<div class="section"><div class="section-head"><h2>支出分類排行</h2><span class="label num">合計 ${money(out)}</span></div><div class="card">${rank}</div></div>
     <div class="section"><div class="section-head"><h2>近 6 期收支</h2><span class="label">到 ${periodLabel(viewPeriod).title}</span></div>
-      <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>`;
+      <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>
+    <div class="section"><div class="section-head"><h2>年度參考值</h2><span class="label">已記錄 ${n} 個月</span></div>
+      <div class="card"><p class="note" style="border-top:0;margin:0">依過去紀錄的每月平均推算一年的花費${n && n<12 ? `。目前紀錄未滿 12 個月，僅供參考` : ""}。</p>${refHtml}</div></div>`;
 }
 
 function trendData(){
-  const out = []; for(let i=5;i>=0;i--){ const p = shift(viewPeriod,-i); const l = txIn(p); out.push({p, inc: sumBy(l,"income"), exp: sumBy(l,"expense")}); }
+  const out = []; for(let i=5;i>=0;i--){ const p = shift(viewPeriod,-i); const l = txIn(p); out.push({p, inc: sumIncome(l), exp: sumOut(l)}); }
   return out;
 }
 function niceMax(v){ if(v<=0) return 1000; const e = Math.pow(10, Math.floor(Math.log10(v))); const f = v/e; return (f<=1?1:f<=2?2:f<=5?5:10)*e; }
@@ -534,8 +733,7 @@ function wireChart(){
     box.querySelectorAll(".col").forEach(x=>x.classList.toggle("hover", x===g));
     const d = data[+g.dataset.i]; const r = g.getBoundingClientRect(), br = box.getBoundingClientRect();
     if(!tip){ tip = document.createElement("div"); tip.className = "tip"; box.appendChild(tip); }
-    const L = periodLabel(d.p);
-    tip.innerHTML = `${L.title}<span class="num">收入 ${moneyShort(d.inc)}</span><span class="num">支出 ${moneyShort(d.exp)}</span>`;
+    tip.innerHTML = `${periodLabel(d.p).title}<span class="num">收入 ${moneyShort(d.inc)}</span><span class="num">支出 ${moneyShort(d.exp)}</span>`;
     const x = Math.max(70, Math.min(br.width-70, r.left - br.left + r.width/2));
     tip.style.left = x+"px"; tip.style.top = (r.top - br.top + 8)+"px";
   };
@@ -544,30 +742,55 @@ function wireChart(){
   svg.addEventListener("pointerleave", hide);
 }
 
+function limitsText(c){
+  const parts = [];
+  if(c.perTxLimit) parts.push(`每筆 ${moneyShort(c.perTxLimit)}`);
+  if(c.dailyLimit) parts.push(`單日 ${moneyShort(c.dailyLimit)}`);
+  if(c.monthlyLimit) parts.push(`每月 ${moneyShort(c.monthlyLimit)}`);
+  if(c.yearlyLimit) parts.push(`每年 ${moneyShort(c.yearlyLimit)}`);
+  return parts.length ? parts.join(" · ") : "不設上限";
+}
+function instStatus(i){
+  if(i.status==="paidoff") return "已提前還清";
+  if(i.status==="cancelled") return "已取消";
+  const done = Math.min(i.n, monthsBetween(fromKey(i.startPeriod), curPeriod()) + 1);
+  return done >= i.n ? "已繳完" : `第 ${Math.max(1,done)}/${i.n} 期`;
+}
 function viewSettings(){
   const s = state.settings;
   const dayOpts = Array.from({length:31},(_,i)=>`<option value="${i+1}" ${s.cycleStartDay===i+1?"selected":""}>每月 ${i+1} 日</option>`).join("");
   const allCats = Object.values(state.categories).sort((a,b)=>(a.type===b.type?0:a.type==="expense"?-1:1) || (a.sort??0)-(b.sort??0));
   const catHtml = allCats.map(c => `<button class="catrow${c.archived?" arch":""}" data-cat="${esc(c.id)}">
-      <b>${esc(c.name)}</b><span class="num small">${c.type==="expense" ? (c.monthlyLimit ? "上限 "+moneyShort(c.monthlyLimit) : "不設上限") : ""}</span>
-      <span class="sub">${c.type==="income"?"收入":"支出"}${c.type==="expense"?" · "+(c.warn?"超支提醒開":"不提醒"):""}${c.archived?" · 已停用":""}</span></button>`).join("");
+      <b>${esc(c.name)}</b><span class="small muted">${c.type==="income"?"收入":(c.warn?"提醒開":"不提醒")}</span>
+      <span class="sub num">${c.type==="expense" ? limitsText(c) : "收入類別"}${c.archived?" · 已停用":""}</span></button>`).join("");
   const recs = Object.values(state.recurring).sort((a,b)=>(a.day||0)-(b.day||0));
   const recHtml = recs.length ? recs.map(r => `<button class="catrow${r.active?"":" arch"}" data-rec="${esc(r.id)}">
       <b>${esc(r.title)}</b><span class="num small">${r.type==="income"?"+":"−"}${moneyShort(r.amount)}</span>
       <span class="sub">每月 ${r.day} 日 · ${esc(catName(r.categoryId))}${r.active?"":" · 已關閉"}</span></button>`).join("")
     : `<div class="empty">還沒有固定收支。</div>`;
+  const insts = Object.values(state.installments).sort((a,b)=>(a.status==="active"?0:1)-(b.status==="active"?0:1) || b.date.localeCompare(a.date));
+  const instHtml = insts.length ? insts.map(i => `<button class="catrow${i.status==="active"?"":" arch"}" data-inst="${esc(i.id)}">
+      <b>${esc(i.title)}</b><span class="num small">${moneyShort(i.total)}</span>
+      <span class="sub">${esc(catName(i.categoryId))} · ${i.n} 期 · ${instStatus(i)}</span></button>`).join("")
+    : `<div class="empty">還沒有分期。記帳時打開「分期付款」就會出現在這裡。</div>`;
   const imp = importPreview ? `<div class="note" style="border-top:0">
       <b style="color:var(--ink)">匯入預覽：${esc(importPreview.fileName)}</b>
-      <ul class="issues"><li>類別 ${importPreview.cats.length} 個</li><li>固定收支 ${importPreview.recs.length} 筆</li><li>交易 ${importPreview.txs.length} 筆（${esc(importPreview.sheets.join("、")||"無月表")}）</li></ul>
+      <ul class="issues"><li>類別 ${importPreview.cats.length} 個</li><li>固定收支 ${importPreview.recs.length} 筆</li><li>分期 ${importPreview.insts.length} 筆</li><li>交易 ${importPreview.txs.length} 筆（${esc(importPreview.sheets.join("、")||"無月表")}）</li></ul>
       ${importPreview.issues.length ? `<p style="margin:10px 0 4px;color:var(--warn)">需要注意 ${importPreview.issues.length} 項：</p><ul class="issues">${importPreview.issues.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`:""}
       <div class="rowbtns" style="margin-top:12px"><button class="btn" data-act="imp-cancel">取消</button><button class="btn primary" data-act="imp-go">確認匯入</button></div></div>` : "";
+  const start = s.savingsStart ? periodLabel(fromKey(s.savingsStart)).title : "本期";
   return `<div class="section"><h2>預算週期</h2><div class="card setlist">
       <div class="setrow"><div class="k"><b>月預算從哪天開始</b><span>例如設成發薪日；當月沒有這天就用月底</span></div><select id="set-cycle" aria-label="月預算起始日">${dayOpts}</select></div>
       <div class="setrow"><div class="k"><b>一週從哪天開始</b><span>影響首頁「本週支出」</span></div><select id="set-week" aria-label="週起始日"><option value="1" ${s.weekStart===1?"selected":""}>週一</option><option value="0" ${s.weekStart===0?"selected":""}>週日</option></select></div>
     </div></div>
+    <div class="section"><h2>儲蓄</h2><div class="card setlist">
+      <div class="setrow"><div class="k"><b>每月目標儲蓄</b><span>首頁的「可支配」會先扣掉這筆</span></div><input class="inp num" id="set-target" inputmode="numeric" value="${s.savingsTarget||""}" placeholder="0" style="width:120px;text-align:right" aria-label="每月目標儲蓄"></div>
+      <div class="setrow"><div class="k"><b>節省結餘</b><span>從 ${start} 開始累積；有開提醒的類別，每期沒用完的額度會轉進來（整期沒有紀錄的不算）</span></div><span class="num">${money(poolBalance())}</span></div>
+    </div></div>
     <div class="section"><div class="section-head"><h2>類別與預算</h2><button class="btn small" data-act="cat-new">新增類別</button></div><div class="card setlist">${catHtml}</div></div>
     <div class="section"><div class="section-head"><h2>固定收支</h2><button class="btn small" data-act="rec-new">新增</button></div><div class="card setlist">${recHtml}
       <div class="note">到了每月收支日，會在首頁出現待確認，確認後才算進帳。</div></div></div>
+    <div class="section"><h2>分期</h2><div class="card setlist">${instHtml}</div></div>
     <div class="section"><h2>資料</h2><div class="card setlist">
       ${imp}
       <div class="setrow"><div class="k"><b>匯入 Google Sheet</b><span>在 Google Sheet 選「檔案 → 下載 → .xlsx」</span></div><label class="btn small" for="f-xlsx">選擇檔案</label><input type="file" id="f-xlsx" accept=".xlsx" hidden></div>
@@ -580,55 +803,92 @@ function viewSettings(){
 /* ---------- sheets (modal) ---------- */
 function openSheet(html, onMount){
   $("#overlay").innerHTML = `<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;
-  $("#scrim").addEventListener("click", e => { if(e.target.id==="scrim") closeSheet(); });
+  $("#scrim").addEventListener("click", e => { if(e.target.id==="scrim"){ closeSheet(); render(); } });
   onMount && onMount($("#overlay .sheet"));
 }
 function closeSheet(){ $("#overlay").innerHTML = ""; }
-document.addEventListener("keydown", e => { if(e.key==="Escape" && $("#scrim")) closeSheet(); });
+document.addEventListener("keydown", e => { if(e.key==="Escape" && $("#scrim")){ closeSheet(); render(); } });
 
-function openEntry(existing){
-  const t = existing ? {...existing} : { id: uid(), date: todayStr(), type: "expense", categoryId: null, amount: null, title: "", note: "" };
-  let type = t.type, catId = t.categoryId, confirmDel = false;
+// existing: a stored transaction to edit; refundOf: an expense to refund
+function openEntry(existing, refundOf){
+  const isRefund = refundOf || existing?.type==="refund";
+  const t = existing ? {...existing}
+    : refundOf ? { id: uid(), date: todayStr(), type: "refund", categoryId: refundOf.categoryId, amount: refundOf.amount, title: `退款：${refundOf.title || catName(refundOf.categoryId)}`, note: "", refOf: refundOf.id }
+    : { id: uid(), date: todayStr(), type: "expense", categoryId: null, amount: null, title: "", note: "" };
+  let type = t.type, catId = t.categoryId, confirmDel = false, inst = false, n = 3;
   const draw = sheet => {
-    const list = usageOrder(type);
-    if(catId && state.categories[catId]?.type !== type) catId = null;
-    sheet.innerHTML = `<div class="hd"><h2>${existing?"編輯紀錄":"記一筆"}</h2><button class="btn ghost" data-x>關閉</button></div>
-      <div class="seg" role="group" aria-label="收支"><button data-type="expense" aria-pressed="${type==="expense"}">支出</button><button data-type="income" aria-pressed="${type==="income"}">收入</button></div>
-      <label class="amount"><span>NT$</span><input id="e-amt" inputmode="numeric" pattern="[0-9]*" placeholder="0" value="${t.amount ?? ""}" aria-label="金額"></label>
-      <div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}">${esc(c.name)}</button>`).join("")}</div>
+    const list = usageOrder(type === "refund" ? "expense" : type);
+    if(catId && !isRefund && state.categories[catId]?.type !== type) catId = null;
+    const heading = isRefund ? (existing ? "編輯退款" : "退貨／退款") : existing ? "編輯紀錄" : "記一筆";
+    sheet.innerHTML = `<div class="hd"><h2>${heading}</h2><button class="btn ghost" data-x>關閉</button></div>
+      ${isRefund ? `<div class="hint">退款會算回「${esc(catName(catId))}」，那一期的額度會還回來。</div>`
+        : `<div class="seg" role="group" aria-label="收支"><button data-type="expense" aria-pressed="${type==="expense"}">支出</button><button data-type="income" aria-pressed="${type==="income"}">收入</button></div>`}
+      <label class="amount"><span>${inst ? "總額" : "NT$"}</span><input id="e-amt" inputmode="numeric" pattern="[0-9]*" placeholder="0" value="${t.amount ?? ""}" aria-label="金額"></label>
+      ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}">${esc(c.name)}</button>`).join("")}</div>`}
+      ${!existing && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期付款</label>
+        ${inst ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">期數<input class="inp num" id="e-n" inputmode="numeric" value="${n}" style="width:70px;text-align:right"></label>` : ""}</div>` : ""}
       <div id="e-hint"></div>
       <div class="fields">
         <label>日期<input class="inp" type="date" id="e-date" value="${t.date}"></label>
         <label>摘要<input class="inp" id="e-title" value="${esc(t.title)}" placeholder="例如：午餐"></label>
         <label class="full">備註<input class="inp" id="e-note" value="${esc(t.note)}" placeholder="選填"></label>
       </div>
-      <div class="rowbtns">${existing ? `<button class="btn danger" data-del>${confirmDel?"確定刪除":"刪除"}</button>`:""}<button class="btn primary" data-save>儲存</button></div>`;
+      <div class="rowbtns">${existing ? `<button class="btn danger" data-del>${confirmDel?"確定刪除":"刪除"}</button>`:""}${existing && existing.type==="expense" ? `<button class="btn" data-refund>退貨／退款</button>` : ""}<button class="btn primary" data-save>儲存</button></div>`;
     const amt = $("#e-amt", sheet);
     const hint = () => {
-      const v = parseInt(amt.value.replace(/\D/g,""),10) || 0; const c = state.categories[catId]; const box = $("#e-hint", sheet);
-      if(!c || c.type!=="expense" || !c.monthlyLimit){ box.innerHTML = ""; return; }
-      const p = periodOf($("#e-date", sheet).value || todayStr()); const L = periodLabel(p);
-      const left = c.monthlyLimit - spentIn(c.id, p, t.id) - v;
-      const pct = 1 - left / c.monthlyLimit;
-      const cls = left < 0 ? (c.warn ? "over" : "") : pct >= .8 && c.warn ? "warn" : "ok";
-      box.innerHTML = `<div class="hint ${cls}">${left >= 0 ? `記下後，${esc(c.name)}在 ${L.title} 還剩 <b class="num">${money(left)}</b>` : `記下後，${esc(c.name)}在 ${L.title} 會超出 <b class="num">${money(-left)}</b>`}</div>`;
+      const v = intOf(amt.value) || 0; const c = state.categories[catId]; const box = $("#e-hint", sheet);
+      if(!c || c.type!=="expense"){ box.innerHTML = ""; return; }
+      const date = $("#e-date", sheet).value || todayStr(); const p = periodOf(date); const L = periodLabel(p);
+      const lines = [];
+      let nowAmt = v;
+      if(inst){
+        const nn = Math.max(2, Math.min(60, intOf($("#e-n", sheet)?.value) || 2)); const per = Math.floor(v / nn), first = v - per*(nn-1);
+        nowAmt = first;
+        if(v) lines.push(["", `每期 <b class="num">${money(per)}</b>${first!==per?`，首期 ${moneyShort(first)}`:""}，從 ${L.short} 到 ${shift(p,nn-1).m} 月期，未來 ${nn-1} 期的${esc(c.name)}額度會先被占用`]);
+      }
+      const sign = isRefund ? -1 : 1;
+      if(c.monthlyLimit){
+        const b = budgetOf(c, p, t.id); const left = b.avail - sign*nowAmt; const pct = b.cap ? 1 - left / b.cap : 1;
+        const cls = left < 0 ? (c.warn ? "over" : "") : pct >= .8 && c.warn ? "warn" : "ok";
+        lines.push([cls, left >= 0 ? `記下後，${esc(c.name)}在 ${L.title} 還剩 <b class="num">${money(left)}</b>` : `記下後，${esc(c.name)}在 ${L.title} 會超出 <b class="num">${money(-left)}</b>`]);
+      }
+      if(!isRefund && c.warn){
+        if(c.perTxLimit && v > c.perTxLimit) lines.push(["warn", `超過每筆上限 ${moneyShort(c.perTxLimit)}`]);
+        if(c.dailyLimit){ const d = dayUsed(c, date, t.id) + nowAmt; if(d > c.dailyLimit) lines.push(["warn", `${esc(c.name)}今天會花到 ${moneyShort(d)}，超過單日上限 ${moneyShort(c.dailyLimit)}`]); }
+        if(c.yearlyLimit){ const yv = yearUsed(c, p.y, t.id) + nowAmt; if(yv > c.yearlyLimit) lines.push(["warn", `${p.y} 年會花到 ${moneyShort(yv)}，超過年度上限 ${moneyShort(c.yearlyLimit)}`]); }
+      }
+      box.innerHTML = lines.map(([cls, txt]) => `<div class="hint ${cls}">${txt}</div>`).join("");
     };
     amt.addEventListener("input", () => { amt.value = amt.value.replace(/\D/g,""); t.amount = amt.value ? +amt.value : null; hint(); });
     $("#e-date", sheet).addEventListener("change", hint);
     ["e-title","e-note","e-date"].forEach(id => $("#"+id, sheet).addEventListener("input", e => { t[{"e-title":"title","e-note":"note","e-date":"date"}[id]] = e.target.value; }));
-    sheet.querySelectorAll("[data-type]").forEach(b => b.addEventListener("click", () => { type = b.dataset.type; draw(sheet); }));
+    sheet.querySelectorAll("[data-type]").forEach(b => b.addEventListener("click", () => { type = b.dataset.type; if(type!=="expense") inst = false; draw(sheet); }));
     sheet.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => { catId = b.dataset.cat; sheet.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed", x===b)); hint(); }));
+    const instBox = $("#e-inst", sheet); instBox && instBox.addEventListener("change", () => { inst = instBox.checked; draw(sheet); });
+    const nBox = $("#e-n", sheet); nBox && nBox.addEventListener("input", () => { nBox.value = nBox.value.replace(/\D/g,""); n = +nBox.value || 2; hint(); });
     $("[data-x]", sheet).addEventListener("click", closeSheet);
     const del = $("[data-del]", sheet);
-    del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } removeTx(existing); closeSheet(); render(); toast("已刪除"); });
+    del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } removeTx(existing, true); closeSheet(); render(); toast("已刪除"); });
+    const ref = $("[data-refund]", sheet); ref && ref.addEventListener("click", () => openEntry(null, existing));
     $("[data-save]", sheet).addEventListener("click", () => {
-      const v = parseInt(amt.value,10); const date = $("#e-date", sheet).value;
-      if(!v || v<=0){ toast("請輸入金額"); amt.focus(); return; }
+      const v = intOf(amt.value); const date = $("#e-date", sheet).value;
+      if(!v){ toast("請輸入金額"); amt.focus(); return; }
       if(!catId){ toast("請選一個類別"); return; }
       if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ toast("請選日期"); return; }
-      const rec = { id: t.id, date, type, categoryId: catId, amount: v, title: $("#e-title", sheet).value.trim(), note: $("#e-note", sheet).value.trim(), recurringId: t.recurringId || null, createdAt: t.createdAt || Date.now() };
-      if(existing) removeTx(existing);
-      addTx(rec); closeSheet(); render(); toast(existing ? "已更新" : "已記下");
+      const title = $("#e-title", sheet).value.trim(), note = $("#e-note", sheet).value.trim();
+      if(inst){
+        const nn = Math.max(2, Math.min(60, intOf($("#e-n", sheet).value) || 2)); const per = Math.floor(v / nn);
+        const rec = { id: uid(), title: title || catName(catId), categoryId: catId, total: v, n: nn, per, first: v - per*(nn-1), date, note,
+          startPeriod: pkey(periodOf(date)), status: "active", events: [{ type: "create", at: Date.now() }], createdAt: Date.now() };
+        put.inst(rec); closeSheet(); render(); toast(`已記下 ${nn} 期分期`);
+        checkOverspend(subjectOf("inst", rec.id));
+        return;
+      }
+      const rec = { id: t.id, date, type, categoryId: catId, amount: v, title, note, recurringId: t.recurringId || null, createdAt: t.createdAt || Date.now() };
+      if(t.refOf) rec.refOf = t.refOf;
+      if(existing) removeTx(existing, false);
+      addTx(rec); closeSheet(); render(); toast(existing ? "已更新" : isRefund ? "已記下退款" : "已記下");
+      if(type==="expense"){ if(!checkOverspend(subjectOf("tx", rec.id)) && existing?.pendingOverspend) setPending(subjectOf("tx", rec.id), false); }
     });
     hint();
     if(!existing) setTimeout(()=>amt.focus(), 50);
@@ -636,23 +896,55 @@ function openEntry(existing){
   openSheet("", draw);
 }
 
+function openInstallment(i){
+  let confirmDel = false;
+  const draw = sheet => {
+    const portions = instPortions(i); const cur = curPeriod(); const cidx = monthsBetween(fromKey(i.startPeriod), cur);
+    const remainIdx = Math.max(0, cidx); let remainAmt = 0; for(let k=remainIdx; k<i.n; k++) remainAmt += instAmount(i, k);
+    const futureCount = Math.max(0, i.n - remainIdx - 1);
+    const evLabel = { create: "建立", paidoff: "提前還清", cancel: "取消／退款" };
+    sheet.innerHTML = `<div class="hd"><h2>${esc(i.title)}</h2><button class="btn ghost" data-x>關閉</button></div>
+      <div class="hint">${esc(catName(i.categoryId))} · 總額 <b class="num">${money(i.total)}</b> · ${i.n} 期，每期 ${moneyShort(i.per)}${i.first!==i.per?`（首期 ${moneyShort(i.first)}）`:""} · ${instStatus(i)}</div>
+      <div class="tblwrap"><table><thead><tr><th>期別</th><th>金額</th></tr></thead><tbody>
+        ${portions.map(t => { const p = periodOf(t.date); return `<tr><td>${p.y}/${p.m}（${t.k+1}/${i.n}）${t.note?" · "+t.note:""}</td><td>${moneyShort(t.amount)}</td></tr>`; }).join("")}</tbody></table></div>
+      ${(i.events||[]).length ? `<p class="small muted" style="margin:0">紀錄：${i.events.map(e => `${evLabel[e.type]||e.type}${e.period?`（${e.period}）`:""} ${new Date(e.at).toLocaleDateString("zh-TW")}`).join("、")}</p>` : ""}
+      ${i.status==="active" && cidx < i.n - 1 ? `<div class="opts">
+        <div class="opt"><div class="k"><b>提前還清</b><span>剩下 ${i.n - remainIdx} 期共 ${moneyShort(remainAmt)} 移到本期</span></div><button class="btn" data-a="payoff">提前還清</button></div>
+        <div class="opt"><div class="k"><b>取消／退款</b><span>本期之後的 ${futureCount} 期不再計算</span></div><button class="btn" data-a="cancel">取消後續</button></div></div>` : ""}
+      <div class="rowbtns"><button class="btn danger" data-del>${confirmDel?"確定刪除整筆分期":"刪除"}</button></div>`;
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    sheet.querySelectorAll("[data-a]").forEach(b => b.addEventListener("click", () => {
+      const k = pkey(cidx < 0 ? fromKey(i.startPeriod) : cur); const a = b.dataset.a;
+      i = { ...i, status: a==="payoff" ? "paidoff" : "cancelled", endPeriod: k, events: [...(i.events||[]), { type: a==="payoff" ? "paidoff" : "cancel", period: k, at: Date.now() }] };
+      put.inst(i); closeSheet(); render(); toast(a==="payoff" ? "已改成提前還清" : "已取消後續期數");
+      if(a==="payoff") checkOverspend({ kind: "inst", id: i.id, categoryId: i.categoryId, date: ymd(cycleStart(fromKey(k).y, fromKey(k).m)) < i.date ? i.date : ymd(cycleStart(fromKey(k).y, fromKey(k).m)), title: i.title });
+    }));
+    const del = $("[data-del]", sheet);
+    del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; draw(sheet); return; } dropAdjFor(i.id); put.instDel(i.id); closeSheet(); render(); toast("已刪除分期"); });
+  };
+  openSheet("", draw);
+}
+
 function openCategory(c){
-  const isNew = !c; c = c ? {...c} : { id: uid(), name: "", type: "expense", monthlyLimit: null, warn: true, archived: false, sort: Object.keys(state.categories).length };
+  const isNew = !c; c = c ? {...c} : { id: uid(), name: "", type: "expense", monthlyLimit: null, perTxLimit: null, dailyLimit: null, yearlyLimit: null, warn: true, archived: false, sort: Object.keys(state.categories).length };
+  const ref = !isNew && c.type==="expense" ? yearlyRef(c) : null;
+  const lim = (id, label, v) => `<label>${label}<input class="inp num" id="${id}" inputmode="numeric" value="${v ?? ""}" placeholder="不設"></label>`;
   openSheet(`<div class="hd"><h2>${isNew?"新增類別":"編輯類別"}</h2><button class="btn ghost" data-x>關閉</button></div>
     <div class="fields">
-      <label class="full">名稱<input class="inp" id="c-name" value="${esc(c.name)}"></label>
+      <label>名稱<input class="inp" id="c-name" value="${esc(c.name)}"></label>
       <label>收支<select id="c-type"><option value="expense" ${c.type==="expense"?"selected":""}>支出</option><option value="income" ${c.type==="income"?"selected":""}>收入</option></select></label>
-      <label>每月上限（NT$）<input class="inp" id="c-limit" inputmode="numeric" value="${c.monthlyLimit ?? ""}" placeholder="空白＝不設"></label>
+      ${lim("c-tx","每筆上限（NT$）",c.perTxLimit)}${lim("c-day","單日上限",c.dailyLimit)}
+      ${lim("c-limit","每月上限",c.monthlyLimit)}${lim("c-year","每年上限",c.yearlyLimit)}
     </div>
-    <label class="toggle"><input type="checkbox" id="c-warn" ${c.warn?"checked":""}>快用完或超支時提醒我</label>
+    ${ref ? `<p class="small muted" style="margin:0">依過去 ${ref.n} 個月的紀錄，一年約花 <b class="num">${money(ref.perYear)}</b>${ref.n<12?"（未滿 12 個月，僅供參考）":""}。</p>` : ""}
+    <label class="toggle"><input type="checkbox" id="c-warn" ${c.warn?"checked":""}>快用完或超支時提醒我（沒用完的額度會轉進節省結餘）</label>
     <label class="toggle"><input type="checkbox" id="c-arch" ${c.archived?"checked":""}>停用這個類別（舊紀錄保留）</label>
-    <p class="small muted" style="margin:0">每筆、單日、每年上限會在 v0.2 加入。</p>
     <div class="rowbtns"><button class="btn primary" data-save>儲存</button></div>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", closeSheet);
     $("[data-save]", sheet).addEventListener("click", () => {
       const name = $("#c-name", sheet).value.trim(); if(!name){ toast("請輸入類別名稱"); return; }
-      const lim = parseInt($("#c-limit", sheet).value.replace(/\D/g,""),10);
-      Object.assign(c, { name, type: $("#c-type", sheet).value, monthlyLimit: lim > 0 ? lim : null, warn: $("#c-warn", sheet).checked, archived: $("#c-arch", sheet).checked });
+      Object.assign(c, { name, type: $("#c-type", sheet).value, perTxLimit: intOf($("#c-tx", sheet).value), dailyLimit: intOf($("#c-day", sheet).value),
+        monthlyLimit: intOf($("#c-limit", sheet).value), yearlyLimit: intOf($("#c-year", sheet).value), warn: $("#c-warn", sheet).checked, archived: $("#c-arch", sheet).checked });
       put.cat(c); closeSheet(); render(); toast("已儲存");
     });
   });
@@ -678,7 +970,7 @@ function openRecurring(r){
     const del = $("[data-del]", sheet);
     del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } put.recDel(r.id); closeSheet(); render(); toast("已刪除"); });
     $("[data-save]", sheet).addEventListener("click", () => {
-      const title = $("#r-title", sheet).value.trim(); const amount = parseInt($("#r-amt", sheet).value.replace(/\D/g,""),10);
+      const title = $("#r-title", sheet).value.trim(); const amount = intOf($("#r-amt", sheet).value);
       const categoryId = $("#r-cat", sheet).value;
       if(!title || !amount || !categoryId){ toast("請填項目、金額和類別"); return; }
       Object.assign(r, { title, amount, categoryId, day: +$("#r-day", sheet).value, type: $("#r-type", sheet).value, active: $("#r-active", sheet).checked });
@@ -703,29 +995,47 @@ function parseWorkbook(wb, fileName){
     name = String(name||"").trim(); if(!name) return null;
     if(catsOut[name]) return catsOut[name].id;
     const ex = byName[name];
-    const c = ex ? {...ex} : { id: uid(), name, type, monthlyLimit: null, warn: false, archived: false, sort: 100 + Object.keys(catsOut).length };
+    const c = ex ? {...ex} : { id: uid(), name, type, monthlyLimit: null, perTxLimit: null, dailyLimit: null, yearlyLimit: null, warn: false, archived: false, sort: 100 + Object.keys(catsOut).length };
     if(!ex && where) issues.push(`${where}：類別「${name}」原本不存在，已自動新增`);
     catsOut[name] = c; return c.id;
   };
-  const rows = n => wb.Sheets[n] ? XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, raw:true, defval:null}) : null;
+  const sheetRows = n => {
+    const ws = wb.Sheets[n]; if(!ws) return null;
+    const r0 = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]).s.r : 0;
+    return { rows: XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null}), r0 };
+  };
   const num = v => { if(typeof v === "number") return v; const s = String(v ?? "").replace(/[,\s]/g,""); return /^\d+(\.\d+)?$/.test(s) ? +s : null; };
+  const lim = v => { const n = num(v); return n > 0 ? Math.round(n) : null; };
 
-  const catRows = rows("類別與預算控制");
-  if(catRows){ catRows.slice(1).forEach(r => { const name = r[0]; if(!name) return; const id = ensureCat(name, INCOME.has(String(name).trim()) ? "income" : "expense");
-    const c = catsOut[String(name).trim()]; const lim = num(r[3]); c.monthlyLimit = lim > 0 ? lim : null; c.warn = String(r[5]||"").trim() === "開啟"; c.type = INCOME.has(c.name) ? "income" : "expense"; c.archived = false; }); }
+  const catSheet = sheetRows("類別與預算控制");
+  if(catSheet){ catSheet.rows.slice(1).forEach(r => { const name = String(r[0]||"").trim(); if(!name) return; ensureCat(name, INCOME.has(name) ? "income" : "expense");
+    Object.assign(catsOut[name], { perTxLimit: lim(r[1]), dailyLimit: lim(r[2]), monthlyLimit: lim(r[3]), yearlyLimit: lim(r[4]), warn: String(r[5]||"").trim() === "開啟", type: INCOME.has(name) ? "income" : "expense", archived: false }); }); }
   else issues.push("找不到「類別與預算控制」工作表，類別沿用目前設定");
 
   const recs = []; const now = new Date(); const curYm = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
-  const recRows = rows("固定收支");
-  if(recRows){ recRows.slice(1).forEach((r,i) => { if(!r[0]) return; const amt = num(r[1]); if(!amt){ issues.push(`固定收支第 ${i+2} 列：金額不是數字，略過`); return; }
+  const recSheet = sheetRows("固定收支");
+  if(recSheet){ recSheet.rows.slice(1).forEach((r,i) => { if(!r[0]) return; const where = `固定收支第 ${recSheet.r0+i+2} 列`; const amt = num(r[1]); if(!amt){ issues.push(`${where}：金額不是數字，略過`); return; }
     const type = String(r[2]||"").trim()==="收入" ? "income" : "expense";
     const existing = Object.values(state.recurring).find(x => x.title===String(r[0]).trim() && x.type===type);
-    recs.push({ id: existing?.id || uid(), title: String(r[0]).trim(), amount: amt, type, categoryId: ensureCat(r[3], type, `固定收支第 ${i+2} 列`), day: Math.min(31, Math.max(1, num(r[4]) || 1)), active: String(r[5]||"").trim() !== "關閉", startMonth: existing?.startMonth || curYm }); }); }
+    recs.push({ id: existing?.id || uid(), title: String(r[0]).trim(), amount: amt, type, categoryId: ensureCat(r[3], type, where), day: Math.min(31, Math.max(1, num(r[4]) || 1)), active: String(r[5]||"").trim() !== "關閉", startMonth: existing?.startMonth || curYm }); }); }
+
+  const insts = []; const instSheet = sheetRows("分期項目");
+  if(instSheet){ instSheet.rows.slice(1).forEach((r,i) => {
+    if(!r[0]) return; const row = instSheet.r0 + i + 2; const where = `分期項目第 ${row} 列`;
+    const total = num(r[1]), nn = num(r[3]);
+    if(!total || !nn || nn < 2){ issues.push(`${where}：總金額或期數不是數字，略過`); return; }
+    if(!String(r[2]||"").trim()){ issues.push(`${where}：「${String(r[0]).trim()}」沒有填類型，略過`); return; }
+    if(String(r[7]||"").trim()==="關閉"){ issues.push(`${where}：狀態是關閉，略過`); return; }
+    const d = r[8] instanceof Date ? ymd(new Date(r[8].getFullYear(), r[8].getMonth(), r[8].getDate())) : null;
+    if(!d){ issues.push(`${where}：起始年月看不懂，略過`); return; }
+    const per = num(r[5]) || Math.floor(total / nn); const first = num(r[4]) || total - per*(nn-1);
+    insts.push({ id: `imp-inst-${row}`, title: String(r[0]).trim(), categoryId: ensureCat(r[2], "expense", where), total: Math.round(total), n: nn, per: Math.round(per), first: Math.round(first), date: d, note: "",
+      startPeriod: pkey(periodOf(d)), status: "active", events: [{ type: "create", at: Date.now() }], createdAt: Date.now() });
+  }); }
 
   const txs = []; const sheets = [];
   wb.SheetNames.filter(n => /^\d{6}$/.test(n)).forEach(n => {
-    const ym = `${n.slice(0,4)}-${n.slice(4)}`; sheets.push(n); const R = rows(n); let seenHeader = false;
-    const r0 = wb.Sheets[n]["!ref"] ? XLSX.utils.decode_range(wb.Sheets[n]["!ref"]).s.r : 0;
+    const ym = `${n.slice(0,4)}-${n.slice(4)}`; sheets.push(n); const { rows: R, r0 } = sheetRows(n); let seenHeader = false;
     R.forEach((r,ri) => {
       if(r[0]==="日期" || r[5]==="日期"){ seenHeader = true; return; } if(!seenHeader) return;
       [[0,"expense"],[5,"income"]].forEach(([o,type]) => {
@@ -738,12 +1048,13 @@ function parseWorkbook(wb, fileName){
     });
   });
   if(!sheets.length) issues.push("沒有找到像「202504」這樣以年月命名的工作表");
-  return { fileName, cats: Object.values(catsOut), recs, txs, sheets, issues };
+  return { fileName, cats: Object.values(catsOut), recs, insts, txs, sheets, issues };
 }
 function applyImport(pv){
   persistSeedIfNeeded();
   pv.cats.forEach(c => put.cat(c));
   pv.recs.forEach(r => put.rec(r));
+  pv.insts.forEach(i => put.inst(i));
   const ids = new Set(pv.txs.map(t=>t.id)); const touched = new Set();
   Object.keys(state.months).forEach(ym => { const before = state.months[ym].length; state.months[ym] = state.months[ym].filter(t => !ids.has(t.id)); if(state.months[ym].length !== before) touched.add(ym); });
   pv.txs.forEach(t => { const ym = t.date.slice(0,7); (state.months[ym] ||= []).push(t); touched.add(ym); });
@@ -752,7 +1063,7 @@ function applyImport(pv){
 }
 
 /* ---------- backup ---------- */
-function backupJson(){ return JSON.stringify({ app: "額度帳本", version: 1, exportedAt: new Date().toISOString(), data: state }, null, 1); }
+function backupJson(){ return JSON.stringify({ app: "額度帳本", version: 2, exportedAt: new Date().toISOString(), data: state }, null, 1); }
 async function doExport(){
   const name = `額度帳本備份-${todayStr()}.json`; const data = backupJson();
   let dl = null; try{ dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null; }catch(e){}
@@ -771,12 +1082,10 @@ async function doExport(){
 function restoreBackup(obj){
   const d = obj && obj.data; if(!d || !d.categories){ toast("這不是額度帳本的備份檔"); return; }
   const old = clone(state);
-  state = { categories: d.categories||{}, recurring: d.recurring||{}, runs: d.runs||{}, months: d.months||{}, settings: Object.assign({weekStart:1,cycleStartDay:1}, d.settings||{}) };
+  state = normalize(d);
   usingDefaults = false;
   if(db){
-    Object.keys(old.categories).forEach(id => { if(!state.categories[id]) write("categories/"+id, null); });
-    Object.keys(old.recurring).forEach(id => { if(!state.recurring[id]) write("recurring/"+id, null); });
-    Object.keys(old.runs).forEach(id => { if(!state.runs[id]) write("runs/"+id, null); });
+    COLS.forEach(n => Object.keys(old[n] || {}).forEach(id => { if(!state[n][id]) write(n+"/"+id, null); }));
     Object.keys(old.months).forEach(ym => { if(!state.months[ym]) write("months/"+ym, null); });
   }
   pushAll(); saveLocal(); render(); toast("已從備份還原");
@@ -784,16 +1093,18 @@ function restoreBackup(obj){
 
 /* ---------- events ---------- */
 document.addEventListener("click", e => {
-  const el = e.target.closest("[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec]");
+  const el = e.target.closest("[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-inst],[data-over]");
   if(!el || el.closest(".sheet")) return;
   if(el.dataset.tab){ tab = el.dataset.tab; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); return; }
   if(el.dataset.edit){ const t = findTx(el.dataset.edit); t && openEntry(t); return; }
+  if(el.dataset.inst){ const i = state.installments[el.dataset.inst]; i && openInstallment(i); return; }
+  if(el.dataset.over){ const [kind, id] = el.dataset.over.split(":"); const s = subjectOf(kind, id); s && openOverspend(s); return; }
   if(el.dataset.cat){ openCategory(state.categories[el.dataset.cat]); return; }
   if(el.dataset.rec){ openRecurring(state.recurring[el.dataset.rec]); return; }
   if(el.dataset.confirm || el.dataset.skip){
     const key = el.dataset.confirm || el.dataset.skip; const item = pendingRecurring().find(x => x.key===key); if(!item) return;
     if(el.dataset.skip){ put.run(key, {status:"skipped", at: Date.now()}); render(); toast("這個月已略過"); return; }
-    const v = parseInt((document.getElementById("pa-"+key)?.value || "").replace(/\D/g,""),10);
+    const v = intOf(document.getElementById("pa-"+key)?.value);
     if(!v){ toast("請輸入金額"); return; }
     const t = { id: uid(), date: item.due, type: item.r.type, categoryId: item.r.categoryId, amount: v, title: item.r.title, note: v!==item.r.amount ? `設定金額 ${item.r.amount}` : "", recurringId: item.r.id, createdAt: Date.now() };
     addTx(t); put.run(key, {status:"confirmed", transactionId: t.id, at: Date.now()}); render(); toast(`已記下 ${item.r.title}`); return;
@@ -812,8 +1123,9 @@ document.addEventListener("click", e => {
 });
 document.addEventListener("change", e => {
   const id = e.target.id;
-  if(id==="set-cycle"){ state.settings.cycleStartDay = +e.target.value; put.settings(); viewPeriod = periodOf(todayStr()); render(); toast("已更新月預算週期"); }
+  if(id==="set-cycle"){ state.settings.cycleStartDay = +e.target.value; put.settings(); viewPeriod = curPeriod(); render(); toast("已更新月預算週期"); }
   else if(id==="set-week"){ state.settings.weekStart = +e.target.value; put.settings(); render(); }
+  else if(id==="set-target"){ state.settings.savingsTarget = intOf(e.target.value) || 0; put.settings(); render(); toast("已更新目標儲蓄"); }
   else if(id==="f-xlsx" && e.target.files[0]){
     const f = e.target.files[0];
     if(!window.XLSX){ toast("讀取 Excel 的元件沒有載入，請重新整理後再試"); return; }
@@ -831,7 +1143,7 @@ $("#fab").addEventListener("click", () => openEntry(null));
 
 /* ---------- boot ---------- */
 loadLocal();
-viewPeriod = periodOf(todayStr());
+viewPeriod = curPeriod();
 render();
 connectDb();
 
