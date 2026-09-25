@@ -3,6 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B6E66">
+<meta name="description" content="幫自己控制衝動消費的記帳 App">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="額度帳本">
+<style>
+  /* 獨立 PWA 版的基本設定（claude.ai 發佈版由平台提供） */
+  body{margin:0}
+  [hidden]{display:none!important}
+  img{max-width:100%}
+  :root{padding-top:env(safe-area-inset-top,0px)}
+</style>
 </head>
 <body>
 <title>額度帳本</title>
@@ -741,6 +757,13 @@ async function doExport(){
   const name = `額度帳本備份-${todayStr()}.json`; const data = backupJson();
   let dl = null; try{ dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null; }catch(e){}
   if(dl){ try{ const r = await dl.save({ filename: name, data }); if(r && r.status==="saved") toast("已匯出備份"); return; }catch(e){ if(e && e.code==="cancelled") return; } }
+  if(!window.claude){
+    try{
+      const url = URL.createObjectURL(new Blob([data], {type:"application/json"}));
+      const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000); toast("已匯出備份"); return;
+    }catch(e){}
+  }
   const box = $("#exportBox"); if(!box) return;
   box.innerHTML = `<div class="note"><p style="margin:0 0 6px">這個畫面不能直接下載。請複製下面的內容，存成 .json 檔。</p><textarea class="backup" id="bk" readonly>${esc(data)}</textarea>
     <button class="btn small" data-act="copy" style="margin-top:6px">複製</button></div>`;
@@ -811,6 +834,12 @@ loadLocal();
 viewPeriod = periodOf(todayStr());
 render();
 connectDb();
+
+/* ---------- standalone PWA: offline cache + keep local data ---------- */
+if(!window.claude && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")){
+  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+  if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+}
 })();
 </script>
 </body>
