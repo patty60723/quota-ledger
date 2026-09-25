@@ -1,11 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" fill="#463F3A"/>
-  <rect x="136" y="128" width="240" height="256" rx="22" fill="#F4F3EE"/>
-  <rect x="136" y="128" width="240" height="56" rx="22" fill="#E0AFA0"/>
-  <rect x="136" y="162" width="240" height="22" fill="#E0AFA0"/>
-  <rect x="168" y="216" width="176" height="10" rx="5" fill="#BCB8B1"/>
-  <rect x="168" y="248" width="176" height="10" rx="5" fill="#BCB8B1"/>
-  <rect x="168" y="280" width="120" height="10" rx="5" fill="#BCB8B1"/>
-  <rect x="168" y="322" width="176" height="24" rx="12" fill="#DDD9D2"/>
-  <rect x="168" y="322" width="118" height="24" rx="12" fill="#8A817C"/>
+  <defs><clipPath id="jar"><path d="M172 150h168a26 26 0 0 1 26 26v190a52 52 0 0 1-52 52H198a52 52 0 0 1-52-52V176a26 26 0 0 1 26-26z"/></clipPath></defs>
+  <rect x="190" y="90" width="132" height="38" rx="14" fill="#8A817C"/>
+  <rect x="178" y="126" width="156" height="16" rx="8" fill="#BCB8B1"/>
+  <path d="M172 150h168a26 26 0 0 1 26 26v190a52 52 0 0 1-52 52H198a52 52 0 0 1-52-52V176a26 26 0 0 1 26-26z" fill="#F4F3EE"/>
+  <g clip-path="url(#jar)">
+    <rect x="146" y="232" width="220" height="190" fill="#E0AFA0"/>
+    <rect x="146" y="232" width="220" height="10" fill="#CF9A8A"/>
+    <rect x="170" y="178" width="16" height="190" rx="8" fill="#FFFFFF" opacity=".45"/>
+  </g>
+  <g fill="#463F3A">
+    <rect x="304" y="212" width="38" height="10" rx="5"/>
+    <rect x="318" y="278" width="24" height="8" rx="4" opacity=".5"/>
+    <rect x="318" y="344" width="24" height="8" rx="4" opacity=".5"/>
+  </g>
 </svg>

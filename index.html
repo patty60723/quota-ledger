@@ -211,7 +211,6 @@ textarea.backup{width:100%;min-height:120px;font-family:var(--f-num);font-size:1
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
 nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
 nav.tabs button{background:none;border:0;padding:10px 0 12px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
-nav.tabs button b{font-family:var(--f-display);font-size:17px;font-weight:400;line-height:1}
 nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .fab{position:fixed;z-index:6;right:max(16px,calc(50% - 264px));bottom:calc(76px + env(safe-area-inset-bottom,0px));width:60px;height:60px;border-radius:18px;border:0;background:var(--fab-bg);color:var(--fab-ink);font-size:30px;line-height:1;box-shadow:var(--shadow)}
 
@@ -306,6 +305,18 @@ details.bought summary{padding:12px 14px;cursor:pointer}
 .budfoot{display:block;width:100%;padding:12px 14px;border:0;border-top:1px solid var(--line);background:none;color:var(--muted);font-size:13px;text-align:center}
 .budgets .budfoot:first-child{border-top:0}
 .section-head h2 .label{font-family:var(--f-body);font-weight:400;margin-left:6px}
+.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.ic .f{fill:currentColor;stroke:none}
+nav.tabs button .ic{width:23px;height:23px;margin-bottom:1px}
+.fab{display:grid;place-items:center}
+.fab .ic{width:28px;height:28px;stroke-width:2.2}
+.tx .dot .ic{width:19px;height:19px}
+.section-head h2{display:flex;align-items:center;gap:8px}
+.section-head h2 > .ic{width:19px;height:19px;color:var(--faint)}
+.chip{display:inline-flex;align-items:center;gap:6px}
+.chip .ic,.qchip .ic{width:16px;height:16px}
+.qchip{align-items:center}
+.qchip .ic{color:var(--muted)}
 .toast{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .toastbtn{background:none;border:0;color:var(--accent-soft);font-weight:700;padding:2px 4px;text-decoration:underline;text-underline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
@@ -317,7 +328,7 @@ details.bought summary{padding:12px 14px;cursor:pointer}
 
 <div class="wrap" id="app"></div>
 <nav class="tabs" aria-label="主選單"><div class="in" id="tabs"></div></nav>
-<button class="fab" id="fab" aria-label="記一筆">＋</button>
+<button class="fab" id="fab" aria-label="記一筆"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
 <div id="overlay"></div>
 <div id="toastHost"></div>
 
@@ -339,6 +350,56 @@ const moneyShort = n => Math.round(n).toLocaleString("zh-TW");
 const todayStr = () => ymd(new Date());
 const intOf = v => { const n = parseInt(String(v ?? "").replace(/\D/g,""), 10); return n > 0 ? n : null; };
 const WEEK = ["日","一","二","三","四","五","六"];
+
+/* ---------- icons: 24px grid, round 1.8px strokes; ".f" parts are filled ---------- */
+const ICON = {
+  home: '<path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11"/><circle class="f" cx="4.5" cy="6" r="1.3"/><circle class="f" cx="4.5" cy="12" r="1.3"/><circle class="f" cx="4.5" cy="18" r="1.3"/>',
+  wish: '<path d="M4 11h16v9H4zM3 7.5h18V11H3zM12 7.5V20"/><path d="M12 7.5C10.5 4.5 7 4.3 7 6.2s3 1.3 5 1.3M12 7.5c1.5-3 5-3.2 5-1.3s-3 1.3-5 1.3"/>',
+  report: '<path d="M3 20h18M6 20v-8M12 20V5M18 20v-5"/>',
+  settings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  jar: '<path d="M9 3h6v2.5H9z"/><path d="M7.5 7h9A1.5 1.5 0 0 1 18 8.5V18a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V8.5A1.5 1.5 0 0 1 7.5 7z"/><path d="M6 12.5h12"/>',
+  bolt: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
+  calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M9 15l2 2 4-4"/>',
+  alert: '<path d="M12 4 21.5 20h-19z"/><path d="M12 10v4.5"/><circle class="f" cx="12" cy="17.3" r="1.1"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  // categories
+  meal: '<path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M9 4.5c-.8 1 .8 2 0 3.2M13 4.5c-.8 1 .8 2 0 3.2"/>',
+  dine: '<path d="M7 3v6a2 2 0 0 0 2 2m2-8v6a2 2 0 0 1-2 2m0 0v10M9 3v5"/><path d="M17 21V3c-2.2 1.6-3 4.5-3 8h3"/>',
+  bus: '<rect x="5" y="3.5" width="14" height="14" rx="3"/><path d="M5 11h14M7.5 17.5V20M16.5 17.5V20"/><circle class="f" cx="8.5" cy="14.3" r="1.1"/><circle class="f" cx="15.5" cy="14.3" r="1.1"/>',
+  ticket: '<path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"/><path d="M14.5 7.5v1.5M14.5 11v2M14.5 15v1.5"/>',
+  shirt: '<path d="M8.5 4 4 7l2 4 2-1v10h8V10l2 1 2-4-4.5-3c-.8 1.4-2 2-3.5 2s-2.7-.6-3.5-2z"/>',
+  utility: '<path d="M12 3.5c3 3.6 5 6.5 5 9.2a5 5 0 0 1-10 0c0-2.7 2-5.6 5-9.2z"/><path d="m12.8 10-2 3.3h2.4l-2 3.2"/>',
+  wifi: '<path d="M4.5 9.5a11 11 0 0 1 15 0M7.5 13a6.5 6.5 0 0 1 9 0"/><circle class="f" cx="12" cy="17" r="1.4"/>',
+  phone: '<rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M11 17.5h2"/>',
+  paw: '<path d="M12 12.5c-2.6 0-4.5 2.7-4.5 4.6 0 1.4 1 2.1 2.2 2.1.9 0 1.5-.5 2.3-.5s1.4.5 2.3.5c1.2 0 2.2-.7 2.2-2.1 0-1.9-1.9-4.6-4.5-4.6z"/><circle cx="6" cy="10" r="1.6"/><circle cx="9.5" cy="6" r="1.6"/><circle cx="14.5" cy="6" r="1.6"/><circle cx="18" cy="10" r="1.6"/>',
+  basket: '<path d="M3.5 10h17l-2 9.5h-13z"/><path d="m8 10 3.5-6M16 10l-3.5-6M9.5 13.5v3M14.5 13.5v3"/>',
+  scissors: '<circle cx="6.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><path d="M8.3 15.7 18 4M15.7 15.7 6 4"/>',
+  shield: '<path d="M12 3.5 19 6v5.2c0 4.5-3 7.6-7 9.3-4-1.7-7-4.8-7-9.3V6z"/>',
+  receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  heart: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.5a4.2 4.2 0 0 1 7.5 2.3C19.5 15.4 12 20 12 20z"/>',
+  coin: '<circle cx="12" cy="12" r="8.5"/><path d="M12 6.8v10.4M14.8 9.4c-.4-.9-1.4-1.4-2.8-1.4-1.7 0-2.8.8-2.8 1.9s1.1 1.6 2.8 1.9 2.8.8 2.8 2-1.1 2-2.8 2c-1.4 0-2.5-.6-2.9-1.5"/>',
+  house: '<path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M10 20v-5h4v5"/>',
+  give: '<path d="M12 12.5s-3.8-2.3-3.8-5a2.1 2.1 0 0 1 3.8-1.2 2.1 2.1 0 0 1 3.8 1.2c0 2.7-3.8 5-3.8 5z"/><path d="M3.5 16.5H7l2.5 1.5h4.2a1.5 1.5 0 0 0 0-3H11M3.5 20.5h11l5.5-3.8a1.4 1.4 0 0 0-1.8-2.1L15 16.5"/>',
+  repeat: '<path d="m17 3.5 3 3-3 3M4 11.5v-1a4 4 0 0 1 4-4h12M7 20.5l-3-3 3-3M20 12.5v1a4 4 0 0 1-4 4H4"/>',
+  book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 21H20M8.5 7.5h7"/>',
+  refund: '<path d="M9 13.5 4 8.5l5-5"/><path d="M4 8.5h10a6 6 0 0 1 0 12h-3"/>'
+};
+function icon(name, cls){ return ICON[name] ? `<svg class="ic${cls ? " " + cls : ""}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>` : ""; }
+// category name → icon; first match wins, so specific words come before general ones
+const CAT_ICONS = [
+  [/大餐|聚餐|餐廳/, "dine"], [/餐|飯|吃|早餐|午餐|晚餐|飲料|咖啡|食/, "meal"],
+  [/交通|車|捷運|油|停車|機票|高鐵/, "bus"], [/娛樂|電影|遊戲|旅遊|休閒/, "ticket"], [/服飾|衣|鞋|穿/, "shirt"],
+  [/水電|瓦斯|電費|水費/, "utility"], [/網路|寬頻/, "wifi"], [/手機|電話|電信/, "phone"], [/寵物|貓|狗/, "paw"],
+  [/日常|用品|生活|雜貨/, "basket"], [/美容|美髮|剪髮|保養|化妝/, "scissors"], [/保險/, "shield"], [/稅|規費|罰單/, "receipt"],
+  [/醫療|健康|健身|藥|看診/, "heart"], [/退貨|退款|銷帳/, "refund"], [/薪資|收入|獎金|紅利|股利|利息|接案|兼職/, "coin"],
+  [/房貸|房租|租金|房/, "house"], [/捐款|捐|公益/, "give"], [/訂閱|會員/, "repeat"], [/學習|書|課|教育|學費/, "book"]
+];
+function catIconName(name){ const hit = CAT_ICONS.find(([re]) => re.test(name || "")); return hit ? hit[1] : null; }
+// icon when the name matches, otherwise the first character
+function catMark(name){ const n = catIconName(name); return n ? icon(n) : esc(String(name || "?").slice(0,1)); }
+
 
 /* ---------- state ---------- */
 const DEFAULT_CATS = [
@@ -641,7 +702,7 @@ function checkOverspend(s){
 }
 
 /* ---------- UI state ---------- */
-const TABS = [["home","首","首頁"],["list","明","明細"],["wish","願","願望"],["report","報","報表"],["settings","設","設定"]];
+const TABS = [["home","home","首頁"],["list","list","明細"],["wish","wish","願望"],["report","report","報表"],["settings","settings","設定"]];
 let tab = "home";
 try{ const t = localStorage.getItem("ledger.tab"); if(TABS.some(x=>x[0]===t)) tab = t; }catch(e){}
 let viewPeriod = curPeriod();
@@ -656,7 +717,7 @@ function toast(msg, actions, ms){
 }
 
 function renderTabs(){
-  $("#tabs").innerHTML = TABS.map(([k,g,l]) => `<button data-tab="${k}" ${k===tab?'aria-current="page"':""}><b>${g}</b>${l}</button>`).join("");
+  $("#tabs").innerHTML = TABS.map(([k,g,l]) => `<button data-tab="${k}" ${k===tab?'aria-current="page"':""}>${icon(g)}${l}</button>`).join("");
 }
 
 function applyPalette(){
@@ -696,7 +757,7 @@ function txRows(list, withDays){
     const extra = [kind, t.pendingOverspend ? "超支待處理" : "", t.note].filter(Boolean).join(" · ");
     const sub = withDays ? [cn, extra].filter(Boolean).join(" · ") : [`${t.date.slice(5).replace("-","/")}`, cn, kind].filter(Boolean).join(" · ");
     const attr = t.virtual ? `data-inst="${esc(t.installmentId)}"` : `data-edit="${esc(t.id)}"`;
-    html += `<button class="tx" ${attr}><span class="dot${plus?" inc":""}">${esc(cn.slice(0,1))}</span>
+    html += `<button class="tx" ${attr}><span class="dot${plus?" inc":""}">${catMark(cn)}</span>
       <span class="mid"><b>${esc(t.title || cn)}</b><span>${esc(sub)}</span></span>
       <span class="amt${plus?" inc":""}">${plus?"+":"−"}${moneyShort(t.amount)}</span></button>`;
   });
@@ -762,13 +823,13 @@ function viewHome(){
   const wOut = sumOut(allTx().filter(t => t.date >= ymd(wStart) && t.date <= todayStr()));
   const pend = pendingRecurring();
   const pendShown = pendOpen ? pend : pend.slice(0, 3);
-  const pendHtml = pend.length ? `<div class="section"><div class="section-head"><h2>待確認的固定收支 <span class="label">${pend.length} 筆</span></h2>${pend.length > 1 ? `<button class="btn small" data-act="rec-all">全部確認</button>` : ""}</div>
+  const pendHtml = pend.length ? `<div class="section"><div class="section-head"><h2>${icon("calendar")}待確認的固定收支 <span class="label">${pend.length} 筆</span></h2>${pend.length > 1 ? `<button class="btn small" data-act="rec-all">全部確認</button>` : ""}</div>
     <div class="card pending">${pendShown.map(x => `<div class="prow"><div class="meta"><b>${esc(x.r.title)}</b><span class="small muted">${x.due.slice(5).replace("-","/")} · ${esc(catName(x.r.categoryId))}${x.r.type==="income"?" · 收入":""}</span></div>
       <input class="amtin" id="pa-${esc(x.key)}" inputmode="numeric" value="${x.r.amount}" aria-label="${esc(x.r.title)} 金額">
       <button class="btn primary ok" data-confirm="${esc(x.key)}" aria-label="確認 ${esc(x.r.title)}">✓</button><button class="btn ghost small" data-skip="${esc(x.key)}" aria-label="這個月略過 ${esc(x.r.title)}">略過</button></div>`).join("")}
       ${pend.length > 3 ? `<button class="budfoot" data-act="pend-toggle">${pendOpen ? "收起" : `還有 ${pend.length - 3} 筆`}</button>` : ""}</div></div>` : "";
   const overs = pendingOverspends();
-  const overHtml = overs.length ? `<div class="section"><div class="section-head"><h2>待處理的超支</h2><span class="label">${overs.length} 筆</span></div>
+  const overHtml = overs.length ? `<div class="section"><div class="section-head"><h2>${icon("alert")}待處理的超支</h2><span class="label">${overs.length} 筆</span></div>
     <div class="card pending">${overs.map(s => `<div class="row"><div class="meta"><b>${esc(s.title)}</b><span class="small muted">${s.date.slice(5).replace("-","/")} · ${esc(catName(s.categoryId))} · 超出 ${moneyShort(overOf(s))}</span></div>
       <button class="btn" data-over="${s.kind}:${esc(s.id)}">處理</button></div>`).join("")}</div></div>` : "";
   const pool = poolBalance();
@@ -781,12 +842,12 @@ function viewHome(){
       <div><span class="label">${target?"可支配":"結餘"}</span><span class="v${free<0?" neg":""}">${free<0?"−":""}${moneyShort(Math.abs(free))}</span></div>
     </div>
     <div class="weekline"><span>本週支出 <b class="num">${moneyShort(wOut)}</b></span><span>目標儲蓄 <b class="num">${target ? moneyShort(target) : "未設"}</b> · 已節省結餘 <b class="num">${moneyShort(pool)}</b></span></div>
-    <div class="section"><div class="section-head"><h2>快速記帳</h2><button class="btn ghost small" data-act="fav-manage">管理</button></div>
-      ${quickFavs.length ? `<div class="quickrow" role="group" aria-label="快速記帳">${quickFavs.map(f => `<button class="qchip${favUsable(f)?"":" off"}" data-favq="${esc(f.id)}"><b>${esc(f.name)}</b><span class="num">${f.amount ? (f.type==="income"?"+":"")+moneyShort(f.amount) : "輸入金額"}</span></button>`).join("")}</div>`
+    <div class="section"><div class="section-head"><h2>${icon("bolt")}快速記帳</h2><button class="btn ghost small" data-act="fav-manage">管理</button></div>
+      ${quickFavs.length ? `<div class="quickrow" role="group" aria-label="快速記帳">${quickFavs.map(f => `<button class="qchip${favUsable(f)?"":" off"}" data-favq="${esc(f.id)}">${icon(catIconName(catName(f.categoryId)))}<b>${esc(f.name)}</b><span class="num">${f.amount ? (f.type==="income"?"+":"")+moneyShort(f.amount) : "輸入金額"}</span></button>`).join("")}</div>`
         : `<p class="small muted" style="margin:0">記帳時按「存成常用」，常記的項目就會出現在這裡，點一下就記好。</p>`}</div>
     ${pendHtml}${overHtml}
-    <div class="section"><div class="section-head"><h2>預算進度 <span class="label">警戒線 ${state.settings.warnPct || 80}%</span></h2><button class="btn ghost small" data-act="bud-all">看全部</button></div>${homeBudget(p)}</div>
-    <div class="section"><div class="section-head"><h2>最近紀錄</h2><button class="btn ghost small" data-tab="list">看全部</button></div>
+    <div class="section"><div class="section-head"><h2>${icon("jar")}預算進度 <span class="label">警戒線 ${state.settings.warnPct || 80}%</span></h2><button class="btn ghost small" data-act="bud-all">看全部</button></div>${homeBudget(p)}</div>
+    <div class="section"><div class="section-head"><h2>${icon("clock")}最近紀錄</h2><button class="btn ghost small" data-tab="list">看全部</button></div>
       <div class="card txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到「設定」匯入 Google Sheet。</div>`}</div></div>`;
 }
 
@@ -807,8 +868,8 @@ function viewReport(){
   const refHtml = refs.length ? `<div class="tblwrap" style="padding:0 14px 14px"><table><thead><tr><th>類別</th><th>一年約</th><th>年度上限</th></tr></thead><tbody>
       ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.perYear)}</td><td>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) : "—"}</td></tr>`).join("")}</tbody></table></div>`
     : `<div class="empty">還沒有足夠的紀錄。</div>`;
-  return periodNav() + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><span class="label">全部類別</span></div><div class="card budgets">${budgetRows(viewPeriod)}</div></div>
-    <div class="section"><div class="section-head"><h2>支出分類排行</h2><span class="label num">合計 ${money(out)}</span></div><div class="card">${rank}</div></div>
+  return periodNav() + `<div class="section" id="budget-all"><div class="section-head"><h2>${icon("jar")}預算進度</h2><span class="label">全部類別</span></div><div class="card budgets">${budgetRows(viewPeriod)}</div></div>
+    <div class="section"><div class="section-head"><h2>${icon("report")}支出分類排行</h2><span class="label num">合計 ${money(out)}</span></div><div class="card">${rank}</div></div>
     <div class="section"><div class="section-head"><h2>近 6 期收支</h2><span class="label">到 ${periodLabel(viewPeriod).title}</span></div>
       <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>
     <div class="section"><div class="section-head"><h2>年度參考值</h2><span class="label">已記錄 ${n} 個月</span></div>
@@ -957,11 +1018,11 @@ function openEntry(existing, refundOf, prefill){
     const canSaveFav = !isRefund && !inst && !(t.favoriteId && state.favorites[t.favoriteId]);
     const refundable = existing && existing.type==="expense";
     sheet.innerHTML = `<div class="hd"><h2>${heading}</h2><button class="btn ghost" data-x>關閉</button></div>
-      ${favs.length ? `<div class="favbar" role="group" aria-label="常用">${favs.map(f => `<button class="chip fav" data-favq="${esc(f.id)}">${esc(f.name)}${f.amount ? ` <span class="num">${moneyShort(f.amount)}</span>` : ""}</button>`).join("")}</div>` : ""}
+      ${favs.length ? `<div class="favbar" role="group" aria-label="常用">${favs.map(f => `<button class="chip fav" data-favq="${esc(f.id)}">${icon(catIconName(catName(f.categoryId)))}${esc(f.name)}${f.amount ? ` <span class="num">${moneyShort(f.amount)}</span>` : ""}</button>`).join("")}</div>` : ""}
       ${isRefund ? `<div class="hint">退款會算回「${esc(catName(catId))}」，那一期的額度會還回來。</div>`
         : `<div class="seg" role="group" aria-label="收支"><button data-type="expense" aria-pressed="${type==="expense"}">支出</button><button data-type="income" aria-pressed="${type==="income"}">收入</button></div>`}
       <label class="amount"><span>${inst ? "總額" : "NT$"}</span><input id="e-amt" inputmode="numeric" pattern="[0-9]*" placeholder="0" value="${t.amount ?? ""}" aria-label="金額"></label>
-      ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}">${esc(c.name)}</button>`).join("")}</div>`}
+      ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}">${icon(catIconName(c.name))}${esc(c.name)}</button>`).join("")}</div>`}
       ${!existing && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期付款</label>
         ${inst ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">期數<input class="inp num" id="e-n" inputmode="numeric" value="${n}" style="width:70px;text-align:right"></label>` : ""}</div>` : ""}
       <div id="e-hint"></div>
