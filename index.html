@@ -740,14 +740,14 @@ function budgetRows(p, list){
   }).join("");
 }
 
-let homeBudgetOpen = false, pendOpen = false;
+let pendOpen = false;
 function homeBudget(p){
   const all = budgetCats();
   if(!all.length) return `<div class="card budgets">${budgetRows(p)}</div>`;
   const hot = all.filter(c => needsAttention(c, p)); const rest = all.length - hot.length;
-  const shown = homeBudgetOpen ? all : hot;
-  const foot = rest ? `<button class="budfoot" data-act="bud-toggle">${homeBudgetOpen ? "只看需要注意的" : hot.length ? `其他 ${rest} 個類別都在預算內　看全部` : `${rest} 個類別都在預算內　看全部`}</button>` : "";
-  return `<div class="card budgets">${shown.length ? budgetRows(p, shown) : ""}${foot}</div>`;
+  // the full list lives at the top of 報表
+  const foot = rest ? `<button class="budfoot" data-act="bud-all">${hot.length ? `其他 ${rest} 個類別都在預算內` : `${rest} 個類別都在預算內`}　看全部 ›</button>` : "";
+  return `<div class="card budgets">${hot.length ? budgetRows(p, hot) : ""}${foot}</div>`;
 }
 function confirmRun(item, v){
   const t = { id: uid(), date: item.due, type: item.r.type, categoryId: item.r.categoryId, amount: v, title: item.r.title, note: v!==item.r.amount ? `設定金額 ${item.r.amount}` : "", recurringId: item.r.id, createdAt: Date.now() };
@@ -785,7 +785,7 @@ function viewHome(){
       ${quickFavs.length ? `<div class="quickrow" role="group" aria-label="快速記帳">${quickFavs.map(f => `<button class="qchip${favUsable(f)?"":" off"}" data-favq="${esc(f.id)}"><b>${esc(f.name)}</b><span class="num">${f.amount ? (f.type==="income"?"+":"")+moneyShort(f.amount) : "輸入金額"}</span></button>`).join("")}</div>`
         : `<p class="small muted" style="margin:0">記帳時按「存成常用」，常記的項目就會出現在這裡，點一下就記好。</p>`}</div>
     ${pendHtml}${overHtml}
-    <div class="section"><div class="section-head"><h2>預算進度</h2><span class="label">警戒線 ${state.settings.warnPct || 80}%</span></div>${homeBudget(p)}</div>
+    <div class="section"><div class="section-head"><h2>預算進度 <span class="label">警戒線 ${state.settings.warnPct || 80}%</span></h2><button class="btn ghost small" data-act="bud-all">看全部</button></div>${homeBudget(p)}</div>
     <div class="section"><div class="section-head"><h2>最近紀錄</h2><button class="btn ghost small" data-tab="list">看全部</button></div>
       <div class="card txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到「設定」匯入 Google Sheet。</div>`}</div></div>`;
 }
@@ -807,7 +807,7 @@ function viewReport(){
   const refHtml = refs.length ? `<div class="tblwrap" style="padding:0 14px 14px"><table><thead><tr><th>類別</th><th>一年約</th><th>年度上限</th></tr></thead><tbody>
       ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.perYear)}</td><td>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) : "—"}</td></tr>`).join("")}</tbody></table></div>`
     : `<div class="empty">還沒有足夠的紀錄。</div>`;
-  return periodNav() + `<div class="section"><div class="section-head"><h2>預算進度</h2><span class="label">全部類別</span></div><div class="card budgets">${budgetRows(viewPeriod)}</div></div>
+  return periodNav() + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><span class="label">全部類別</span></div><div class="card budgets">${budgetRows(viewPeriod)}</div></div>
     <div class="section"><div class="section-head"><h2>支出分類排行</h2><span class="label num">合計 ${money(out)}</span></div><div class="card">${rank}</div></div>
     <div class="section"><div class="section-head"><h2>近 6 期收支</h2><span class="label">到 ${periodLabel(viewPeriod).title}</span></div>
       <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>
@@ -1482,7 +1482,7 @@ document.addEventListener("click", e => {
   else if(a==="fav-auto"){ state.settings.favManual = false; put.settings(); render(); }
   else if(a==="fav-manage"){ tab = "settings"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); const el2 = document.getElementById("fav-section"); el2 && el2.scrollIntoView(); }
   else if(a==="wish-new") openWish(null);
-  else if(a==="bud-toggle"){ homeBudgetOpen = !homeBudgetOpen; render(); }
+  else if(a==="bud-all"){ tab = "report"; viewPeriod = curPeriod(); try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
   else if(a==="pend-toggle"){ pendOpen = !pendOpen; render(); }
   else if(a==="rec-all"){
     const items = pendingRecurring(); let n = 0;
