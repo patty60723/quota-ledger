@@ -209,7 +209,7 @@ textarea.backup{width:100%;min-height:120px;font-family:var(--f-num);font-size:1
 
 /* tabbar + fab */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
 nav.tabs button{background:none;border:0;padding:10px 0 12px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
 nav.tabs button b{font-family:var(--f-display);font-size:17px;font-weight:400;line-height:1}
 nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
@@ -258,6 +258,34 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .sheet .hint + .hint{margin-top:-6px}
 .sheet table td,.sheet table th{font-size:13px}
 .catrow .small{justify-self:end}
+.quick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.qbtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:left;min-width:0}
+.qbtn b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.qbtn .num{font-size:17px;font-weight:600}
+.qbtn:active{background:var(--sunk)}
+.qbtn.off{opacity:.5}
+.favbar{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;margin-inline:-2px;padding-inline:2px}
+.chip.fav{white-space:nowrap;background:var(--accent-soft);border-color:transparent}
+.chip.fav .num{font-size:12px;opacity:.8}
+.favitem{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;padding:8px 10px 8px 0;border-top:1px solid var(--line)}
+.favitem:first-child{border-top:0}
+.favitem.arch .favmain{opacity:.55}
+.favmain{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:4px 14px;background:none;border:0;text-align:left;min-width:0}
+.favmain .sub{font-size:12px;color:var(--muted)}
+.iconbtn.sm{width:34px;height:34px;border-radius:10px;font-size:15px}
+.wishes{display:flex;flex-direction:column;gap:10px}
+.wish{padding:14px;display:flex;flex-direction:column;gap:10px}
+.wish .w1{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
+.wscore{width:46px;height:46px;border-radius:12px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:18px;font-weight:600}
+.wmain{display:flex;flex-direction:column;min-width:0}
+.wmain b{font-weight:500}
+.wprice{font-weight:600}
+.wacts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.wacts a.btn{text-decoration:none;color:var(--ink)}
+.wish .hint{font-size:13px;padding:8px 10px}
+details.bought summary{padding:12px 14px;cursor:pointer}
+.toast{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.toastbtn{background:none;border:0;color:var(--accent-soft);font-weight:700;padding:2px 4px;text-decoration:underline;text-underline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:no-preference){
   .sheet{animation:up .22s ease-out}
@@ -296,12 +324,12 @@ const DEFAULT_CATS = [
   ["水電瓦斯","expense"],["手機網路","expense"],["醫療與健康","expense"],["訂閱","expense"],["其他支出","expense"],
   ["薪資","income"],["其他收入","income"]
 ].map(([name,type],i)=>({id:"d"+i,name,type,monthlyLimit:null,perTxLimit:null,dailyLimit:null,yearlyLimit:null,warn:false,archived:false,sort:i}));
-const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null, palette: "blush" };
+const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null, palette: "blush", favManual: false, favDismissed: [] };
 const PALETTES = { blush: { name: "奶茶", bar: "#463F3A" }, teal: { name: "存摺綠", bar: "#0B6E66" } };
 // collections stored one document per item
-const COLS = ["categories","recurring","runs","installments","adjustments","closings"];
+const COLS = ["categories","recurring","runs","installments","adjustments","closings","favorites","wishes"];
 
-let state = { categories: {}, recurring: {}, runs: {}, installments: {}, adjustments: {}, closings: {}, months: {}, settings: {...DEFAULT_SETTINGS} };
+let state = { ...Object.fromEntries(COLS.map(n => [n, {}])), months: {}, settings: {...DEFAULT_SETTINGS} };
 DEFAULT_CATS.forEach(c => state.categories[c.id] = c);
 let usingDefaults = true;
 
@@ -348,6 +376,10 @@ const put = {
   adj: a => putDoc("adjustments", a.id, a),
   adjDel: id => delDoc("adjustments", id),
   closing: (k, v) => putDoc("closings", k, v),
+  fav: f => putDoc("favorites", f.id, f),
+  favDel: id => delDoc("favorites", id),
+  wish: w => putDoc("wishes", w.id, w),
+  wishDel: id => delDoc("wishes", id),
   month: ym => { persistSeedIfNeeded(); const items = state.months[ym] || []; return write("months/"+ym, items.length ? {items} : null); },
   settings: () => { persistSeedIfNeeded(); return write("meta/settings", state.settings); }
 };
@@ -586,15 +618,18 @@ function checkOverspend(s){
 }
 
 /* ---------- UI state ---------- */
-const TABS = [["home","首","首頁"],["list","明","明細"],["report","報","報表"],["settings","設","設定"]];
+const TABS = [["home","首","首頁"],["list","明","明細"],["wish","願","願望"],["report","報","報表"],["settings","設","設定"]];
 let tab = "home";
 try{ const t = localStorage.getItem("ledger.tab"); if(TABS.some(x=>x[0]===t)) tab = t; }catch(e){}
 let viewPeriod = curPeriod();
 let importPreview = null;
 
-function toast(msg){
-  const host = $("#toastHost"); host.innerHTML = `<div class="toast" role="status">${esc(msg)}</div>`;
-  clearTimeout(toast._t); toast._t = setTimeout(()=>{ host.innerHTML = ""; }, 2600);
+// actions: [[label, fn], ...] shown as buttons inside the toast
+function toast(msg, actions, ms){
+  const host = $("#toastHost");
+  host.innerHTML = `<div class="toast" role="status"><span>${esc(msg)}</span>${(actions||[]).map((a,i) => `<button class="toastbtn" data-ti="${i}">${esc(a[0])}</button>`).join("")}</div>`;
+  (actions||[]).forEach((a,i) => host.querySelector(`[data-ti="${i}"]`).addEventListener("click", () => { host.innerHTML = ""; clearTimeout(toast._t); a[1](); }));
+  clearTimeout(toast._t); toast._t = setTimeout(()=>{ host.innerHTML = ""; }, ms || 2600);
 }
 
 function renderTabs(){
@@ -611,7 +646,7 @@ function render(){
   renderTabs();
   const app = $("#app");
   const head = `<header class="top"><div class="brand">額度帳本</div><div class="sync${syncOn?" on":""}" id="sync"><i></i><span>${syncOn?"已同步":"只存在這個瀏覽器"}</span></div></header>`;
-  const body = tab==="home" ? viewHome() : tab==="list" ? viewList() : tab==="report" ? viewReport() : viewSettings();
+  const body = tab==="home" ? viewHome() : tab==="list" ? viewList() : tab==="wish" ? viewWish() : tab==="report" ? viewReport() : viewSettings();
   app.innerHTML = head + body;
   if(tab==="report") wireChart();
 }
@@ -694,6 +729,7 @@ function viewHome(){
       <button class="btn" data-over="${s.kind}:${esc(s.id)}">處理</button></div>`).join("")}</div></div>` : "";
   const pool = poolBalance(); const prevClose = state.closings[pkey(shift(p,-1))];
   const recent = realTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,10);
+  const quickFavs = favList().slice(0,4);
   return `<div class="period" style="justify-content:flex-start;gap:10px"><div class="t" style="align-items:flex-start"><b>${L.title}</b><span class="num">${L.range}</span></div></div>
     <div class="card passbook">
       <div><span class="label">支出</span><span class="v">${moneyShort(out)}</span></div>
@@ -701,6 +737,9 @@ function viewHome(){
       <div><span class="label">${target?"可支配":"結餘"}</span><span class="v${free<0?" neg":""}">${free<0?"−":""}${moneyShort(Math.abs(free))}</span></div>
     </div>
     <div class="weekline"><span>本週（週${WEEK[ws]}起）支出 <b class="num">${money(wOut)}</b></span><span>${target?`已扣目標儲蓄 ${moneyShort(target)}`:"金額單位：新台幣"}</span></div>
+    <div class="section"><div class="section-head"><h2>快速記帳</h2><button class="btn ghost small" data-act="fav-manage">管理</button></div>
+      ${quickFavs.length ? `<div class="quick">${quickFavs.map(f => `<button class="qbtn${favUsable(f)?"":" off"}" data-favq="${esc(f.id)}"><b>${esc(f.name)}</b><span class="num">${f.amount ? (f.type==="income"?"+":"")+moneyShort(f.amount) : "輸入金額"}</span><span class="small muted">${esc(catName(f.categoryId))}</span></button>`).join("")}</div>`
+        : `<div class="card"><div class="empty">記帳時按「存成常用」，常記的項目就會出現在這裡，點一下就記好。</div></div>`}</div>
     ${pendHtml}${overHtml}
     <div class="section"><div class="section-head"><h2>預算進度</h2><span class="label">本期</span></div><div class="card budgets">${budgetRows(p)}</div></div>
     <div class="section"><div class="section-head"><h2>儲蓄</h2><button class="btn ghost small" data-tab="settings">設定</button></div>
@@ -806,6 +845,11 @@ function viewSettings(){
       <b>${esc(r.title)}</b><span class="num small">${r.type==="income"?"+":"−"}${moneyShort(r.amount)}</span>
       <span class="sub">每月 ${r.day} 日 · ${esc(catName(r.categoryId))}${r.active?"":" · 已關閉"}</span></button>`).join("")
     : `<div class="empty">還沒有固定收支。</div>`;
+  const favs = favList();
+  const favHtml = favs.length ? favs.map((f,i) => `<div class="favitem${favUsable(f)?"":" arch"}">
+      <button class="favmain" data-favedit="${esc(f.id)}"><b>${esc(f.name)}</b><span class="sub">${esc(catName(f.categoryId))} · ${f.amount ? moneyShort(f.amount) : "每次輸入金額"} · 用了 ${f.uses||0} 次${favUsable(f)?"":" · 類別已停用"}</span></button>
+      <button class="iconbtn sm" data-favmove="${esc(f.id)}:-1" aria-label="往上" ${i===0?"disabled":""}>↑</button><button class="iconbtn sm" data-favmove="${esc(f.id)}:1" aria-label="往下" ${i===favs.length-1?"disabled":""}>↓</button></div>`).join("")
+    : `<div class="empty">還沒有常用項目。</div>`;
   const insts = Object.values(state.installments).sort((a,b)=>(a.status==="active"?0:1)-(b.status==="active"?0:1) || b.date.localeCompare(a.date));
   const instHtml = insts.length ? insts.map(i => `<button class="catrow${i.status==="active"?"":" arch"}" data-inst="${esc(i.id)}">
       <b>${esc(i.title)}</b><span class="num small">${moneyShort(i.total)}</span>
@@ -813,7 +857,7 @@ function viewSettings(){
     : `<div class="empty">還沒有分期。記帳時打開「分期付款」就會出現在這裡。</div>`;
   const imp = importPreview ? `<div class="note" style="border-top:0">
       <b style="color:var(--ink)">匯入預覽：${esc(importPreview.fileName)}</b>
-      <ul class="issues"><li>類別 ${importPreview.cats.length} 個</li><li>固定收支 ${importPreview.recs.length} 筆</li><li>分期 ${importPreview.insts.length} 筆</li><li>交易 ${importPreview.txs.length} 筆（${esc(importPreview.sheets.join("、")||"無月表")}）</li></ul>
+      <ul class="issues"><li>類別 ${importPreview.cats.length} 個</li><li>固定收支 ${importPreview.recs.length} 筆</li><li>分期 ${importPreview.insts.length} 筆</li><li>慾望清單 ${importPreview.wishes.length} 個</li><li>交易 ${importPreview.txs.length} 筆（${esc(importPreview.sheets.join("、")||"無月表")}）</li></ul>
       ${importPreview.issues.length ? `<p style="margin:10px 0 4px;color:var(--warn)">需要注意 ${importPreview.issues.length} 項：</p><ul class="issues">${importPreview.issues.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`:""}
       <div class="rowbtns" style="margin-top:12px"><button class="btn" data-act="imp-cancel">取消</button><button class="btn primary" data-act="imp-go">確認匯入</button></div></div>` : "";
   const limited = cats("expense").filter(c => c.monthlyLimit);
@@ -834,6 +878,8 @@ function viewSettings(){
     <div class="section"><div class="section-head"><h2>類別與預算</h2><button class="btn small" data-act="cat-new">新增類別</button></div><div class="card setlist">${catHtml}</div></div>
     <div class="section"><div class="section-head"><h2>固定收支</h2><button class="btn small" data-act="rec-new">新增</button></div><div class="card setlist">${recHtml}
       <div class="note">到了每月收支日，會在首頁出現待確認，確認後才算進帳。</div></div></div>
+    <div class="section" id="fav-section"><div class="section-head"><h2>常用項目</h2><button class="btn small" data-act="fav-new">新增</button></div><div class="card setlist">${favHtml}
+      <div class="note">排序：${s.favManual ? `手動 <button class="btn ghost small" data-act="fav-auto">改回依使用次數</button>` : "依使用次數（按箭頭可手動排）"}。首頁「快速記帳」顯示前 4 個。</div></div></div>
     <div class="section"><h2>分期</h2><div class="card setlist">${instHtml}</div></div>
     <div class="section"><h2>資料</h2><div class="card setlist">
       ${imp}
@@ -854,17 +900,21 @@ function closeSheet(){ $("#overlay").innerHTML = ""; }
 document.addEventListener("keydown", e => { if(e.key==="Escape" && $("#scrim")){ closeSheet(); render(); } });
 
 // existing: a stored transaction to edit; refundOf: an expense to refund
-function openEntry(existing, refundOf){
+// prefill: {type, categoryId, amount, title, note, favoriteId, wishId} for a new entry started from a favorite or wish
+function openEntry(existing, refundOf, prefill){
   const isRefund = refundOf || existing?.type==="refund";
   const t = existing ? {...existing}
     : refundOf ? { id: uid(), date: todayStr(), type: "refund", categoryId: refundOf.categoryId, amount: refundOf.amount, title: `退款：${refundOf.title || catName(refundOf.categoryId)}`, note: "", refOf: refundOf.id }
+    : prefill ? { id: uid(), date: todayStr(), type: prefill.type || "expense", categoryId: prefill.categoryId || null, amount: prefill.amount ?? null, title: prefill.title || "", note: prefill.note || "", favoriteId: prefill.favoriteId, wishId: prefill.wishId }
     : { id: uid(), date: todayStr(), type: "expense", categoryId: null, amount: null, title: "", note: "" };
   let type = t.type, catId = t.categoryId, confirmDel = false, inst = false, n = 3;
   const draw = sheet => {
     const list = usageOrder(type === "refund" ? "expense" : type);
     if(catId && !isRefund && state.categories[catId]?.type !== type) catId = null;
-    const heading = isRefund ? (existing ? "編輯退款" : "退貨／退款") : existing ? "編輯紀錄" : "記一筆";
+    const heading = isRefund ? (existing ? "編輯退款" : "退貨／退款") : existing ? "編輯紀錄" : t.wishId ? "買了" : "記一筆";
+    const favs = !existing && !isRefund && !t.wishId && !t.favoriteId ? favList().filter(favUsable) : [];
     sheet.innerHTML = `<div class="hd"><h2>${heading}</h2><button class="btn ghost" data-x>關閉</button></div>
+      ${favs.length ? `<div class="favbar" role="group" aria-label="常用">${favs.map(f => `<button class="chip fav" data-favq="${esc(f.id)}">${esc(f.name)}${f.amount ? ` <span class="num">${moneyShort(f.amount)}</span>` : ""}</button>`).join("")}</div>` : ""}
       ${isRefund ? `<div class="hint">退款會算回「${esc(catName(catId))}」，那一期的額度會還回來。</div>`
         : `<div class="seg" role="group" aria-label="收支"><button data-type="expense" aria-pressed="${type==="expense"}">支出</button><button data-type="income" aria-pressed="${type==="income"}">收入</button></div>`}
       <label class="amount"><span>${inst ? "總額" : "NT$"}</span><input id="e-amt" inputmode="numeric" pattern="[0-9]*" placeholder="0" value="${t.amount ?? ""}" aria-label="金額"></label>
@@ -877,7 +927,7 @@ function openEntry(existing, refundOf){
         <label>摘要<input class="inp" id="e-title" value="${esc(t.title)}" placeholder="例如：午餐"></label>
         <label class="full">備註<input class="inp" id="e-note" value="${esc(t.note)}" placeholder="選填"></label>
       </div>
-      <div class="rowbtns">${existing ? `<button class="btn danger" data-del>${confirmDel?"確定刪除":"刪除"}</button>`:""}${existing && existing.type==="expense" ? `<button class="btn" data-refund>退貨／退款</button>` : ""}<button class="btn primary" data-save>儲存</button></div>`;
+      <div class="rowbtns">${existing ? `<button class="btn danger" data-del>${confirmDel?"確定刪除":"刪除"}</button>`:""}${existing && existing.type==="expense" ? `<button class="btn" data-refund>退貨／退款</button>` : ""}${!existing && !isRefund && !inst && !t.favoriteId ? `<button class="btn" data-savefav>存成常用</button>` : ""}<button class="btn primary" data-save>儲存</button></div>`;
     const amt = $("#e-amt", sheet);
     const hint = () => {
       const v = intOf(amt.value) || 0; const c = state.categories[catId]; const box = $("#e-hint", sheet);
@@ -914,6 +964,13 @@ function openEntry(existing, refundOf){
     const del = $("[data-del]", sheet);
     del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } removeTx(existing, true); closeSheet(); render(); toast("已刪除"); });
     const ref = $("[data-refund]", sheet); ref && ref.addEventListener("click", () => openEntry(null, existing));
+    sheet.querySelectorAll("[data-favq]").forEach(b => b.addEventListener("click", () => { const f = state.favorites[b.dataset.favq]; f && quickRecord(f); }));
+    const sf = $("[data-savefav]", sheet);
+    sf && sf.addEventListener("click", () => {
+      if(!catId){ toast("先選一個類別"); return; }
+      const f = saveFavFrom({ type, categoryId: catId, amount: intOf(amt.value), title: $("#e-title", sheet).value, note: $("#e-note", sheet).value.trim() });
+      toast(`已存成常用「${f.name}」${f.amount ? "" : "（金額每次輸入）"}`);
+    });
     $("[data-save]", sheet).addEventListener("click", () => {
       const v = intOf(amt.value); const date = $("#e-date", sheet).value;
       if(!v){ toast("請輸入金額"); amt.focus(); return; }
@@ -924,15 +981,21 @@ function openEntry(existing, refundOf){
         const nn = Math.max(2, Math.min(60, intOf($("#e-n", sheet).value) || 2)); const per = Math.floor(v / nn);
         const rec = { id: uid(), title: title || catName(catId), categoryId: catId, total: v, n: nn, per, first: v - per*(nn-1), date, note,
           startPeriod: pkey(periodOf(date)), status: "active", events: [{ type: "create", at: Date.now() }], createdAt: Date.now() };
-        put.inst(rec); closeSheet(); render(); toast(`已記下 ${nn} 期分期`);
+        put.inst(rec); if(t.wishId) markWishBought(t.wishId, rec); closeSheet(); render(); toast(`已記下 ${nn} 期分期`);
         checkOverspend(subjectOf("inst", rec.id));
         return;
       }
       const rec = { id: t.id, date, type, categoryId: catId, amount: v, title, note, recurringId: t.recurringId || null, createdAt: t.createdAt || Date.now() };
       if(t.refOf) rec.refOf = t.refOf;
+      if(t.favoriteId) rec.favoriteId = t.favoriteId;
       if(existing) removeTx(existing, false);
-      addTx(rec); closeSheet(); render(); toast(existing ? "已更新" : isRefund ? "已記下退款" : "已記下");
-      if(type==="expense"){ if(!checkOverspend(subjectOf("tx", rec.id)) && existing?.pendingOverspend) setPending(subjectOf("tx", rec.id), false); }
+      addTx(rec);
+      if(!existing && t.favoriteId) bumpFav(t.favoriteId, 1);
+      if(t.wishId) markWishBought(t.wishId, rec);
+      closeSheet(); render(); toast(existing ? "已更新" : isRefund ? "已記下退款" : t.wishId ? "已記下，願望移到已購入" : "已記下");
+      let opened = false;
+      if(type==="expense"){ opened = checkOverspend(subjectOf("tx", rec.id)); if(!opened && existing?.pendingOverspend) setPending(subjectOf("tx", rec.id), false); }
+      if(!existing && !opened) suggestFavorite(rec);
     });
     hint();
     if(!existing) setTimeout(()=>amt.focus(), 50);
@@ -1030,6 +1093,179 @@ function openRecurring(r){
   });
 }
 
+/* ---------- favorites (常用) ---------- */
+const favKey = x => [x.type, x.categoryId, String(x.title || "").trim(), x.amount || ""].join("|");
+function favList(){
+  const list = Object.values(state.favorites);
+  return state.settings.favManual
+    ? list.sort((a,b)=>(a.order ?? 1e9)-(b.order ?? 1e9) || (a.createdAt||0)-(b.createdAt||0))
+    : list.sort((a,b)=>(b.uses||0)-(a.uses||0) || (a.createdAt||0)-(b.createdAt||0));
+}
+function favUsable(f){ const c = state.categories[f.categoryId]; return !!c && !c.archived; }
+function bumpFav(id, d){ const f = state.favorites[id]; if(!f) return; put.fav({ ...f, uses: Math.max(0, (f.uses||0) + d), lastUsedAt: d > 0 ? Date.now() : f.lastUsedAt }); }
+function limitWarnings(c, date, amt, excludeId){
+  const out = []; if(!c || c.type!=="expense" || !c.warn) return out;
+  if(c.perTxLimit && amt > c.perTxLimit) out.push("超過每筆上限");
+  if(c.dailyLimit && dayUsed(c, date, excludeId) + amt > c.dailyLimit) out.push("超過單日上限");
+  if(c.yearlyLimit && yearUsed(c, periodOf(date).y, excludeId) + amt > c.yearlyLimit) out.push("超過年度上限");
+  return out;
+}
+// Fixed amount: record today right away with an undo. No amount: open the entry sheet prefilled.
+function quickRecord(f){
+  if(!favUsable(f)){ closeSheet(); openFavorite(f); toast("這個常用的類別已停用，請改類別"); return; }
+  if(!f.amount){ openEntry(null, null, { type: f.type, categoryId: f.categoryId, title: f.title || f.name, note: f.note || "", favoriteId: f.id }); return; }
+  const t = { id: uid(), date: todayStr(), type: f.type, categoryId: f.categoryId, amount: f.amount, title: f.title || f.name, note: f.note || "", favoriteId: f.id, createdAt: Date.now() };
+  const warns = limitWarnings(state.categories[f.categoryId], t.date, t.amount, t.id);
+  addTx(t); bumpFav(f.id, 1);
+  closeSheet(); render();
+  toast(`已記下 ${f.name} ${moneyShort(f.amount)}${warns.length ? "（" + warns.join("、") + "）" : ""}`,
+    [["復原", () => { closeSheet(); removeTx(t, true); bumpFav(f.id, -1); render(); toast("已復原"); }]], 5000);
+  if(t.type==="expense") checkOverspend(subjectOf("tx", t.id));
+}
+function saveFavFrom(t){
+  const f = { id: uid(), name: String(t.title || "").trim() || catName(t.categoryId), type: t.type, categoryId: t.categoryId, amount: t.amount || null,
+    title: String(t.title || "").trim(), note: t.note || "", uses: 0, createdAt: Date.now(), order: Object.keys(state.favorites).length };
+  put.fav(f); return f;
+}
+// After a normal entry: same title, category and amount 3+ times in 60 days → offer to save it.
+function suggestFavorite(t){
+  if(t.favoriteId || !String(t.title || "").trim() || t.type==="refund") return;
+  const k = favKey(t);
+  if((state.settings.favDismissed || []).includes(k)) return;
+  if(Object.values(state.favorites).some(f => favKey(f)===k)) return;
+  const since = new Date(); since.setDate(since.getDate()-60); const s = ymd(since);
+  const n = realTx().filter(x => x.date >= s && favKey(x)===k).length;
+  if(n < 3) return;
+  toast(`「${t.title}」${moneyShort(t.amount)} 最近記了 ${n} 次，要存成常用嗎？`, [
+    ["存成常用", () => { saveFavFrom(t); render(); toast("已存成常用"); }],
+    ["不用", () => { state.settings.favDismissed = [...(state.settings.favDismissed || []), k]; put.settings(); }]
+  ], 9000);
+}
+function moveFav(id, dir){
+  const list = favList(); const i = list.findIndex(f => f.id===id); const j = i + dir;
+  if(i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  if(!state.settings.favManual){ state.settings.favManual = true; put.settings(); }
+  list.forEach((f, idx) => { if(f.order !== idx) put.fav({ ...f, order: idx }); });
+  render();
+}
+function openFavorite(f){
+  const isNew = !f;
+  f = f ? { ...f } : { id: uid(), name: "", type: "expense", categoryId: null, amount: null, title: "", note: "", uses: 0, createdAt: Date.now(), order: Object.keys(state.favorites).length };
+  let confirmDel = false;
+  const catOpts = type => cats(type).map(c => `<option value="${esc(c.id)}" ${c.id===f.categoryId?"selected":""}>${esc(c.name)}</option>`).join("");
+  const draw = sheet => {
+    sheet.innerHTML = `<div class="hd"><h2>${isNew ? "新增常用" : "編輯常用"}</h2><button class="btn ghost" data-x>關閉</button></div>
+      ${!isNew && !favUsable(f) ? `<div class="hint warn">原本的類別已停用或刪除，請改選一個類別。</div>` : ""}
+      <div class="fields">
+        <label>名稱<input class="inp" id="f-name" value="${esc(f.name)}" placeholder="例如：早餐"></label>
+        <label>金額（NT$）<input class="inp num" id="f-amt" inputmode="numeric" value="${f.amount ?? ""}" placeholder="空白＝每次輸入"></label>
+        <label>收支<select id="f-type"><option value="expense" ${f.type==="expense"?"selected":""}>支出</option><option value="income" ${f.type==="income"?"selected":""}>收入</option></select></label>
+        <label>類別<select id="f-cat">${catOpts(f.type)}</select></label>
+        <label>摘要<input class="inp" id="f-title" value="${esc(f.title)}" placeholder="空白＝用名稱"></label>
+        <label>備註<input class="inp" id="f-note" value="${esc(f.note)}" placeholder="選填"></label>
+      </div>
+      ${isNew ? "" : `<p class="small muted" style="margin:0">用了 ${f.uses || 0} 次</p>`}
+      <div class="rowbtns">${isNew ? "" : `<button class="btn danger" data-del>${confirmDel ? "確定刪除" : "刪除"}</button>`}<button class="btn primary" data-save>儲存</button></div>`;
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    $("#f-type", sheet).addEventListener("change", e => { f.type = e.target.value; $("#f-cat", sheet).innerHTML = catOpts(f.type); });
+    const del = $("[data-del]", sheet);
+    del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } put.favDel(f.id); closeSheet(); render(); toast("已刪除常用"); });
+    $("[data-save]", sheet).addEventListener("click", () => {
+      const name = $("#f-name", sheet).value.trim(); const categoryId = $("#f-cat", sheet).value;
+      if(!name || !categoryId){ toast("請填名稱並選類別"); return; }
+      put.fav({ ...f, name, type: $("#f-type", sheet).value, categoryId, amount: intOf($("#f-amt", sheet).value), title: $("#f-title", sheet).value.trim(), note: $("#f-note", sheet).value.trim() });
+      closeSheet(); render(); toast("已儲存常用");
+    });
+  };
+  openSheet("", draw);
+}
+
+/* ---------- wishlist (慾望清單) ---------- */
+const dayDiff = (a, b) => Math.round((parseYmd(b) - parseYmd(a)) / 864e5);
+function wishScore(w){
+  const created = w.addedOn || todayStr(); const days = Math.max(0, dayDiff(created, todayStr()));
+  const parts = { need: w.need==="need" ? 40 : 10, wait: Math.round(Math.min(days, 30) / 30 * 20), budget: 0, deadline: 0 };
+  const c = state.categories[w.categoryId];
+  if(w.price){
+    const avail = c && c.monthlyLimit ? budgetOf(c, curPeriod()).avail : Infinity;
+    parts.budget = w.price <= avail ? 25 : w.price <= avail + poolBalance() ? 10 : 0;
+  }
+  if(w.deadline){ const d = dayDiff(todayStr(), w.deadline); parts.deadline = d <= 7 ? 15 : d <= 30 ? 8 : 0; }
+  return { total: parts.need + parts.wait + parts.budget + parts.deadline, parts, days };
+}
+function wishBudgetLine(w){
+  if(!w.price) return ["", "還沒填價格，填了才能算預算"];
+  const c = state.categories[w.categoryId];
+  if(!c) return ["", "還沒選類別"];
+  if(!c.monthlyLimit) return ["", `${esc(c.name)}沒有每月上限`];
+  const avail = budgetOf(c, curPeriod()).avail; const left = avail - w.price; const pool = poolBalance();
+  if(left >= 0) return ["ok", `${esc(c.name)}本期還剩 ${moneyShort(avail)}，買了剩 <b class="num">${moneyShort(left)}</b>`];
+  if(pool >= -left) return ["warn", `${esc(c.name)}本期還剩 ${moneyShort(Math.max(0, avail))}，買了會超出 <b class="num">${moneyShort(-left)}</b>，可用已節省結餘補（結餘 ${moneyShort(pool)}）`];
+  return ["over", `${esc(c.name)}本期還剩 ${moneyShort(Math.max(0, avail))}，買了會超出 <b class="num">${moneyShort(-left)}</b>，已節省結餘也不夠`];
+}
+function markWishBought(wishId, rec){
+  const w = state.wishes[wishId]; if(!w) return;
+  put.wish({ ...w, purchasedOn: rec.date || todayStr(), boughtRef: rec.id, boughtKind: rec.n ? "inst" : "tx" });
+}
+function viewWish(){
+  const open = Object.values(state.wishes).filter(w => !w.purchasedOn).map(w => ({ w, s: wishScore(w) })).sort((a,b) => b.s.total - a.s.total);
+  const bought = Object.values(state.wishes).filter(w => w.purchasedOn).sort((a,b) => b.purchasedOn.localeCompare(a.purchasedOn));
+  const md = s => { const d = parseYmd(s); return `${d.getMonth()+1}/${d.getDate()}`; };
+  const cards = open.length ? open.map(({w, s}) => {
+    const [cls, line] = wishBudgetLine(w);
+    const meta = [catName(w.categoryId), w.need==="need" ? "需要" : "想要", `放了 ${s.days} 天`, w.deadline ? `${md(w.deadline)} 前要買` : ""].filter(Boolean).join(" · ");
+    return `<div class="card wish">
+      <div class="w1"><div class="wscore num" aria-label="分數 ${s.total}">${s.total}</div>
+        <div class="wmain"><b>${esc(w.name)}</b><span class="small muted">${esc(meta)}</span></div>
+        <div class="num wprice">${w.price ? moneyShort(w.price) : "—"}</div></div>
+      <div class="hint ${cls}">${line}</div>
+      <div class="small muted num">需要 ${s.parts.need} · 冷靜期 ${s.parts.wait} · 預算 ${s.parts.budget} · 期限 ${s.parts.deadline}</div>
+      <div class="wacts">${w.url ? `<a class="btn small" href="${esc(w.url)}" target="_blank" rel="noopener">看商品</a>` : ""}<button class="btn small" data-wishedit="${esc(w.id)}">編輯</button><button class="btn small primary" data-wishbuy="${esc(w.id)}">買了</button></div>
+    </div>`;
+  }).join("") : `<div class="card"><div class="empty">想買的東西先放這裡，放越久還想要，分數越高。按「新增」加第一個。</div></div>`;
+  return `<div class="section" style="margin-top:8px"><div class="section-head"><h2>慾望清單</h2><button class="btn small" data-act="wish-new">新增</button></div>
+      <p class="small muted" style="margin:0">依分數排序：需要 40／想要 10，放越久最多加 20，本期預算夠加 25，快到期加 15。</p>
+      <div class="wishes">${cards}</div></div>
+    ${bought.length ? `<div class="section"><details class="card bought"><summary><b>已購入</b> <span class="muted small">${bought.length} 個</span></summary>
+      ${bought.map(w => `<button class="catrow" data-wishedit="${esc(w.id)}"><b>${esc(w.name)}</b><span class="num small">${w.price ? moneyShort(w.price) : ""}</span><span class="sub">${esc(catName(w.categoryId))} · ${md(w.purchasedOn)} 購入</span></button>`).join("")}</details></div>` : ""}`;
+}
+function openWish(w){
+  const isNew = !w;
+  w = w ? { ...w } : { id: uid(), name: "", url: "", categoryId: null, need: "want", price: null, deadline: "", note: "", addedOn: todayStr(), createdAt: Date.now() };
+  let confirmDel = false;
+  const draw = sheet => {
+    sheet.innerHTML = `<div class="hd"><h2>${isNew ? "新增願望" : "編輯願望"}</h2><button class="btn ghost" data-x>關閉</button></div>
+      <div class="fields">
+        <label class="full">名稱<input class="inp" id="w-name" value="${esc(w.name)}" placeholder="例如：電動傘"></label>
+        <label class="full">網址<input class="inp" id="w-url" type="url" inputmode="url" value="${esc(w.url)}" placeholder="選填"></label>
+        <label>價格（NT$）<input class="inp num" id="w-price" inputmode="numeric" value="${w.price ?? ""}"></label>
+        <label>需要還是想要<select id="w-need"><option value="want" ${w.need!=="need"?"selected":""}>想要</option><option value="need" ${w.need==="need"?"selected":""}>需要</option></select></label>
+        <label>類別<select id="w-cat"><option value="">選類別</option>${cats("expense").map(c => `<option value="${esc(c.id)}" ${c.id===w.categoryId?"selected":""}>${esc(c.name)}</option>`).join("")}</select></label>
+        <label>最晚購買日<input class="inp" id="w-deadline" type="date" value="${esc(w.deadline || "")}"></label>
+        <label class="full">備註<input class="inp" id="w-note" value="${esc(w.note)}" placeholder="選填"></label>
+      </div>
+      ${w.purchasedOn ? `<p class="small muted" style="margin:0">${w.purchasedOn} 已購入。</p>` : ""}
+      <div class="rowbtns">${isNew ? "" : `<button class="btn danger" data-del>${confirmDel ? "確定刪除" : "刪除"}</button>`}${w.purchasedOn ? `<button class="btn" data-unbuy>改回未購入</button>` : ""}<button class="btn primary" data-save>儲存</button></div>`;
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    const del = $("[data-del]", sheet);
+    del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } put.wishDel(w.id); closeSheet(); render(); toast("已刪除"); });
+    const unbuy = $("[data-unbuy]", sheet);
+    unbuy && unbuy.addEventListener("click", () => { const x = { ...w }; delete x.purchasedOn; delete x.boughtRef; delete x.boughtKind; put.wish(x); closeSheet(); render(); toast("已改回未購入，購買紀錄保留在明細"); });
+    $("[data-save]", sheet).addEventListener("click", () => {
+      const name = $("#w-name", sheet).value.trim(); if(!name){ toast("請輸入名稱"); return; }
+      put.wish({ ...w, name, url: $("#w-url", sheet).value.trim(), price: intOf($("#w-price", sheet).value), need: $("#w-need", sheet).value,
+        categoryId: $("#w-cat", sheet).value || null, deadline: $("#w-deadline", sheet).value || "", note: $("#w-note", sheet).value.trim() });
+      closeSheet(); render(); toast(isNew ? "已加進慾望清單" : "已儲存");
+    });
+  };
+  openSheet("", draw);
+}
+function buyWish(w){
+  if(!w.categoryId || !w.price){ openWish(w); toast("先填類別和價格"); return; }
+  openEntry(null, null, { type: "expense", categoryId: w.categoryId, amount: w.price, title: w.name, note: "", wishId: w.id });
+}
+
 /* ---------- import: Google Sheet xlsx ---------- */
 function cellDate(v, fallbackYm, issues, where){
   if(v instanceof Date && !isNaN(v)) return { date: ymd(new Date(v.getFullYear(), v.getMonth(), v.getDate())) };
@@ -1084,6 +1320,18 @@ function parseWorkbook(wb, fileName){
       startPeriod: pkey(periodOf(d)), status: "active", events: [{ type: "create", at: Date.now() }], createdAt: Date.now() });
   }); }
 
+  const wishes = []; const wishSheet = sheetRows("慾望清單");
+  if(wishSheet){ wishSheet.rows.slice(1).forEach((r,i) => {
+    const name = String(r[0]||"").trim(); if(!name) return; const row = wishSheet.r0 + i + 2;
+    const bought = r[6] !== null && r[6] !== false && !/^(否|false|0|)$/i.test(String(r[6]).trim());
+    const dl = r[7] instanceof Date ? ymd(new Date(r[7].getFullYear(), r[7].getMonth(), r[7].getDate())) : "";
+    const existing = state.wishes[`imp-wish-${row}`];
+    const w = { id: `imp-wish-${row}`, name, url: String(r[1]||"").trim(), categoryId: r[2] ? ensureCat(r[2], "expense", `慾望清單第 ${row} 列`) : null,
+      need: String(r[3]||"").trim()==="需要" ? "need" : "want", price: lim(r[4]), deadline: dl, note: "", addedOn: existing?.addedOn || todayStr(), createdAt: existing?.createdAt || Date.now() };
+    if(bought) w.purchasedOn = existing?.purchasedOn || todayStr();
+    if(!w.price) issues.push(`慾望清單第 ${row} 列：「${name}」沒有價格，先匯入，之後再補`);
+    wishes.push(w);
+  }); }
   const txs = []; const sheets = [];
   wb.SheetNames.filter(n => /^\d{6}$/.test(n)).forEach(n => {
     const ym = `${n.slice(0,4)}-${n.slice(4)}`; sheets.push(n); const { rows: R, r0 } = sheetRows(n); let seenHeader = false;
@@ -1099,13 +1347,14 @@ function parseWorkbook(wb, fileName){
     });
   });
   if(!sheets.length) issues.push("沒有找到像「202504」這樣以年月命名的工作表");
-  return { fileName, cats: Object.values(catsOut), recs, insts, txs, sheets, issues };
+  return { fileName, cats: Object.values(catsOut), recs, insts, wishes, txs, sheets, issues };
 }
 function applyImport(pv){
   persistSeedIfNeeded();
   pv.cats.forEach(c => put.cat(c));
   pv.recs.forEach(r => put.rec(r));
   pv.insts.forEach(i => put.inst(i));
+  (pv.wishes || []).forEach(w => put.wish(w));
   const ids = new Set(pv.txs.map(t=>t.id)); const touched = new Set();
   Object.keys(state.months).forEach(ym => { const before = state.months[ym].length; state.months[ym] = state.months[ym].filter(t => !ids.has(t.id)); if(state.months[ym].length !== before) touched.add(ym); });
   pv.txs.forEach(t => { const ym = t.date.slice(0,7); (state.months[ym] ||= []).push(t); touched.add(ym); });
@@ -1144,8 +1393,13 @@ function restoreBackup(obj){
 
 /* ---------- events ---------- */
 document.addEventListener("click", e => {
-  const el = e.target.closest("[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-inst],[data-over],[data-pool]");
+  const el = e.target.closest("[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-inst],[data-over],[data-pool],[data-favq],[data-favedit],[data-favmove],[data-wishedit],[data-wishbuy]");
   if(!el || el.closest(".sheet")) return;
+  if(el.dataset.favq){ const f = state.favorites[el.dataset.favq]; f && quickRecord(f); return; }
+  if(el.dataset.favedit){ const f = state.favorites[el.dataset.favedit]; f && openFavorite(f); return; }
+  if(el.dataset.favmove){ const [id, d] = el.dataset.favmove.split(":"); moveFav(id, +d); return; }
+  if(el.dataset.wishedit){ const w = state.wishes[el.dataset.wishedit]; w && openWish(w); return; }
+  if(el.dataset.wishbuy){ const w = state.wishes[el.dataset.wishbuy]; w && buyWish(w); return; }
   if(el.dataset.pool){ const c = state.categories[el.dataset.pool]; if(c){ put.cat({...c, toPool: !toPool(c)}); render(); } return; }
   if(el.dataset.tab){ tab = el.dataset.tab; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); return; }
   if(el.dataset.edit){ const t = findTx(el.dataset.edit); t && openEntry(t); return; }
@@ -1166,6 +1420,10 @@ document.addEventListener("click", e => {
   else if(a==="next"){ viewPeriod = shift(viewPeriod,1); render(); }
   else if(a==="cat-new") openCategory(null);
   else if(a==="rec-new") openRecurring(null);
+  else if(a==="fav-new") openFavorite(null);
+  else if(a==="fav-auto"){ state.settings.favManual = false; put.settings(); render(); }
+  else if(a==="fav-manage"){ tab = "settings"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); const el2 = document.getElementById("fav-section"); el2 && el2.scrollIntoView(); }
+  else if(a==="wish-new") openWish(null);
   else if(a==="export") doExport();
   else if(a==="imp-cancel"){ importPreview = null; render(); }
   else if(a==="imp-go"){ const pv = importPreview; importPreview = null; applyImport(pv); render(); }
