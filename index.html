@@ -500,6 +500,16 @@ nav.tabs button[aria-current="page"]{color:var(--ink);font-weight:700}
 nav.tabs button[aria-current="page"] .ic{background:var(--accent-soft)}
 .fab{border-radius:20px;box-shadow:0 6px 18px rgba(70,63,58,.25)}
 .seg.three{grid-template-columns:repeat(3,1fr)}
+.rseg{margin-top:12px}
+.budc{overflow:hidden}
+.bc{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:4px 10px;width:100%;padding:12px 16px;border:0;border-top:1px solid var(--line);background:none;text-align:left;color:var(--ink)}
+.bc:first-child{border-top:0}
+.bc .n{display:flex;align-items:center;gap:6px;min-width:0;font-weight:500;white-space:nowrap;overflow:hidden}
+.bc .v{font-weight:600;white-space:nowrap}
+.bc .v small{font-weight:400;color:var(--muted)}
+.bc .bar{grid-column:2 / -1;height:5px;display:block}
+.bc .bd{grid-column:2 / -1;display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);padding-top:4px}
+.bc:active{transform:none;background:var(--sunk)}
 .toast{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .toastbtn{background:none;border:0;color:var(--accent-soft);font-weight:700;padding:2px 4px;text-decoration:underline;text-underline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
@@ -1014,7 +1024,32 @@ function budgetRows(p, list){
   }).join("");
 }
 
-let pendOpen = false;
+let pendOpen = false, reportSeg = "analysis";
+const budOpen = new Set();
+function budgetCompact(p){
+  const list = budgetCats();
+  if(!list.length) return `<div class="empty">還沒有設定預算。到「設定 → 類別與預算」幫想控制的類別設上限。</div>`;
+  return list.map(c => {
+    const open = budOpen.has(c.id);
+    let main, bar = "", detail = [];
+    if(c.monthlyLimit){
+      const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1;
+      const cls = pct > 1 ? "over" : pct >= warnAt() ? "warn" : "";
+      const tag = !c.warn ? "" : pct > 1 ? `<span class="tag over">超支</span>` : pct >= warnAt() ? `<span class="tag warn">快用完</span>` : "";
+      main = `<span class="n">${esc(c.name)}${tag}</span><span class="v num">${moneyShort(b.used)}<small> / ${moneyShort(b.cap)}</small></span>`;
+      bar = `<span class="bar ${cls}"><i style="width:${Math.min(100,pct*100)}%"></i></span>`;
+      detail.push(`已用 ${Math.round(pct*100)}% · ${b.avail>=0 ? "還剩 "+moneyShort(b.avail) : "超出 "+moneyShort(-b.avail)}`);
+      if(b.inst || b.occupied || b.received) detail.push([`實際 ${moneyShort(b.actual)}`, b.inst && `分期 ${moneyShort(b.inst)}`, b.occupied && `被占用 ${moneyShort(b.occupied)}`, b.received && `借入 ${moneyShort(b.received)}`].filter(Boolean).join(" · "));
+      if(!c.warn) detail.push("這個類別不提醒");
+    } else {
+      main = `<span class="n">${esc(c.name)}</span><span class="v small muted">沒有每月上限</span>`;
+    }
+    if(c.yearlyLimit){ const yu = yearUsed(c, p.y); detail.push(`${p.y} 年 ${moneyShort(yu)} / ${moneyShort(c.yearlyLimit)}${yu > c.yearlyLimit ? "（超過年度上限）" : ""}`); }
+    return `<button class="bc${open ? " open" : ""}" data-budx="${esc(c.id)}" aria-expanded="${open}">
+      <span class="dot sm ${catTint(c)}">${catMark(c)}</span>${main}${bar}
+      ${open && detail.length ? `<span class="bd num">${detail.map(d => `<span>${d}</span>`).join("")}</span>` : ""}</button>`;
+  }).join("");
+}
 function homeBudget(p){
   const all = budgetCats();
   if(!all.length) return `<div class="card budgets">${budgetRows(p)}</div>`;
@@ -1097,7 +1132,15 @@ function viewReport(){
   const refHtml = refs.length ? `<div class="tblwrap" style="padding:0 14px 14px"><table><thead><tr><th>類別</th><th>一年約</th><th>年度上限</th></tr></thead><tbody>
       ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.perYear)}</td><td>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) : "—"}</td></tr>`).join("")}</tbody></table></div>`
     : `<div class="empty">還沒有足夠的紀錄。</div>`;
-  return periodNav() + `<div class="section" id="budget-all"><div class="section-head"><h2>${icon("jar")}預算進度</h2><span class="label">全部類別</span></div><div class="card budgets">${budgetRows(viewPeriod)}</div></div>
+  const seg = `<div class="seg rseg" role="tablist" aria-label="報表內容">
+      <button role="tab" data-rseg="analysis" aria-pressed="${reportSeg==="analysis"}" aria-selected="${reportSeg==="analysis"}">收支分析</button>
+      <button role="tab" data-rseg="budget" aria-pressed="${reportSeg==="budget"}" aria-selected="${reportSeg==="budget"}">預算進度</button></div>`;
+  if(reportSeg === "budget"){
+    const bc = budgetCats(); const hot = bc.filter(c => needsAttention(c, viewPeriod)).length;
+    return periodNav() + seg + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><span class="label">${bc.length} 個類別${hot ? ` · ${hot} 個需要注意` : ""}</span></div>
+      <div class="card budc">${budgetCompact(viewPeriod)}</div><p class="small muted" style="margin:8px 4px 0">點類別可以看細節。</p></div>`;
+  }
+  return periodNav() + seg + `
     <div class="section"><div class="section-head"><h2>${icon("report")}支出分類排行</h2><span class="label num">合計 ${money(out)}</span></div><div class="card">${rank}</div></div>
     <div class="section"><div class="section-head"><h2>近 6 期收支</h2><span class="label">到 ${periodLabel(viewPeriod).title}</span></div>
       <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>
@@ -1759,6 +1802,10 @@ function restoreBackup(obj){
 
 /* ---------- events ---------- */
 document.addEventListener("click", e => {
+  const rs = e.target.closest("[data-rseg]");
+  if(rs){ reportSeg = rs.dataset.rseg; render(); return; }
+  const bx = e.target.closest("[data-budx]");
+  if(bx){ const id = bx.dataset.budx; budOpen.has(id) ? budOpen.delete(id) : budOpen.add(id); render(); return; }
   const tp = e.target.closest("[data-theme-pick]");
   if(tp && !tp.closest(".sheet")){ state.settings.theme = tp.dataset.themePick; put.settings(); render(); return; }
   const el = e.target.closest("[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-inst],[data-over],[data-pool],[data-favq],[data-favedit],[data-favmove],[data-wishedit],[data-wishbuy]");
@@ -1769,7 +1816,7 @@ document.addEventListener("click", e => {
   if(el.dataset.wishedit){ const w = state.wishes[el.dataset.wishedit]; w && openWish(w); return; }
   if(el.dataset.wishbuy){ const w = state.wishes[el.dataset.wishbuy]; w && buyWish(w); return; }
   if(el.dataset.pool){ const c = state.categories[el.dataset.pool]; if(c){ put.cat({...c, toPool: !toPool(c)}); render(); } return; }
-  if(el.dataset.tab){ tab = el.dataset.tab; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); return; }
+  if(el.dataset.tab){ tab = el.dataset.tab; if(tab==="report") reportSeg = "analysis"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); return; }
   if(el.dataset.edit){ const t = findTx(el.dataset.edit); t && openEntry(t); return; }
   if(el.dataset.inst){ const i = state.installments[el.dataset.inst]; i && openInstallment(i); return; }
   if(el.dataset.over){ const [kind, id] = el.dataset.over.split(":"); const s = subjectOf(kind, id); s && openOverspend(s); return; }
@@ -1791,7 +1838,7 @@ document.addEventListener("click", e => {
   else if(a==="fav-auto"){ state.settings.favManual = false; put.settings(); render(); }
   else if(a==="fav-manage"){ tab = "settings"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); const el2 = document.getElementById("fav-section"); el2 && el2.scrollIntoView(); }
   else if(a==="wish-new") openWish(null);
-  else if(a==="bud-all"){ tab = "report"; viewPeriod = curPeriod(); try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
+  else if(a==="bud-all"){ tab = "report"; reportSeg = "budget"; viewPeriod = curPeriod(); try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
   else if(a==="pend-toggle"){ pendOpen = !pendOpen; render(); }
   else if(a==="rec-all"){
     const items = pendingRecurring(); let n = 0;
