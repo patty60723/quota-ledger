@@ -24,7 +24,7 @@
 <title>額度帳本</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=LXGW+WenKai+TC:wght@700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
 :root{
   --paper:#EEF3F1; --surface:#FFFFFF; --sunk:#E3EAE7; --ink:#18293A; --muted:#58686F; --faint:#8A989D;
@@ -33,13 +33,21 @@
   --stamp:#C0392B; --stamp-soft:#F8DEDA;
   --shadow:0 1px 2px rgba(24,41,58,.06),0 8px 24px rgba(24,41,58,.08);
   --bar:var(--accent); --pos:var(--income); --fab-bg:var(--accent); --fab-ink:var(--accent-ink);
+  --hero-bg:#0B6E66; --hero-ink:#FFFFFF; --hero-muted:#BFE0DB; --hero-track:#2E8A82; --hero-fill:#F6E9CF;
+  --card-shadow:0 1px 2px rgba(70,63,58,.05),0 6px 20px rgba(70,63,58,.07);
+  --t1:#F4DED6; --t1f:#A4574A; --t2:#E0E7D8; --t2f:#5B6E4C; --t3:#DCE6EE; --t3f:#46647F; --t4:#F0E5CF; --t4f:#8A6526;
+  --t5:#E7E0EC; --t5f:#6B5A7D; --t6:#E6E2DC; --t6f:#5E5650; --t7:#F2DCE1; --t7f:#9A4D60; --t8:#D8EAE4; --t8f:#3E6F63;
   --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --f-display:"LXGW WenKai TC","Noto Serif TC","Kaiti TC",serif;
-  --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --f-num:"Figtree","Noto Sans TC","PingFang TC",system-ui,sans-serif;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     color-scheme:dark;
+    --hero-bg:#332D29; --hero-ink:#F4F3EE; --hero-muted:#BCB8B1; --hero-track:#4A423C; --hero-fill:#E0AFA0;
+    --card-shadow:0 1px 2px rgba(0,0,0,.25),0 6px 20px rgba(0,0,0,.25);
+    --t1:#4A332C; --t1f:#F0BFB1; --t2:#33402C; --t2f:#C3D6B0; --t3:#2C3A46; --t3f:#AFC8DE; --t4:#4A3C22; --t4f:#E5C58A;
+    --t5:#3D3346; --t5f:#CDB9DD; --t6:#3A3530; --t6f:#D3CCC4; --t7:#4A2F37; --t7f:#EDB5C4; --t8:#25403A; --t8f:#A8D6C9;
     --paper:#0E1719; --surface:#152124; --sunk:#1C2B2F; --ink:#E2EBE9; --muted:#9DB0B3; --faint:#6F8487;
     --line:#29393D; --accent:#3FB3A6; --accent-ink:#06201D; --accent-soft:#17383A;
     --income:#1FA396; --expense:#C98316; --warn:#E0A94A; --warn-soft:#3A2E17;
@@ -49,6 +57,10 @@
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
+    --hero-bg:#332D29; --hero-ink:#F4F3EE; --hero-muted:#BCB8B1; --hero-track:#4A423C; --hero-fill:#E0AFA0;
+    --card-shadow:0 1px 2px rgba(0,0,0,.25),0 6px 20px rgba(0,0,0,.25);
+    --t1:#4A332C; --t1f:#F0BFB1; --t2:#33402C; --t2f:#C3D6B0; --t3:#2C3A46; --t3f:#AFC8DE; --t4:#4A3C22; --t4f:#E5C58A;
+    --t5:#3D3346; --t5f:#CDB9DD; --t6:#3A3530; --t6f:#D3CCC4; --t7:#4A2F37; --t7f:#EDB5C4; --t8:#25403A; --t8f:#A8D6C9;
   --paper:#0E1719; --surface:#152124; --sunk:#1C2B2F; --ink:#E2EBE9; --muted:#9DB0B3; --faint:#6F8487;
   --line:#29393D; --accent:#3FB3A6; --accent-ink:#06201D; --accent-soft:#17383A;
   --income:#1FA396; --expense:#C98316; --warn:#E0A94A; --warn-soft:#3A2E17;
@@ -61,11 +73,16 @@
   --line:#DDD9D2; --accent:#463F3A; --accent-ink:#F4F3EE; --accent-soft:#F3E1DA;
   --bar:#8A817C; --pos:#3D72A8; --income:#3D72A8; --expense:#C26A50; --warn:#8A6220; --warn-soft:#F2E6CF;
   --stamp:#B0473A; --stamp-soft:#F6DED8; --fab-bg:#E0AFA0; --fab-ink:#463F3A;
+  --hero-bg:#463F3A; --hero-ink:#F4F3EE; --hero-muted:#BCB8B1; --hero-track:#5E5550; --hero-fill:#E0AFA0;
   --shadow:0 1px 2px rgba(70,63,58,.06),0 8px 24px rgba(70,63,58,.10);
 }
 @media (prefers-color-scheme:dark){
   :root[data-palette="blush"]:not([data-theme="light"]){
     color-scheme:dark;
+    --hero-bg:#332D29; --hero-ink:#F4F3EE; --hero-muted:#BCB8B1; --hero-track:#4A423C; --hero-fill:#E0AFA0;
+    --card-shadow:0 1px 2px rgba(0,0,0,.25),0 6px 20px rgba(0,0,0,.25);
+    --t1:#4A332C; --t1f:#F0BFB1; --t2:#33402C; --t2f:#C3D6B0; --t3:#2C3A46; --t3f:#AFC8DE; --t4:#4A3C22; --t4f:#E5C58A;
+    --t5:#3D3346; --t5f:#CDB9DD; --t6:#3A3530; --t6f:#D3CCC4; --t7:#4A2F37; --t7f:#EDB5C4; --t8:#25403A; --t8f:#A8D6C9;
     --paper:#1F1B18; --surface:#29241F; --sunk:#332D28; --ink:#F4F3EE; --muted:#BCB8B1; --faint:#8A817C;
     --line:#3E3731; --accent:#E0AFA0; --accent-ink:#2A2420; --accent-soft:#45322C;
     --bar:#BCB8B1; --pos:#8DB4DE; --income:#4C80B8; --expense:#C9735A; --warn:#DDAE5C; --warn-soft:#3D3120;
@@ -75,6 +92,10 @@
 }
 :root[data-palette="blush"][data-theme="dark"]{
   color-scheme:dark;
+    --hero-bg:#332D29; --hero-ink:#F4F3EE; --hero-muted:#BCB8B1; --hero-track:#4A423C; --hero-fill:#E0AFA0;
+    --card-shadow:0 1px 2px rgba(0,0,0,.25),0 6px 20px rgba(0,0,0,.25);
+    --t1:#4A332C; --t1f:#F0BFB1; --t2:#33402C; --t2f:#C3D6B0; --t3:#2C3A46; --t3f:#AFC8DE; --t4:#4A3C22; --t4f:#E5C58A;
+    --t5:#3D3346; --t5f:#CDB9DD; --t6:#3A3530; --t6f:#D3CCC4; --t7:#4A2F37; --t7f:#EDB5C4; --t8:#25403A; --t8f:#A8D6C9;
   --paper:#1F1B18; --surface:#29241F; --sunk:#332D28; --ink:#F4F3EE; --muted:#BCB8B1; --faint:#8A817C;
   --line:#3E3731; --accent:#E0AFA0; --accent-ink:#2A2420; --accent-soft:#45322C;
   --bar:#BCB8B1; --pos:#8DB4DE; --income:#4C80B8; --expense:#C9735A; --warn:#DDAE5C; --warn-soft:#3D3120;
@@ -87,14 +108,14 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
-.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:0}
 .wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:12px 150px}
 header.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-block:8px 4px}
 .brand{font-family:var(--f-display);font-size:22px;font-weight:700;letter-spacing:.04em}
 .sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .sync i{width:7px;height:7px;border-radius:50%;background:var(--faint);display:inline-block}
 .sync.on i{background:var(--income)}
-h2{font-family:var(--f-display);font-weight:700;font-size:18px;margin:0;text-wrap:balance}
+h2{font-family:var(--f-body);font-weight:700;font-size:17px;margin:0;text-wrap:balance}
 .label{font-size:12px;color:var(--muted);letter-spacing:.06em}
 .section{display:flex;flex-direction:column;gap:10px;margin-top:22px}
 .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
@@ -105,7 +126,7 @@ h2{font-family:var(--f-display);font-weight:700;font-size:18px;margin:0;text-wra
 /* period nav */
 .period{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
 .period .t{display:flex;flex-direction:column;align-items:center}
-.period .t b{font-family:var(--f-display);font-size:20px}
+.period .t b{font-family:var(--f-body);font-weight:700;font-size:19px}
 .period .t span{font-size:12px;color:var(--muted)}
 .iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;font-size:18px}
 .iconbtn:disabled{opacity:.35;cursor:default}
@@ -155,7 +176,7 @@ h2{font-family:var(--f-display);font-weight:700;font-size:18px;margin:0;text-wra
 .daygrp:first-child{border-top:0}
 .tx{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 14px;background:none;border:0;text-align:left;width:100%}
 .tx:hover{background:var(--sunk)}
-.tx .dot{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-family:var(--f-display);font-size:15px;background:var(--sunk);color:var(--ink)}
+.tx .dot{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:14px;font-weight:600;background:var(--sunk);color:var(--ink)}
 .tx .dot.inc{background:var(--accent-soft);color:var(--accent)}
 .tx .mid{display:flex;flex-direction:column;min-width:0}
 .tx .mid b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -328,6 +349,79 @@ nav.tabs button .ic{width:23px;height:23px;margin-bottom:1px}
 .catname{display:inline-flex;align-items:center;gap:8px}
 .cmark{width:22px;display:inline-grid;place-items:center;color:var(--muted);font-weight:400;font-size:14px}
 .cmark .ic{width:18px;height:18px}
+
+/* ---------- home redesign ---------- */
+.home{display:flex;flex-direction:column;gap:22px;padding-top:2px}
+.hdate{font-size:13px;color:var(--muted);margin:-6px 0 -12px}
+.hero{background:var(--hero-bg);color:var(--hero-ink);border-radius:22px;padding:20px 20px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--card-shadow)}
+.hrow{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.hlabel{font-size:13px;color:var(--hero-muted);letter-spacing:.04em}
+.hperiod{font-size:12px;color:var(--hero-muted)}
+.hbig{font-size:clamp(34px,11vw,44px);font-weight:700;line-height:1.05;letter-spacing:-.01em}
+.hbig small{font-size:15px;font-weight:600;color:var(--hero-muted);margin-right:6px;vertical-align:.55em}
+.hbig.neg{color:var(--hero-fill)}
+.hbar{position:relative;height:8px;border-radius:4px;background:var(--hero-track);margin-top:4px}
+.hbar i{position:absolute;inset:0 auto 0 0;border-radius:4px;background:var(--hero-fill)}
+.hbar.over i{background:#EE8C7A}
+.hbar .pace{position:absolute;top:-4px;width:2px;height:16px;border-radius:1px;background:var(--hero-ink);transform:translateX(-1px);opacity:.85}
+.hsub{font-size:13px;color:var(--hero-muted)}
+.hsub b{color:var(--hero-ink);font-weight:600}
+.hstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid var(--hero-track);padding-top:12px;margin-top:2px}
+.hstats div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hstats span{font-size:12px;color:var(--hero-muted)}
+.hstats b{font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hstats b.neg{color:var(--hero-fill)}
+.minis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:-10px}
+.mini{display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:16px;padding:12px;box-shadow:var(--card-shadow);min-width:0}
+.mini > div{display:flex;flex-direction:column;min-width:0}
+.mini span{font-size:12px;color:var(--muted)}
+.mini b{font-size:16px;font-weight:600;white-space:nowrap}
+.mic,.qic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex-shrink:0;font-size:14px;font-weight:600}
+.mic .ic,.qic .ic{width:18px;height:18px}
+.hsec{display:flex;flex-direction:column;gap:10px}
+.hhead{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.hhead h2{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.hhead .count{font-family:var(--f-num);font-size:12px;font-weight:600;background:var(--stamp-soft);color:var(--stamp);border-radius:999px;padding:1px 8px}
+.link{background:none;border:0;color:var(--muted);font-size:13px;padding:4px 0}
+.link.sm{font-size:12px;padding:4px}
+.hcard{background:var(--surface);border:0;border-radius:18px;box-shadow:var(--card-shadow);overflow:hidden}
+.hint-empty{margin:0;font-size:13px;color:var(--muted)}
+.home .quickrow{gap:10px;padding:2px 2px 8px}
+.home .qchip{border:0;background:var(--surface);box-shadow:var(--card-shadow);border-radius:16px;padding:8px 14px 8px 8px;gap:10px;align-items:center}
+.home .qchip .qt{display:flex;flex-direction:column;align-items:flex-start;line-height:1.25}
+.home .qchip .qt b{font-size:14px}
+.home .qchip .qt .num{font-size:13px;color:var(--muted)}
+.trow{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
+.trow:first-child{border-top:0}
+.trow .meta{display:flex;flex-direction:column;min-width:0}
+.trow .meta b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow .meta > span{font-size:12px;color:var(--muted)}
+.trow:has(.btn) {grid-template-columns:auto minmax(0,1fr) auto}
+.trow .amtin{width:84px;max-width:none;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--paper);text-align:right;font-weight:600}
+.okbtn{width:34px;height:34px;border-radius:11px;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center}
+.okbtn .ic{width:18px;height:18px;stroke-width:2.4}
+.warnic{background:var(--stamp-soft);color:var(--stamp)}
+.home .budgets .bud{padding:14px 16px}
+.home .budgets .bar{height:6px;border-radius:3px}
+.home .budgets .bar > i{border-radius:3px}
+.home .budfoot{color:var(--muted)}
+.home .txlist .tx{padding:10px 14px}
+.dot.sm{width:24px;height:24px;border-radius:8px;display:inline-grid;place-items:center;font-size:12px;margin-right:2px}
+.dot.sm .ic{width:15px;height:15px}
+.bud .l1 .n{gap:8px}
+.tint1{background:var(--t1);color:var(--t1f)} .tint2{background:var(--t2);color:var(--t2f)} .tint3{background:var(--t3);color:var(--t3f)} .tint4{background:var(--t4);color:var(--t4f)}
+.tint5{background:var(--t5);color:var(--t5f)} .tint6{background:var(--t6);color:var(--t6f)} .tint7{background:var(--t7);color:var(--t7f)} .tint8{background:var(--t8);color:var(--t8f)}
+.tx .dot.tint1{background:var(--t1);color:var(--t1f)}.tx .dot.tint2{background:var(--t2);color:var(--t2f)}.tx .dot.tint3{background:var(--t3);color:var(--t3f)}.tx .dot.tint4{background:var(--t4);color:var(--t4f)}.tx .dot.tint5{background:var(--t5);color:var(--t5f)}.tx .dot.tint6{background:var(--t6);color:var(--t6f)}.tx .dot.tint7{background:var(--t7);color:var(--t7f)}.tx .dot.tint8{background:var(--t8);color:var(--t8f)}
+button:active:not(:disabled){transform:scale(.97)}
+.tx:active,.budfoot:active{transform:none}
+button{transition:transform .12s ease,background-color .15s ease}
+@media (prefers-reduced-motion:no-preference){
+  .hbar i,.bar > i{transform-origin:left center;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
+  .hero,.minis,.hsec{animation:rise .45s ease-out both}
+  .minis{animation-delay:.04s} .hsec:nth-of-type(1){animation-delay:.06s} .hsec:nth-of-type(2){animation-delay:.09s} .hsec:nth-of-type(3){animation-delay:.12s} .hsec:nth-of-type(4){animation-delay:.15s}
+  @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes rise{from{opacity:.5;transform:translateY(8px)}to{opacity:1;transform:none}}
+}
 .toast{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .toastbtn{background:none;border:0;color:var(--accent-soft);font-weight:700;padding:2px 4px;text-decoration:underline;text-underline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
@@ -418,6 +512,8 @@ const CAT_ICONS = [
 function catIconName(name){ const hit = CAT_ICONS.find(([re]) => re.test(name || "")); return hit ? hit[1] : null; }
 // a category's own pick wins; "text" means show the first character; otherwise match by name
 function catIconFor(c){ if(!c || c.icon==="text") return null; if(c.icon && ICON[c.icon]) return c.icon; return catIconName(c.name); }
+// neighbouring categories get different tints (sort order cycles through 8)
+function catTint(c){ return c ? `tint${((c.sort ?? 0) % 8 + 8) % 8 + 1}` : ""; }
 function catMark(c, fallbackName){ const n = catIconFor(c); return n ? icon(n) : esc(String((c && c.name) || fallbackName || "?").slice(0,1)); }
 
 
@@ -526,7 +622,7 @@ function pushAll(){
   write("meta/settings", state.settings);
 }
 let syncOn = false;
-function setSync(on){ syncOn = on; const el = $("#sync"); if(el){ el.className = "sync" + (on?" on":""); el.lastElementChild.textContent = on ? "已同步" : "只存在這個瀏覽器"; } }
+function setSync(on){ syncOn = on; const el = $("#sync"); if(el) el.hidden = !(db && !on); }
 
 /* ---------- periods ---------- */
 function cycleStart(y, m){ const S = state.settings.cycleStartDay || 1; return new Date(y, m-1, Math.min(S, dim(y,m))); }
@@ -749,7 +845,7 @@ function render(){
   applyPalette();
   renderTabs();
   const app = $("#app");
-  const head = `<header class="top"><div class="brand">額度帳本</div><div class="sync${syncOn?" on":""}" id="sync"><i></i><span>${syncOn?"已同步":"只存在這個瀏覽器"}</span></div></header>`;
+  const head = `<header class="top"><div class="brand">額度帳本</div><div class="sync" id="sync" ${db && !syncOn ? "" : "hidden"}><i></i><span>同步中斷，先存在這個瀏覽器</span></div></header>`;
   const body = tab==="home" ? viewHome() : tab==="list" ? viewList() : tab==="wish" ? viewWish() : tab==="report" ? viewReport() : viewSettings();
   app.innerHTML = head + body;
   if(tab==="report") wireChart();
@@ -777,7 +873,7 @@ function txRows(list, withDays){
     const extra = [kind, t.pendingOverspend ? "超支待處理" : "", t.note].filter(Boolean).join(" · ");
     const sub = withDays ? [cn, extra].filter(Boolean).join(" · ") : [`${t.date.slice(5).replace("-","/")}`, cn, kind].filter(Boolean).join(" · ");
     const attr = t.virtual ? `data-inst="${esc(t.installmentId)}"` : `data-edit="${esc(t.id)}"`;
-    html += `<button class="tx" ${attr}><span class="dot${plus?" inc":""}">${catMark(state.categories[t.categoryId], cn)}</span>
+    html += `<button class="tx" ${attr}><span class="dot ${catTint(state.categories[t.categoryId])}">${catMark(state.categories[t.categoryId], cn)}</span>
       <span class="mid"><b>${esc(t.title || cn)}</b><span>${esc(sub)}</span></span>
       <span class="amt${plus?" inc":""}">${plus?"+":"−"}${moneyShort(t.amount)}</span></button>`;
   });
@@ -806,7 +902,7 @@ function budgetRows(p, list){
         if(b.occupied) parts.push(`被占用 ${moneyShort(b.occupied)}`);
         if(b.received) parts.push(`借入 ${moneyShort(b.received)}`);
       }
-      html += `<div class="l1"><span class="n">${esc(c.name)} ${tag}</span><span class="num small">${moneyShort(b.used)} / ${moneyShort(b.cap)}</span></div>
+      html += `<div class="l1"><span class="n"><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${esc(c.name)} ${tag}</span><span class="num small">${moneyShort(b.used)} / ${moneyShort(b.cap)}</span></div>
         <div class="bar ${cls}" role="progressbar" aria-valuemin="0" aria-valuemax="${b.cap}" aria-valuenow="${b.used}" aria-label="${esc(c.name)} 已用 ${Math.round(pct*100)}%"><i style="width:${Math.min(100,pct*100)}%"></i></div>
         <div class="l2"><span>已用 ${Math.round(pct*100)}%</span><span class="num">${b.avail>=0?"還剩 "+moneyShort(b.avail):"超出 "+moneyShort(-b.avail)}</span></div>
         ${parts.length ? `<div class="l3 num">${parts.join(" · ")}</div>` : ""}`;
@@ -827,8 +923,8 @@ function homeBudget(p){
   if(!all.length) return `<div class="card budgets">${budgetRows(p)}</div>`;
   const hot = all.filter(c => needsAttention(c, p)); const rest = all.length - hot.length;
   // the full list lives at the top of 報表
-  const foot = rest ? `<button class="budfoot" data-act="bud-all">${hot.length ? `其他 ${rest} 個類別都在預算內` : `${rest} 個類別都在預算內`}　看全部 ›</button>` : "";
-  return `<div class="card budgets">${hot.length ? budgetRows(p, hot) : ""}${foot}</div>`;
+  const foot = rest ? `<button class="budfoot" data-act="bud-all">${hot.length ? `其他 ${rest} 個類別都在預算內` : `${rest} 個類別都在預算內，沒有需要注意的`}</button>` : "";
+  return `<div class="card budgets hcard">${hot.length ? budgetRows(p, hot) : ""}${foot}</div>`;
 }
 function confirmRun(item, v){
   const t = { id: uid(), date: item.due, type: item.r.type, categoryId: item.r.categoryId, amount: v, title: item.r.title, note: v!==item.r.amount ? `設定金額 ${item.r.amount}` : "", recurringId: item.r.id, createdAt: Date.now() };
@@ -837,38 +933,54 @@ function confirmRun(item, v){
 function viewHome(){
   const p = curPeriod(); const list = txIn(p);
   const inc = sumIncome(list), out = sumOut(list), target = state.settings.savingsTarget || 0, free = inc - out - target;
-  const L = periodLabel(p);
+  const L = periodLabel(p); const [pa, pb] = periodRange(p); const today = todayStr();
+  const daysTotal = dayDiff(pa, pb) + 1, daysLeft = Math.max(1, dayDiff(today, pb) + 1), elapsed = Math.min(1, (dayDiff(pa, today) + 1) / daysTotal);
   const now = new Date(); const ws = state.settings.weekStart ?? 1;
   const back = (now.getDay() - ws + 7) % 7; const wStart = new Date(now); wStart.setDate(now.getDate()-back);
-  const wOut = sumOut(allTx().filter(t => t.date >= ymd(wStart) && t.date <= todayStr()));
-  const pend = pendingRecurring();
-  const pendShown = pendOpen ? pend : pend.slice(0, 3);
-  const pendHtml = pend.length ? `<div class="section"><div class="section-head"><h2>${icon("calendar")}待確認的固定收支 <span class="label">${pend.length} 筆</span></h2>${pend.length > 1 ? `<button class="btn small" data-act="rec-all">全部確認</button>` : ""}</div>
-    <div class="card pending">${pendShown.map(x => `<div class="prow"><div class="meta"><b>${esc(x.r.title)}</b><span class="small muted">${x.due.slice(5).replace("-","/")} · ${esc(catName(x.r.categoryId))}${x.r.type==="income"?" · 收入":""}</span></div>
-      <input class="amtin" id="pa-${esc(x.key)}" inputmode="numeric" value="${x.r.amount}" aria-label="${esc(x.r.title)} 金額">
-      <button class="btn primary ok" data-confirm="${esc(x.key)}" aria-label="確認 ${esc(x.r.title)}">✓</button><button class="btn ghost small" data-skip="${esc(x.key)}" aria-label="這個月略過 ${esc(x.r.title)}">略過</button></div>`).join("")}
-      ${pend.length > 3 ? `<button class="budfoot" data-act="pend-toggle">${pendOpen ? "收起" : `還有 ${pend.length - 3} 筆`}</button>` : ""}</div></div>` : "";
-  const overs = pendingOverspends();
-  const overHtml = overs.length ? `<div class="section"><div class="section-head"><h2>${icon("alert")}待處理的超支</h2><span class="label">${overs.length} 筆</span></div>
-    <div class="card pending">${overs.map(s => `<div class="row"><div class="meta"><b>${esc(s.title)}</b><span class="small muted">${s.date.slice(5).replace("-","/")} · ${esc(catName(s.categoryId))} · 超出 ${moneyShort(overOf(s))}</span></div>
-      <button class="btn" data-over="${s.kind}:${esc(s.id)}">處理</button></div>`).join("")}</div></div>` : "";
+  const wOut = sumOut(allTx().filter(t => t.date >= ymd(wStart) && t.date <= today));
   const pool = poolBalance();
-  const recent = realTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,5);
+  // hero: the whole period's budget (sum of monthly limits) when there is one, otherwise cash left after the savings target
+  const limited = cats("expense").filter(c => c.monthlyLimit);
+  const bs = limited.map(c => budgetOf(c, p)); const cap = bs.reduce((s,b)=>s+b.cap,0), used = bs.reduce((s,b)=>s+b.used,0);
+  const hasBudget = cap > 0; const left = hasBudget ? cap - used : free; const usedPct = hasBudget ? used / cap : 0;
+  const perDay = left > 0 ? Math.floor(left / daysLeft) : 0;
+  const d = new Date(); const dateLabel = `${d.getMonth()+1} 月 ${d.getDate()} 日 週${WEEK[d.getDay()]}`;
+  const hero = `<section class="hero" aria-label="本期概況">
+      <div class="hrow"><span class="hlabel">${hasBudget ? "本期預算還剩" : target ? "本期可支配" : "本期結餘"}</span><span class="hperiod num">${L.range}</span></div>
+      <div class="hbig num${left < 0 ? " neg" : ""}"><small>NT$</small>${left < 0 ? "−" : ""}${moneyShort(Math.abs(left))}</div>
+      ${hasBudget ? `<div class="hbar${usedPct > 1 ? " over" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(usedPct*100)}" aria-label="本期預算已用 ${Math.round(usedPct*100)}%"><i style="width:${Math.min(100, usedPct*100)}%"></i><span class="pace" style="left:${elapsed*100}%" title="今天在這一期的位置"></span></div>
+      <div class="hsub">已用 ${Math.round(usedPct*100)}% · 剩 ${daysLeft} 天${left > 0 ? `，平均每天可花 <b class="num">${moneyShort(perDay)}</b>` : "，已經超出預算"}</div>` : `<div class="hsub">剩 ${daysLeft} 天${left > 0 ? `，平均每天 <b class="num">${moneyShort(perDay)}</b>` : ""}</div>`}
+      <div class="hstats">
+        <div><span>支出</span><b class="num">${moneyShort(out)}</b></div>
+        <div><span>收入</span><b class="num">${moneyShort(inc)}</b></div>
+        <div><span>${hasBudget ? (target ? "可支配" : "結餘") : "本週支出"}</span><b class="num${hasBudget && free < 0 ? " neg" : ""}">${hasBudget ? (free < 0 ? "−" : "") + moneyShort(Math.abs(free)) : moneyShort(wOut)}</b></div>
+      </div>
+    </section>
+    <div class="minis">
+      <div class="mini"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b class="num">${target ? moneyShort(target) : "未設定"}</b></div></div>
+      <div class="mini"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span><b class="num">${moneyShort(pool)}</b></div></div>
+    </div>`;
   const quickFavs = favList();
-  return `<div class="period" style="justify-content:flex-start;gap:10px"><div class="t" style="align-items:flex-start"><b>${L.title}</b><span class="num">${L.range}</span></div></div>
-    <div class="card passbook">
-      <div><span class="label">支出</span><span class="v">${moneyShort(out)}</span></div>
-      <div><span class="label">收入</span><span class="v">${moneyShort(inc)}</span></div>
-      <div><span class="label">${target?"可支配":"結餘"}</span><span class="v${free<0?" neg":""}">${free<0?"−":""}${moneyShort(Math.abs(free))}</span></div>
-    </div>
-    <div class="weekline"><span>本週支出 <b class="num">${moneyShort(wOut)}</b></span><span>目標儲蓄 <b class="num">${target ? moneyShort(target) : "未設"}</b> · 已節省結餘 <b class="num">${moneyShort(pool)}</b></span></div>
-    <div class="section"><div class="section-head"><h2>${icon("bolt")}快速記帳</h2><button class="btn ghost small" data-act="fav-manage">管理</button></div>
-      ${quickFavs.length ? `<div class="quickrow" role="group" aria-label="快速記帳">${quickFavs.map(f => `<button class="qchip${favUsable(f)?"":" off"}" data-favq="${esc(f.id)}">${icon(catIconFor(state.categories[f.categoryId]))}<b>${esc(f.name)}</b><span class="num">${f.amount ? (f.type==="income"?"+":"")+moneyShort(f.amount) : "輸入金額"}</span></button>`).join("")}</div>`
-        : `<p class="small muted" style="margin:0">記帳時按「存成常用」，常記的項目就會出現在這裡，點一下就記好。</p>`}</div>
-    ${pendHtml}${overHtml}
-    <div class="section"><div class="section-head"><h2>${icon("jar")}預算進度 <span class="label">警戒線 ${state.settings.warnPct || 80}%</span></h2><button class="btn ghost small" data-act="bud-all">看全部</button></div>${homeBudget(p)}</div>
-    <div class="section"><div class="section-head"><h2>${icon("clock")}最近紀錄</h2><button class="btn ghost small" data-tab="list">看全部</button></div>
-      <div class="card txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到「設定」匯入 Google Sheet。</div>`}</div></div>`;
+  const quick = `<section class="hsec"><div class="hhead"><h2>快速記帳</h2><button class="link" data-act="fav-manage">管理</button></div>
+      ${quickFavs.length ? `<div class="quickrow" role="group" aria-label="快速記帳">${quickFavs.map(f => { const c = state.categories[f.categoryId];
+        return `<button class="qchip${favUsable(f)?"":" off"}" data-favq="${esc(f.id)}"><span class="qic ${catTint(c)}">${catMark(c, f.name)}</span><span class="qt"><b>${esc(f.name)}</b><span class="num">${f.amount ? (f.type==="income"?"+":"")+moneyShort(f.amount) : "輸入金額"}</span></span></button>`; }).join("")}</div>`
+        : `<p class="hint-empty">記帳時按「存成常用」，常記的項目就會出現在這裡，點一下就記好。</p>`}</section>`;
+  // to-dos: pending recurring items and pending overspends in one card
+  const pend = pendingRecurring(); const overs = pendingOverspends();
+  const pendShown = pendOpen ? pend : pend.slice(0, 3);
+  const todoCount = pend.length + overs.length;
+  const todo = todoCount ? `<section class="hsec"><div class="hhead"><h2>待處理 <span class="count">${todoCount}</span></h2>${pend.length > 1 ? `<button class="link" data-act="rec-all">固定收支全部確認</button>` : ""}</div>
+      <div class="hcard">
+      ${overs.map(s => `<div class="trow"><span class="qic warnic">${icon("alert")}</span><div class="meta"><b>${esc(s.title)}</b><span>${esc(catName(s.categoryId))}超出 <span class="num">${moneyShort(overOf(s))}</span></span></div><button class="btn small" data-over="${s.kind}:${esc(s.id)}">處理</button></div>`).join("")}
+      ${pendShown.map(x => { const c = state.categories[x.r.categoryId]; return `<div class="trow"><span class="qic ${catTint(c)}">${catMark(c, x.r.title)}</span><div class="meta"><b>${esc(x.r.title)}</b><span>${x.due.slice(5).replace("-","/")} 固定${x.r.type==="income"?"收入":"支出"}</span></div>
+        <input class="amtin num" id="pa-${esc(x.key)}" inputmode="numeric" value="${x.r.amount}" aria-label="${esc(x.r.title)} 金額">
+        <button class="okbtn" data-confirm="${esc(x.key)}" aria-label="確認 ${esc(x.r.title)}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button><button class="link sm" data-skip="${esc(x.key)}" aria-label="這個月略過 ${esc(x.r.title)}">略過</button></div>`; }).join("")}
+      ${pend.length > 3 ? `<button class="budfoot" data-act="pend-toggle">${pendOpen ? "收起" : `還有 ${pend.length - 3} 筆固定收支`}</button>` : ""}</div></section>` : "";
+  const budget = `<section class="hsec"><div class="hhead"><h2>需要注意的預算</h2><button class="link" data-act="bud-all">全部預算 ›</button></div>${homeBudget(p)}</section>`;
+  const recent = realTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,5);
+  const rec = `<section class="hsec"><div class="hhead"><h2>最近紀錄</h2><button class="link" data-tab="list">看全部 ›</button></div>
+      <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到「設定」匯入 Google Sheet。</div>`}</div></section>`;
+  return `<div class="home"><div class="hdate">${dateLabel}</div>${hero}${quick}${todo}${budget}${rec}</div>`;
 }
 
 function viewList(){
@@ -1005,6 +1117,7 @@ function viewSettings(){
     <div class="section"><h2>分期</h2><div class="card setlist">${instHtml}</div></div>
     <div class="section"><h2>資料</h2><div class="card setlist">
       ${imp}
+      <div class="setrow"><div class="k"><b>資料存放</b><span>${db ? (syncOn ? "雲端，電腦和手機同步" : "雲端（目前連不上，先存在這個瀏覽器）") : "只存在這個瀏覽器，不會同步"}</span></div></div>
       <div class="setrow"><div class="k"><b>匯入 Google Sheet</b><span>在 Google Sheet 選「檔案 → 下載 → .xlsx」</span></div><label class="btn small" for="f-xlsx">選擇檔案</label><input type="file" id="f-xlsx" accept=".xlsx" hidden></div>
       <div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原</span></div><button class="btn small" data-act="export">匯出</button></div>
       <div class="setrow"><div class="k"><b>從備份還原</b><span>會取代目前所有資料</span></div><label class="btn small" for="f-json">選擇檔案</label><input type="file" id="f-json" accept=".json,application/json" hidden></div>
