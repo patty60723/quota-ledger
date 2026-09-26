@@ -499,6 +499,7 @@ nav.tabs button .ic{width:52px;height:30px;padding:4px 14px;border-radius:15px;b
 nav.tabs button[aria-current="page"]{color:var(--ink);font-weight:700}
 nav.tabs button[aria-current="page"] .ic{background:var(--accent-soft)}
 .fab{border-radius:20px;box-shadow:0 6px 18px rgba(70,63,58,.25)}
+.seg.three{grid-template-columns:repeat(3,1fr)}
 .toast{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .toastbtn{background:none;border:0;color:var(--accent-soft);font-weight:700;padding:2px 4px;text-decoration:underline;text-underline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
@@ -600,9 +601,10 @@ const DEFAULT_CATS = [
   ["水電瓦斯","expense"],["手機網路","expense"],["醫療與健康","expense"],["訂閱","expense"],["其他支出","expense"],
   ["薪資","income"],["其他收入","income"]
 ].map(([name,type],i)=>({id:"d"+i,name,type,monthlyLimit:null,perTxLimit:null,dailyLimit:null,yearlyLimit:null,warn:false,archived:false,sort:i}));
-const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null, palette: "blush", favManual: false, favDismissed: [], warnPct: 80 };
+const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null, palette: "blush", favManual: false, favDismissed: [], warnPct: 80, theme: "system" };
 const warnAt = () => (state.settings.warnPct || 80) / 100;
-const PALETTES = { blush: { name: "奶茶", bar: "#463F3A" }, teal: { name: "存摺綠", bar: "#0B6E66" } };
+const PALETTES = { blush: { name: "奶茶", bar: "#463F3A", dark: "#1F1B18" }, teal: { name: "存摺綠", bar: "#0B6E66", dark: "#0E1719" } };
+const THEMES = [["system","跟隨手機"],["light","淺色"],["dark","深色"]];
 // collections stored one document per item
 const COLS = ["categories","recurring","runs","installments","adjustments","closings","favorites","wishes"];
 
@@ -913,10 +915,28 @@ function renderTabs(){
   $("#tabs").innerHTML = TABS.map(([k,g,l]) => `<button data-tab="${k}" ${k===tab?'aria-current="page"':""}>${icon(g)}${l}</button>`).join("");
 }
 
+// Theme: "system" follows the phone (or, inside claude.ai, whatever the host page set); light/dark force it.
+const root = document.documentElement;
+let hostTheme = root.getAttribute("data-theme"), settingTheme = false;
+new MutationObserver(() => {
+  if(settingTheme) return;
+  hostTheme = root.getAttribute("data-theme");   // the host changed it: remember, then re-apply our choice
+  applyPalette();
+}).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+const darkQuery = window.matchMedia ? matchMedia("(prefers-color-scheme: dark)") : null;
+darkQuery && darkQuery.addEventListener && darkQuery.addEventListener("change", () => applyPalette());
 function applyPalette(){
   const k = PALETTES[state.settings.palette] ? state.settings.palette : "blush";
-  if(document.documentElement.dataset.palette !== k) document.documentElement.dataset.palette = k;
-  const meta = document.querySelector('meta[name="theme-color"]'); if(meta) meta.content = PALETTES[k].bar;
+  if(root.dataset.palette !== k) root.dataset.palette = k;
+  const choice = state.settings.theme || "system";
+  const want = choice === "system" ? hostTheme : choice;
+  if(root.getAttribute("data-theme") !== want){
+    settingTheme = true;
+    if(want) root.setAttribute("data-theme", want); else root.removeAttribute("data-theme");
+    Promise.resolve().then(() => { settingTheme = false; });
+  }
+  const isDark = want ? want === "dark" : !!(darkQuery && darkQuery.matches);
+  const meta = document.querySelector('meta[name="theme-color"]'); if(meta) meta.content = isDark ? PALETTES[k].dark : PALETTES[k].bar;
 }
 function render(){
   applyPalette();
@@ -1184,7 +1204,9 @@ function viewSettings(){
       <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>可以轉入已節省結餘的類別</b><span>只列出有設每月上限的類別</span></div>${poolChips}</div>
     </div></div>
     <div class="section"><h2>外觀</h2><div class="card setlist">
-      <div class="setrow"><div class="k"><b>配色</b><span>深色模式會跟著手機設定</span></div><select id="set-palette" aria-label="配色">${Object.entries(PALETTES).map(([k,v]) => `<option value="${k}" ${(s.palette||"blush")===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
+      <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>主題</b><span>跟隨手機時，會照手機的深色模式自動切換</span></div>
+        <div class="seg three" role="radiogroup" aria-label="主題">${THEMES.map(([k,l]) => `<button role="radio" data-theme-pick="${k}" aria-pressed="${(s.theme||"system")===k}" aria-checked="${(s.theme||"system")===k}">${l}</button>`).join("")}</div></div>
+      <div class="setrow"><div class="k"><b>配色</b><span>淺色、深色都有對應的版本</span></div><select id="set-palette" aria-label="配色">${Object.entries(PALETTES).map(([k,v]) => `<option value="${k}" ${(s.palette||"blush")===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
     </div></div>
     <div class="section"><div class="section-head"><h2>類別與預算</h2><button class="btn small" data-act="cat-new">新增類別</button></div><div class="card setlist">${catHtml}</div></div>
     <div class="section"><div class="section-head"><h2>固定收支</h2><button class="btn small" data-act="rec-new">新增</button></div><div class="card setlist">${recHtml}
@@ -1737,6 +1759,8 @@ function restoreBackup(obj){
 
 /* ---------- events ---------- */
 document.addEventListener("click", e => {
+  const tp = e.target.closest("[data-theme-pick]");
+  if(tp && !tp.closest(".sheet")){ state.settings.theme = tp.dataset.themePick; put.settings(); render(); return; }
   const el = e.target.closest("[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-inst],[data-over],[data-pool],[data-favq],[data-favedit],[data-favmove],[data-wishedit],[data-wishbuy]");
   if(!el || el.closest(".sheet")) return;
   if(el.dataset.favq){ const f = state.favorites[el.dataset.favq]; f && quickRecord(f); return; }
