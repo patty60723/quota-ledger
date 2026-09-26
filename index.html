@@ -168,7 +168,6 @@ h2{font-family:var(--f-body);font-weight:700;font-size:17px;margin:0;text-wrap:b
 .bar.warn > i{background:var(--warn)}
 .bar.over > i{background:var(--stamp)}
 .bud .l2{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
-.stamp{display:inline-block;font-family:var(--f-display);font-weight:700;color:var(--stamp);border:2px solid var(--stamp);border-radius:6px;padding:0 5px;font-size:13px;line-height:1.4;transform:rotate(-8deg);letter-spacing:.1em}
 
 /* tx list */
 .txlist{display:flex;flex-direction:column}
@@ -422,6 +421,84 @@ button{transition:transform .12s ease,background-color .15s ease}
   @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   @keyframes rise{from{opacity:.5;transform:translateY(8px)}to{opacity:1;transform:none}}
 }
+
+/* ---------- app-wide redesign (matches the home screen) ---------- */
+.card{border:0;border-radius:18px;box-shadow:var(--card-shadow)}
+.section{margin-top:24px}
+.section > h2,.section-head h2{font-size:16px;font-weight:700}
+.section-head h2 > .ic{display:none}
+.tag{font-weight:500}
+.tag.over{background:var(--stamp-soft);color:var(--stamp);font-weight:600}
+/* buttons */
+.btn{border:0;background:var(--sunk);border-radius:12px;font-weight:600;color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{background:var(--stamp-soft);color:var(--stamp)}
+.btn.ghost{background:transparent;color:var(--muted);font-weight:500}
+.btn.small{padding:7px 12px;font-size:13px}
+.rowbtns .btn{padding:13px;border-radius:14px}
+/* fields */
+select,.inp,.amtin{border:0;background:var(--sunk);border-radius:12px;padding:10px 12px;font-size:15px;color:var(--ink)}
+select{appearance:none;-webkit-appearance:none;padding-right:34px;background-repeat:no-repeat;background-position:right 11px center;background-size:14px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A817C' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+.inp:focus,select:focus,.amtin:focus{outline:2px solid var(--accent);outline-offset:0}
+.fields{gap:12px}
+.fields label,.field{font-size:12px;font-weight:500;color:var(--muted);gap:6px}
+/* switches instead of checkboxes */
+.toggle{flex-direction:row-reverse;justify-content:space-between;gap:16px;font-size:15px}
+.toggle input[type=checkbox]{appearance:none;-webkit-appearance:none;width:46px;height:28px;border-radius:14px;background:var(--line);position:relative;margin:0;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.toggle input[type=checkbox]:checked{background:var(--accent)}
+.toggle input[type=checkbox]:checked::after{transform:translateX(18px)}
+.toggle input[type=checkbox]:disabled{opacity:.4;cursor:default}
+.toggle input[type=checkbox]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* chips */
+.chip{border:0;background:var(--sunk);border-radius:12px;padding:8px 12px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.seg{border-radius:14px}
+.seg button{border-radius:11px;font-weight:600}
+/* bottom sheets */
+.scrim{background:rgba(20,16,14,.42)}
+.sheet{border-radius:26px 26px 0 0;padding:10px 18px calc(20px + env(safe-area-inset-bottom,0px));gap:16px}
+.sheet::before{content:"";display:block;flex-shrink:0;width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto}
+.sheet .hd h2{font-size:19px}
+.hint{border-radius:12px}
+.opts,.choice{border:0;background:var(--sunk);border-radius:16px}
+.opts .opt{border-top-color:var(--line)}
+/* period switcher (明細・報表) */
+.period{background:var(--surface);border-radius:16px;box-shadow:var(--card-shadow);padding:6px;margin-top:4px}
+.period .iconbtn{border:0;background:transparent;border-radius:12px}
+.period .iconbtn:hover{background:var(--sunk)}
+.period .t b{font-size:17px}
+.weekline{padding:0 4px;margin-top:12px}
+/* lists */
+.daygrp{border-top:0;padding:14px 16px 4px;font-weight:500}
+.tx{padding:10px 16px}
+.setrow{padding:14px 16px}
+.setrow .k b{font-weight:500}
+.catrow{padding:14px 16px}
+.favitem{padding:10px 10px 10px 2px}
+.budfoot{font-size:13px}
+.bar{height:6px;border-radius:3px}
+.bar > i{border-radius:3px}
+.bud{padding:14px 16px}
+.bud .l1 .n{display:flex;align-items:center}
+/* report */
+.rank{gap:12px;padding:16px}
+.rank .r{grid-template-columns:7.5em 1fr auto}
+.rank .nm{display:flex;align-items:center;gap:8px}
+.rank .track{height:10px}
+.rank .track i{border-radius:0 5px 5px 0}
+.chartbox{padding:16px}
+/* wishlist */
+.wish{padding:16px;gap:12px}
+.wscore{background:var(--hero-bg);color:var(--hero-ink);border-radius:14px}
+/* bottom navigation */
+nav.tabs{background:var(--surface);border-top:1px solid var(--line)}
+nav.tabs button{font-size:11px;font-weight:500;gap:2px;padding:7px 0 9px}
+nav.tabs button .ic{width:52px;height:30px;padding:4px 14px;border-radius:15px;box-sizing:border-box;margin:0;transition:background .2s}
+nav.tabs button[aria-current="page"]{color:var(--ink);font-weight:700}
+nav.tabs button[aria-current="page"] .ic{background:var(--accent-soft)}
+.fab{border-radius:20px;box-shadow:0 6px 18px rgba(70,63,58,.25)}
 .toast{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .toastbtn{background:none;border:0;color:var(--accent-soft);font-weight:700;padding:2px 4px;text-decoration:underline;text-underline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
@@ -894,7 +971,7 @@ function budgetRows(p, list){
     if(c.monthlyLimit){
       const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1;
       const cls = pct > 1 ? "over" : pct >= warnAt() ? "warn" : "";
-      const tag = !c.warn ? `<span class="tag">不提醒</span>` : pct > 1 ? `<span class="stamp">超支</span>` : pct >= warnAt() ? `<span class="tag warn">快用完</span>` : "";
+      const tag = !c.warn ? `<span class="tag">不提醒</span>` : pct > 1 ? `<span class="tag over">超支</span>` : pct >= warnAt() ? `<span class="tag warn">快用完</span>` : "";
       const parts = [];
       if(b.inst || b.occupied || b.received){
         parts.push(`實際 ${moneyShort(b.actual)}`);
@@ -993,7 +1070,7 @@ function viewReport(){
   const list = txIn(viewPeriod); const out = sumOut(list);
   const byCat = {}; list.forEach(t => { const v = outAmt(t); if(v) byCat[t.categoryId] = (byCat[t.categoryId]||0)+v; });
   const rows = Object.entries(byCat).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]); const max = rows[0]?.[1] || 1;
-  const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<div class="r"><span class="nm">${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${out>0?Math.round(v/out*100):0}%</small></span></div>`).join("")}</div>`
+  const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<div class="r"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${out>0?Math.round(v/out*100):0}%</small></span></div>`).join("")}</div>`
     : `<div class="empty">這一期沒有支出。</div>`;
   const n = recordedMonths();
   const refs = cats("expense").map(c => ({c, r: yearlyRef(c)})).filter(o => o.r && o.r.perYear > 0).sort((a,b)=>b.r.perYear-a.r.perYear);
