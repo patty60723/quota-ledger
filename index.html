@@ -415,8 +415,9 @@ button:active:not(:disabled){transform:scale(.97)}
 .tx:active,.budfoot:active{transform:none}
 button{transition:transform .12s ease,background-color .15s ease}
 @media (prefers-reduced-motion:no-preference){
-  .hbar i,.bar > i{transform-origin:left center;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
-  .hero,.minis,.hsec{animation:rise .45s ease-out both}
+  /* entrance motion only when a new screen appears (render() sets .anim), not on in-place updates */
+  #app.anim .hbar i,#app.anim .bar > i{transform-origin:left center;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
+  #app.anim .hero,#app.anim .minis,#app.anim .hsec{animation:rise .45s ease-out both}
   .minis{animation-delay:.04s} .hsec:nth-of-type(1){animation-delay:.06s} .hsec:nth-of-type(2){animation-delay:.09s} .hsec:nth-of-type(3){animation-delay:.12s} .hsec:nth-of-type(4){animation-delay:.15s}
   @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   @keyframes rise{from{opacity:.5;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -954,9 +955,13 @@ function render(){
   const app = $("#app");
   const head = `<header class="top"><div class="brand">額度帳本</div><div class="sync" id="sync" ${db && !syncOn ? "" : "hidden"}><i></i><span>同步中斷，先存在這個瀏覽器</span></div></header>`;
   const body = tab==="home" ? viewHome() : tab==="list" ? viewList() : tab==="wish" ? viewWish() : tab==="report" ? viewReport() : viewSettings();
+  // animate when the screen changes (tab, period, report view); expanding a row, saving or syncing redraws quietly
+  const viewKey = [tab, pkey(viewPeriod), reportSeg].join("|");
+  app.classList.toggle("anim", viewKey !== lastViewKey); lastViewKey = viewKey;
   app.innerHTML = head + body;
   if(tab==="report") wireChart();
 }
+let lastViewKey = null;
 
 function periodNav(){
   const L = periodLabel(viewPeriod);
