@@ -646,8 +646,6 @@ header.top .ttl{font-size:17px;font-weight:700}
 .why{font-size:14px}
 .why summary{cursor:pointer;color:var(--muted);font-size:13px;list-style:none;display:inline-block}
 .why summary::-webkit-details-marker{display:none}
-.why summary::after{content:" ›"}
-.why[open] summary::after{content:" ⌄"}
 .why p{margin:6px 0}
 .why .hint{margin:6px 0}
 .hbig .hof{font-size:17px;font-weight:600;color:var(--hero-muted);margin-left:8px;letter-spacing:0}
@@ -728,18 +726,53 @@ header.top .more{width:44px;height:44px}
 .bc .n{font-weight:600;font-size:16px}
 .hstats{grid-template-columns:minmax(0,1.35fr) minmax(0,.8fr) minmax(0,1fr)}
 @media (max-width:360px){.hstats b{font-size:20px}.hstats span{font-size:12px}}
-/* 看懂: top rhythm 24 → title → 20 → month selector → 16 → summary */
-#app.v-report{padding-top:0}
-#app.v-report header.top{padding-block:24px 0}
-#app.v-report .brand{line-height:1}
-#app.v-report header.top .more{margin-block:-11px}
-#app.v-report .period{margin-top:20px}
-#app.v-report .period + .insight{margin-top:16px}
 /* category list in 預算與類別: same pastel tiles as the rest of the app */
 .catname{gap:12px}
 .catname .qic{width:40px;height:40px;border-radius:12px}
 .catname .qic .ic{width:20px;height:20px}
 .catrow:has(.catname) .sub{padding-left:52px;grid-column:1 / -1}
+
+/* ---------- audit pass: 4pt spacing, radius scale, 44px targets ---------- */
+/* every page: 24 to the title, 20 from the title to the first block */
+#app{padding-top:0}
+#app > header.top{padding-block:24px 0;align-items:center;min-height:0}
+#app > header.top .brand{line-height:1}
+#app > header.top .ttl{line-height:1.1}
+#app > header.top .more,#app > header.top .backbtn{margin-block:-11px}
+#app > header.top + *{margin-top:20px !important}
+.home{gap:24px;padding-top:0}
+.hsec{gap:12px}
+.period + .insight{margin-top:16px}
+/* sheets on the same 20px side margin as pages */
+.sheet{padding-inline:20px;border-radius:24px 24px 0 0}
+/* radius scale: 24 hero · 20 card · 16 small card · 12–14 control · 14 icon tile · 999 pill */
+.qic,.mic,.tx .dot,.cdh .dot{border-radius:14px}
+.catname .qic,.home .qchip .qic{border-radius:12px}
+.dot.sm{border-radius:8px}
+.iconbtn,.iconbtn.sm,.ipk{border-radius:12px}
+.budsum,.ytotal,.ys{border-radius:16px}
+.nwpill{border-radius:999px;padding-inline:8px}
+/* touch targets: at least 44px, without making small buttons look bigger */
+.btn{min-height:44px}
+.btn.small,.chip,.nwb,.sheet .fav,.fbar button{position:relative}
+.btn.small{min-height:36px}
+.btn.small::after,.chip::after,.nwb::after{content:"";position:absolute;inset:-4px 0}
+.seg button{min-height:44px}
+.rank .r{min-height:44px}
+.link{min-width:44px;justify-content:center}
+.backbtn{display:inline-flex;align-items:center;gap:2px;padding-left:0}
+.backbtn .ic{width:20px;height:20px;margin-left:-4px}
+.link .ic.sm,.why summary .ic.sm{width:16px;height:16px;vertical-align:-3px}
+.link .ic.sm{margin-left:2px}
+.why summary{display:inline-flex;align-items:center;gap:2px;min-height:44px}
+.why[open] summary .ic{transform:rotate(90deg)}
+.iconbtn .ic{width:20px;height:20px}
+.nwfilter button,.tagrow .nwb{position:relative}
+.nwfilter button::after{content:"";position:absolute;inset:-5px -2px}
+.tagrow .nwb::after{content:"";position:absolute;inset:-7px -2px}
+.inp,select,.amtin{min-height:44px}
+.why summary{margin-block:-8px}
+.card.setlist{overflow:hidden}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -776,10 +809,10 @@ const ICON = {
   settings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   jar: '<path d="M5 8h14v11H5z"/><path d="M8 8V6h8v2M9 13h6M12 10v6"/>',
-  bolt: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
-  calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M9 15l2 2 4-4"/>',
-  alert: '<path d="M12 4 21.5 20h-19z"/><path d="M12 10v4.5"/><circle class="f" cx="12" cy="17.3" r="1.1"/>',
-  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  bolt: '<path d="M13 2 6.5 13H12l-1 9 6.5-11H12l1-9Z"/>',
+  calendar: '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
+  alert: '<path d="M12 4 21 19.5H3L12 4Z"/><path d="M12 10v4"/><circle cx="12" cy="16.8" r="1"/>',
+  clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
   // categories
   meal: '<path d="M5 4v6M8 4v6M5 7h3M6.5 10v10"/><path d="M15 4v16M15 4c3 1 4 3.5 4 6h-4"/>',
   dine: '<path d="M5 4v7M8 4v7M5 8h3M6.5 11v9"/><path d="M15 4v16M15 4c3 1 4 3.5 4 7h-4"/>',
@@ -788,35 +821,38 @@ const ICON = {
   shirt: '<path d="m8 4 4 2 4-2 4 4-3 2v10H7V10L4 8l4-4Z"/><path d="M10 5.2c.4 1.2 1 1.8 2 1.8s1.6-.6 2-1.8"/>',
   utility: '<path d="M13 2 6.5 13H12l-1 9 6.5-11H12l1-9Z"/>',
   wifi: '<path d="M4 9a12 12 0 0 1 16 0M7 12.5a7.5 7.5 0 0 1 10 0M10 16a3 3 0 0 1 4 0"/><circle cx="12" cy="19" r="1"/>',
-  phone: '<rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M11 17.5h2"/>',
+  phone: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>',
   paw: '<circle cx="8" cy="8" r="1.5"/><circle cx="16" cy="8" r="1.5"/><circle cx="5.5" cy="12" r="1.5"/><circle cx="18.5" cy="12" r="1.5"/><path d="M8 18c0-2.4 1.8-4.5 4-4.5s4 2.1 4 4.5c0 1.5-1 2-2.2 1.3a3.8 3.8 0 0 0-3.6 0C9 20 8 19.5 8 18Z"/>',
   basket: '<path d="M5 8h14l-1.5 11h-11L5 8Z"/><path d="M8 8l2-4h4l2 4M9 12v3M15 12v3"/>',
-  scissors: '<circle cx="6.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><path d="M8.3 15.7 18 4M15.7 15.7 6 4"/>',
-  shield: '<path d="M12 3.5 19 6v5.2c0 4.5-3 7.6-7 9.3-4-1.7-7-4.8-7-9.3V6z"/>',
-  receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
-  heart: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.5a4.2 4.2 0 0 1 7.5 2.3C19.5 15.4 12 20 12 20z"/>',
-  coin: '<circle cx="12" cy="12" r="8.5"/><path d="M12 6.8v10.4M14.8 9.4c-.4-.9-1.4-1.4-2.8-1.4-1.7 0-2.8.8-2.8 1.9s1.1 1.6 2.8 1.9 2.8.8 2.8 2-1.1 2-2.8 2c-1.4 0-2.5-.6-2.9-1.5"/>',
-  house: '<path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M10 20v-5h4v5"/>',
+  scissors: '<circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8 16.2 18 4M16 16.2 6 4"/>',
+  shield: '<path d="M12 3 19 6v5c0 4.4-2.9 7.6-7 9-4.1-1.4-7-4.6-7-9V6l7-3Z"/>',
+  receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
+  heart: '<path d="M12 20s-8-4.7-8-10.2A4.3 4.3 0 0 1 12 7.5a4.3 4.3 0 0 1 8 2.3C20 15.3 12 20 12 20Z"/>',
+  coin: '<circle cx="12" cy="12" r="8"/><path d="M14.5 9.5c-.4-.9-1.3-1.5-2.5-1.5-1.5 0-2.5.8-2.5 1.9 0 2.6 5 1.4 5 4.2 0 1.1-1 1.9-2.5 1.9-1.2 0-2.1-.6-2.5-1.5M12 6.5V8M12 16v1.5"/>',
+  house: '<path d="M4 20V10l8-6 8 6v10H4Z"/><path d="M10 20v-5h4v5"/>',
   give: '<path d="M4 14c3-1 4.5-.5 6 1h4c1.2 0 1.5 1.5.4 2H11"/><path d="M4 14v6h9c2.5 0 5-2 7-4"/><path d="M12 11s-4-2.2-4-5a2.3 2.3 0 0 1 4-1.5A2.3 2.3 0 0 1 16 6c0 2.8-4 5-4 5Z"/>',
-  repeat: '<path d="m17 3.5 3 3-3 3M4 11.5v-1a4 4 0 0 1 4-4h12M7 20.5l-3-3 3-3M20 12.5v1a4 4 0 0 1-4 4H4"/>',
-  book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 21H20M8.5 7.5h7"/>',
-  refund: '<path d="M9 13.5 4 8.5l5-5"/><path d="M4 8.5h10a6 6 0 0 1 0 12h-3"/>',
-  coffee: '<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5c-.7.9.7 1.8 0 2.8M12 3.5c-.7.9.7 1.8 0 2.8"/>',
-  travel: '<path d="M21 3 3 10.5l7 2.5 2.5 7z"/><path d="m10 13 11-10"/>',
-  game: '<rect x="3" y="7.5" width="18" height="10" rx="5"/><path d="M8 10.5v4M6 12.5h4"/><circle class="f" cx="15.5" cy="11.3" r="1.1"/><circle class="f" cx="17.6" cy="13.8" r="1.1"/>',
-  bag: '<path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 10.5V7a3 3 0 0 1 6 0v3.5"/>',
-  star: '<path d="m12 3.8 2.5 5.1 5.6.8-4 4 .9 5.6L12 16.6l-5 2.7.9-5.6-4-4 5.6-.8z"/>',
-  music: '<path d="M9 18V6l10-2v12"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="16" r="2"/>',
+  repeat: '<path d="m17 3 3 3-3 3"/><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="m7 21-3-3 3-3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/>',
+  book: '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/>',
+  refund: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  coffee: '<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5V9Z"/><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8 3.5V6M11 3.5V6M14 3.5V6"/>',
+  travel: '<path d="M21 4 3 11l7 2.5L12.5 21 21 4Z"/><path d="M10 13.5 21 4"/>',
+  game: '<rect x="3" y="7" width="18" height="11" rx="5.5"/><path d="M8 10.5v4M6 12.5h4"/><circle cx="15.5" cy="11.5" r="1"/><circle cx="17.5" cy="13.5" r="1"/>',
+  bag: '<path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  star: '<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9L12 3.5Z"/>',
+  music: '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
   sport: '<path d="M7 9v6M17 9v6M4 10v4M20 10v4M7 12h10M2 11v2M22 11v2"/>',
   medical: '<path d="M9 3h6v5h5v6h-5v7H9v-7H4V8h5V3Z"/>',
   recurring: '<path d="M20 7h-5V2"/><path d="M20 7a8 8 0 1 0 1 8"/>',
   more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   chev: '<path d="m9 18 6-6-6-6"/>',
-  archery: '<circle cx="10.5" cy="13.5" r="7.5"/><circle cx="10.5" cy="13.5" r="4"/><circle class="f" cx="10.5" cy="13.5" r="1.3"/><path d="m10.5 13.5 9-9M16.2 4.5h3.3v3.3"/>'
+  chevl: '<path d="m15 18-6-6 6-6"/>',
+  up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+  down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+  archery: '<circle cx="11" cy="13" r="7"/><circle cx="11" cy="13" r="3"/><path d="m11 13 9-9M16 4h4v4"/>'
 };
 // icons offered in the category picker, in display order
 const CAT_PICK = ["meal","dine","coffee","bus","travel","ticket","game","music","sport","archery","shirt","bag","basket","scissors","utility","wifi","phone","house","paw","medical","heart","shield","receipt","book","repeat","give","star","coin","refund"];
-function icon(name, cls){ return ICON[name] ? `<svg class="ic${cls ? " " + cls : ""}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>` : ""; }
+function icon(name, cls){ return ICON[name] ? `<svg class="ic${cls ? " " + cls : ""}" data-i="${name}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>` : ""; }
 // category name → icon; first match wins, so specific words come before general ones
 const CAT_ICONS = [
   [/射箭|弓/, "archery"], [/運動|健身|球|跑步|游泳|瑜伽|重訓/, "sport"],
@@ -1287,13 +1323,12 @@ function render(){
   const app = $("#app");
   const sync = `<div class="sync" id="sync" ${db && !syncOn ? "" : "hidden"}><i></i><span>同步中斷，先存在這個瀏覽器</span></div>`;
   const head = tab === "settings"
-    ? `<header class="top sub"><button class="backbtn" data-act="back" aria-label="返回">‹ 返回</button><div class="ttl">${SET_PAGES[setPage] || "設定"}</div>${sync}</header>`
+    ? `<header class="top sub"><button class="backbtn" data-act="back" aria-label="返回">${icon("chevl")}返回</button><div class="ttl">${SET_PAGES[setPage] || "設定"}</div>${sync}</header>`
     : `<header class="top"><div class="brand">額度帳本</div>${sync}<button class="iconbtn more" data-act="more" aria-label="更多：設定與備份">${icon("more")}</button></header>`;
   const body = tab==="home" ? viewHome() : tab==="list" ? viewList() : tab==="wish" ? viewWish() : tab==="report" ? viewReport() : viewSettings();
   // animate when the screen changes (tab, period, report view); expanding a row, saving or syncing redraws quietly
   const viewKey = [tab, pkey(viewPeriod), reportSeg, tab === "settings" ? setPage : ""].join("|");
   app.classList.toggle("anim", viewKey !== lastViewKey); lastViewKey = viewKey;
-  app.classList.toggle("v-report", tab === "report");
   app.innerHTML = head + body;
   if(tab==="report") wireChart();
 }
@@ -1301,9 +1336,9 @@ let lastViewKey = null;
 
 function periodNav(){
   const L = periodLabel(viewPeriod);
-  return `<div class="period"><button class="iconbtn" data-act="prev" aria-label="上一期">‹</button>
+  return `<div class="period"><button class="iconbtn" data-act="prev" aria-label="上一期">${icon("chevl")}</button>
     <div class="t"><b>${L.title}</b><span class="num">${L.range}</span></div>
-    <button class="iconbtn" data-act="next" aria-label="下一期">›</button></div>`;
+    <button class="iconbtn" data-act="next" aria-label="下一期">${icon("chev")}</button></div>`;
 }
 
 // keepOrder: render the list as given (e.g. sorted by amount) instead of newest first
@@ -1517,10 +1552,10 @@ function viewHome(){
       </div></section>` : "";
   const up = upcoming().slice(0, 5);
   const md = s => { const x = parseYmd(s); return `${x.getMonth()+1}/${x.getDate()}`; };
-  const next = up.length ? `<section class="hsec"><div class="hhead"><h2>接下來 <small class="hsm">兩週內</small></h2><button class="link" data-set="fixed">管理 ›</button></div>
+  const next = up.length ? `<section class="hsec"><div class="hhead"><h2>接下來 <small class="hsm">兩週內</small></h2><button class="link" data-set="fixed">管理${icon("chev","sm")}</button></div>
       <div class="hcard">${up.map(u => { const dd = dayDiff(todayStr(), u.date); return `<div class="trow"><span class="qic ${catTint(u.cat)}">${u.wish ? icon("wish") : catMark(u.cat, u.title)}</span><div class="meta"><b>${esc(u.title)}</b><span>${md(u.date)} · ${u.sub}</span></div><div class="upr"><b class="num${u.income ? " inc" : ""}">${u.amount ? (u.income ? "+" : "−") + moneyShort(u.amount) : ""}</b><small>${dd === 1 ? "明天" : `${dd} 天後`}</small></div></div>`; }).join("")}</div></section>` : "";
   const recent = realTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,5);
-  const rec = `<section class="hsec"><div class="hhead"><h2>最近</h2><button class="link" data-tab="list">看全部 ›</button></div>
+  const rec = `<section class="hsec"><div class="hhead"><h2>最近</h2><button class="link" data-tab="list">看全部${icon("chev","sm")}</button></div>
       <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到右上角 ⋯ →「資料與備份」匯入。</div>`}</div></section>`;
   return `<div class="home">${hero}${quick}${alert}${next}${rec}</div>`;
 }
@@ -1576,7 +1611,7 @@ function viewReport(){
   if(reportSeg === "budget"){
     const bc = budgetCats(); const hot = bc.filter(c => needsAttention(c, viewPeriod)).length;
     return periodNav() + insight + seg + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><span class="label">${bc.length} 個類別${hot ? ` · ${hot} 個需要注意` : ""}</span></div>
-      <div class="card budc">${budgetCompact(viewPeriod)}</div><div class="budtail"><span class="small muted">點類別可以看細節。</span><button class="link" data-set="budget">調整預算 ›</button></div></div>`;
+      <div class="card budc">${budgetCompact(viewPeriod)}</div><div class="budtail"><span class="small muted">點類別可以看細節。</span><button class="link" data-set="budget">調整預算${icon("chev","sm")}</button></div></div>`;
   }
   return periodNav() + insight + seg + `
     <div class="section"><div class="section-head"><h2>${icon("report")}支出分類排行</h2><span class="label num">合計 ${money(out)}</span></div><div class="card">${rank}</div></div>
@@ -1688,7 +1723,7 @@ function viewSettings(){
   const favs = favList();
   const favHtml = favs.length ? favs.map((f,i) => `<div class="favitem${favUsable(f)?"":" arch"}">
       <button class="favmain" data-favedit="${esc(f.id)}"><b>${esc(f.name)}</b><span class="sub">${esc(catName(f.categoryId))} · ${f.amount ? moneyShort(f.amount) : "每次輸入金額"} · 用了 ${f.uses||0} 次${favUsable(f)?"":" · 類別已停用"}</span></button>
-      <button class="iconbtn sm" data-favmove="${esc(f.id)}:-1" aria-label="往上" ${i===0?"disabled":""}>↑</button><button class="iconbtn sm" data-favmove="${esc(f.id)}:1" aria-label="往下" ${i===favs.length-1?"disabled":""}>↓</button></div>`).join("")
+      <button class="iconbtn sm" data-favmove="${esc(f.id)}:-1" aria-label="往上" ${i===0?"disabled":""}>${icon("up")}</button><button class="iconbtn sm" data-favmove="${esc(f.id)}:1" aria-label="往下" ${i===favs.length-1?"disabled":""}>${icon("down")}</button></div>`).join("")
     : `<div class="empty">還沒有常用項目。</div>`;
   const insts = Object.values(state.installments).sort((a,b)=>(a.status==="active"?0:1)-(b.status==="active"?0:1) || b.date.localeCompare(a.date));
   const instHtml = insts.length ? insts.map(i => `<button class="catrow${i.status==="active"?"":" arch"}" data-inst="${esc(i.id)}">
@@ -2199,7 +2234,7 @@ function viewWish(){
     return `<div class="card wish">
       <div class="w1"><div class="wmain"><span class="wst ${st[0]}">${st[1]}</span><b>${esc(w.name)}</b><span class="small muted">${esc(meta)}</span></div>
         <div class="num wprice">${w.price ? moneyShort(w.price) : "—"}</div></div>
-      <details class="why"><summary>為什麼？</summary>
+      <details class="why"><summary>為什麼？${icon("chev","sm")}</summary>
         <p>${st[2]}。</p>
         <div class="hint ${cls}">${line}</div>
         <p class="small muted num">參考分數 ${s.total}：需要 ${s.parts.need} · 冷靜期 ${s.parts.wait} · 預算 ${s.parts.budget} · 期限 ${s.parts.deadline}</p>
