@@ -735,6 +735,11 @@ header.top .more{width:44px;height:44px}
 #app.v-report header.top .more{margin-block:-11px}
 #app.v-report .period{margin-top:20px}
 #app.v-report .period + .insight{margin-top:16px}
+/* category list in 預算與類別: same pastel tiles as the rest of the app */
+.catname{gap:12px}
+.catname .qic{width:40px;height:40px;border-radius:12px}
+.catname .qic .ic{width:20px;height:20px}
+.catrow:has(.catname) .sub{padding-left:52px;grid-column:1 / -1}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1667,7 +1672,7 @@ function viewSettings(){
   const dayOpts = Array.from({length:31},(_,i)=>`<option value="${i+1}" ${s.cycleStartDay===i+1?"selected":""}>每月 ${i+1} 日</option>`).join("");
   const allCats = Object.values(state.categories).sort((a,b)=>(a.type===b.type?0:a.type==="expense"?-1:1) || (a.sort??0)-(b.sort??0));
   const catHtml = allCats.map(c => `<button class="catrow${c.archived?" arch":""}" data-cat="${esc(c.id)}">
-      <b class="catname"><span class="cmark">${catMark(c)}</span>${esc(c.name)}</b><span class="small muted">${c.type==="income"?"收入":(c.warn?"提醒開":"不提醒")}</span>
+      <b class="catname"><span class="qic ${catTint(c)}" aria-hidden="true">${catMark(c)}</span>${esc(c.name)}</b><span class="small muted">${c.type==="income"?"收入":(c.warn?"提醒開":"不提醒")}</span>
       <span class="sub num">${c.type==="expense" ? limitsText(c) : "收入類別"}${c.archived?" · 已停用":""}</span></button>`).join("");
   const recs = Object.values(state.recurring).sort((a,b)=>(a.day||0)-(b.day||0));
   const recRow = r => `<button class="catrow${r.active?"":" arch"}" data-rec="${esc(r.id)}">
