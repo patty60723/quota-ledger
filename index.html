@@ -898,6 +898,8 @@ html{-webkit-tap-highlight-color:transparent}
 .bc[aria-expanded="true"] .bchev .ic{transform:rotate(90deg)}
 /* read by screen readers only */
 .sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.section > .budsum{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card)}
+.section > .budsum + .section-head{margin-top:var(--space-2)}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1394,8 +1396,8 @@ function checkOverspend(s){
 /* ---------- UI state ---------- */
 const TABS = [["home","home","今天"],["list","list","明細"],["wish","wish","想買"],["report","report","看懂"]];
 let tab = "home";
-let prevTab = "home", setPage = "prefs", fixSeg = "rec";
-const SET_PAGES = { budget: "預算與類別", fixed: "固定收支與分期", fav: "常用項目", prefs: "設定", data: "資料與備份" };
+let prevTab = "home", setPage = "prefs", fixSeg = "rec", budSeg = "cat";
+const SET_PAGES = { budget: "預算與儲蓄", fixed: "固定收支與分期", fav: "常用項目", prefs: "設定", data: "資料與備份" };
 try{ const sp = localStorage.getItem("ledger.setpage"); if(SET_PAGES[sp]) setPage = sp; }catch(e){}
 // settings pages live behind the top-right menu; they open on top of whatever tab was showing
 function goSet(page){
@@ -1500,7 +1502,7 @@ function needsAttention(c, p){
 }
 function budgetRows(p, list){
   list = list || budgetCats();
-  if(!list.length) return `<div class="empty">還沒有設定預算。到右上角 ⋯ →「預算與類別」幫想控制的類別設上限。</div>`;
+  if(!list.length) return `<div class="empty">還沒有設定預算。到右上角 ⋯ →「預算與儲蓄」幫想控制的類別設上限。</div>`;
   return list.map(c => {
     let html = `<div class="bud">`;
     if(c.monthlyLimit){
@@ -1533,7 +1535,7 @@ let pendOpen = false, reportSeg = "analysis";
 const budOpen = new Set();
 function budgetCompact(p){
   const all = budgetCats();
-  if(!all.length) return `<div class="empty">還沒有設定預算。到右上角 ⋯ →「預算與類別」幫想控制的類別設上限。</div>`;
+  if(!all.length) return `<div class="empty">還沒有設定預算。到右上角 ⋯ →「預算與儲蓄」幫想控制的類別設上限。</div>`;
   const use = c => c.monthlyLimit ? (b => b.cap ? b.used / b.cap : 1)(budgetOf(c, p)) : -1;
   const hot = all.filter(c => needsAttention(c, p)).sort((a,b) => use(b) - use(a));
   const rest = all.filter(c => !needsAttention(c, p)).sort((a,b) => use(b) - use(a));
@@ -1771,7 +1773,7 @@ function yearlySavings(Y, note){
   const tMonths = current || !w ? 12 : w.n; const tYear = target * tMonths;
   const tCard = target
     ? `<div class="ys"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b class="num">${tMonths === 12 ? "全年" : `${tMonths} 個月`} ${moneyShort(tYear)}</b><small>${current && w ? `到目前 ${w.n} 個月應存 ${moneyShort(target * w.n)}` : `每月 ${moneyShort(target)}`}</small></div></div>`
-    : `<button class="ys" data-set="budget"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b>還沒設定</b><small>到「預算與類別」填每月要存多少 ›</small></div></button>`;
+    : `<button class="ys" data-set="budget" data-bseg-go="save"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b>還沒設定</b><small>到「預算與儲蓄」填每月要存多少 ›</small></div></button>`;
   const pCard = `<div class="ys"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span>${closed.length
       ? (current ? `<b class="num">全年約 ${moneyShort(poolYear)}</b><small>今年已轉入 ${moneyShort(accrued)} · 平均每期 ${moneyShort(avg)}</small>`
                  : `<b class="num">全年 ${moneyShort(accrued)}</b><small>${closed.length} 期轉入</small>`)
@@ -1883,12 +1885,17 @@ function viewSettings(){
   const poolChips = limited.length ? `<div class="chips" role="group" aria-label="可以轉入已節省結餘的類別">${limited.map(c => `<button class="chip" data-pool="${esc(c.id)}" aria-pressed="${toPool(c)}">${esc(c.name)}</button>`).join("")}</div>`
     : `<span class="small muted">先幫類別設每月上限，才能選。</span>`;
   const pages = {
-    budget: `<div class="section"><div class="section-head"><h2>類別</h2><button class="btn small" data-act="cat-new">新增類別</button></div><div class="card setlist">${budgetSummary()}${catHtml}</div></div>
-    <div class="section"><h2>儲蓄</h2><div class="card setlist">
-      <div class="setrow"><div class="k"><b>每月目標儲蓄</b><span>沒有設每月預算時，「今天可以花」會先扣掉這筆</span></div><input class="inp num" id="set-target" inputmode="numeric" value="${s.savingsTarget||""}" placeholder="0" style="width:120px;text-align:right" aria-label="每月目標儲蓄"></div>
+    budget: `<div class="seg fseg" role="tablist" aria-label="預算與儲蓄">
+      <button role="tab" data-bseg="cat" aria-pressed="${budSeg==="cat"}" aria-selected="${budSeg==="cat"}">類別預算 <small class="num">${allCats.length}</small></button>
+      <button role="tab" data-bseg="save" aria-pressed="${budSeg==="save"}" aria-selected="${budSeg==="save"}">儲蓄</button></div>
+    ${budSeg === "cat" ? `<div class="section">${budgetSummary()}
+      <div class="section-head"><span class="label">${allCats.length} 個類別</span><button class="btn small" data-act="cat-new">新增類別</button></div>
+      <div class="card setlist">${catHtml}</div></div>`
+    : `<div class="section"><div class="card setlist">
+      <div class="setrow"><div class="k"><b>每月目標儲蓄</b><span>預估月收入先扣掉這筆，剩下的才是「可分配預算」</span></div><input class="inp num" id="set-target" inputmode="numeric" value="${s.savingsTarget||""}" placeholder="0" style="width:120px;text-align:right" aria-label="每月目標儲蓄"></div>
       <div class="setrow"><div class="k"><b>已節省結餘</b><span>從開始記帳開始累積，儲蓄以外的小金庫</span></div><span class="num">${money(poolBalance())}</span></div>
       <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>可以轉入已節省結餘的類別</b><span>只列出有設每月上限的類別</span></div>${poolChips}</div>
-    </div></div>
+    </div></div></div>`}
 `,
     fixed: `<div class="seg fseg" role="tablist" aria-label="固定收支與分期">
       <button role="tab" data-fseg="rec" aria-pressed="${fixSeg==="rec"}" aria-selected="${fixSeg==="rec"}">固定收支 <small class="num">${recs.length}</small></button>
@@ -2552,7 +2559,7 @@ function openMore(){
   const item = (k, sub) => `<button class="setrow" data-m="${k}"><div class="k"><b>${SET_PAGES[k]}</b><span>${sub}</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button>`;
   openSheet(`<div class="hd"><h2>更多</h2><button class="btn ghost" data-x>關閉</button></div>
     <div class="card setlist menu">
-      ${item("budget", "類別、每月上限、目標儲蓄")}
+      ${item("budget", "類別與每月上限、目標儲蓄、已節省結餘")}
       ${item("fixed", "每月固定的收入、支出，以及分期")}
       ${item("fav", "快速記帳的項目和排序")}
       ${item("prefs", "預算週期、警戒線、主題、配色")}
@@ -2611,6 +2618,8 @@ document.addEventListener("click", e => {
   if(nf && !nf.closest(".sheet")){ openNwTagger(viewPeriod, nf.dataset.nwf); return; }
   const rk = e.target.closest("[data-rank]");
   if(rk && !rk.closest(".sheet")){ openCatDetail(rk.dataset.rank, viewPeriod); return; }
+  const bs = e.target.closest("[data-bseg]");
+  if(bs){ budSeg = bs.dataset.bseg; render(); return; }
   const fs = e.target.closest("[data-fseg]");
   if(fs){ fixSeg = fs.dataset.fseg; render(); return; }
   const rs = e.target.closest("[data-rseg]");
@@ -2627,7 +2636,7 @@ document.addEventListener("click", e => {
   if(el.dataset.wishedit){ const w = state.wishes[el.dataset.wishedit]; w && openWish(w); return; }
   if(el.dataset.wishbuy){ const w = state.wishes[el.dataset.wishbuy]; w && buyWish(w); return; }
   if(el.dataset.pool){ const c = state.categories[el.dataset.pool]; if(c){ put.cat({...c, toPool: !toPool(c)}); render(); } return; }
-  if(el.dataset.set){ goSet(el.dataset.set); return; }
+  if(el.dataset.set){ budSeg = el.dataset.bsegGo || "cat"; goSet(el.dataset.set); return; }
   if(el.dataset.tab){ tab = el.dataset.tab; if(tab==="report") reportSeg = "analysis"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); return; }
   if(el.dataset.edit){ const t = findTx(el.dataset.edit); t && openEntry(t); return; }
   if(el.dataset.inst){ const i = state.installments[el.dataset.inst]; i && openInstallment(i); return; }
