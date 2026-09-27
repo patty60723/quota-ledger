@@ -650,6 +650,7 @@ header.top .ttl{font-size:17px;font-weight:700}
 .why[open] summary::after{content:" ⌄"}
 .why p{margin:6px 0}
 .why .hint{margin:6px 0}
+.hbig .hof{font-size:17px;font-weight:600;color:var(--hero-muted);margin-left:8px;letter-spacing:0}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1356,11 +1357,11 @@ function viewHome(){
   const d = new Date(); const dateLabel = `${d.getMonth()+1}/${d.getDate()} 週${WEEK[d.getDay()]}`;
   const over = t.left < 0;
   const big = !t.known ? `<div class="hbig num"><small>NT$</small>${moneyShort(t.todayAll)}</div>`
-    : `<div class="hbig num${t.can < 0 ? " neg" : ""}"><small>NT$</small>${t.can < 0 ? "−" : ""}${moneyShort(Math.abs(t.can))}</div>`;
+    : `<div class="hbig num${t.can < 0 ? " neg" : ""}" aria-label="今天可以花 ${t.can} 元，每天額度 ${t.perDay} 元"><small>NT$</small>${t.can < 0 ? "−" : ""}${moneyShort(Math.abs(t.can))}${t.perDay > 0 ? `<span class="hof">/ ${moneyShort(t.perDay)}</span>` : ""}</div>`;
   const line = !t.known ? `設定每月預算後，這裡會算出今天可以花多少`
     : over ? `本期已經超出 <b class="num">${moneyShort(-t.left)}</b>，今天已花 <b class="num">${moneyShort(t.todayAll)}</b>`
     : t.can < 0 ? `今天多花了 <b class="num">${moneyShort(-t.can)}</b>${t.daysLeft > 1 ? `，明天起每天約 <b class="num">${moneyShort(t.tomorrow)}</b>` : ""}`
-    : `今天已花 <b class="num">${moneyShort(t.todayAll)}</b> · 每天額度 <b class="num">${moneyShort(t.perDay)}</b>`;
+    : `今天已花 <b class="num">${moneyShort(t.todayAll)}</b>`;
   const reserveNote = t.known && t.reserved > 0 && !over ? `<div class="hsub">已先扣掉本期還沒付的固定支出 <b class="num">${moneyShort(t.reserved)}</b></div>` : "";
   const hero = `<section class="hero" aria-label="今天可以花">
       <div class="hrow"><span class="hlabel">${t.known ? "今天可以花" : "今天已花"}</span><span class="hperiod">${dateLabel}</span></div>
