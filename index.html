@@ -877,6 +877,8 @@ nav.tabs .in{height:var(--nav-h)}
 .pacepop b{font-weight:700}
 .pacepop::before{content:"";position:absolute;top:-6px;left:clamp(12px,var(--x),calc(100% - 12px));width:12px;height:12px;background:inherit;transform:translateX(-50%) rotate(45deg);border-radius:2px}
 .pacepop[hidden]{display:none}
+/* no grey/blue flash on tap in mobile browsers; buttons keep their own :active feedback */
+html{-webkit-tap-highlight-color:transparent}
 </style>
 
 <div class="wrap" id="app"></div>
