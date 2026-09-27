@@ -511,6 +511,18 @@ nav.tabs button[aria-current="page"] .ic{background:var(--accent-soft)}
 .bc .bar{grid-column:2 / -1;height:5px;display:block}
 .bc .bd{grid-column:2 / -1;display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);padding-top:4px}
 .bc:active{transform:none;background:var(--sunk)}
+button.r{width:100%;border:0;background:none;padding:6px 8px;margin:-6px -8px;border-radius:12px;text-align:left;color:var(--ink);font-size:14px;box-sizing:content-box}
+button.r:hover{background:var(--sunk)}
+.cdh{display:flex;align-items:center;gap:10px}
+.cdh .dot{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:14px}
+.cdh .dot .ic{width:19px;height:19px}
+.cdsum{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;background:var(--sunk);border-radius:16px;padding:14px}
+.cdsum div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cdsum span{font-size:12px;color:var(--muted)}
+.cdsum b{font-size:17px;font-weight:700;white-space:nowrap}
+.cdbud{display:flex;flex-direction:column;gap:6px}
+.cdbud .l2{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.cdlist{box-shadow:none;border:1px solid var(--line)}
 .toast{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .toastbtn{background:none;border:0;color:var(--accent-soft);font-weight:700;padding:2px 4px;text-decoration:underline;text-underline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
@@ -970,9 +982,10 @@ function periodNav(){
     <button class="iconbtn" data-act="next" aria-label="下一期">›</button></div>`;
 }
 
-function txRows(list, withDays){
+// keepOrder: render the list as given (e.g. sorted by amount) instead of newest first
+function txRows(list, withDays, keepOrder){
   if(!list.length) return `<div class="empty">這一期還沒有紀錄。按右下角「＋」記第一筆。</div>`;
-  const sorted = [...list].sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0));
+  const sorted = keepOrder ? list : [...list].sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0));
   let html = "", lastDay = null;
   sorted.forEach(t => {
     if(withDays && t.date !== lastDay){
@@ -1130,7 +1143,7 @@ function viewReport(){
   const list = txIn(viewPeriod); const out = sumOut(list);
   const byCat = {}; list.forEach(t => { const v = outAmt(t); if(v) byCat[t.categoryId] = (byCat[t.categoryId]||0)+v; });
   const rows = Object.entries(byCat).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]); const max = rows[0]?.[1] || 1;
-  const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<div class="r"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${out>0?Math.round(v/out*100):0}%</small></span></div>`).join("")}</div>`
+  const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<button class="r" data-rank="${esc(id)}" aria-label="看${esc(catName(id))}的所有支出"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${out>0?Math.round(v/out*100):0}%</small></span></button>`).join("")}</div><p class="small muted" style="margin:0;padding:0 16px 14px">點類別可以看這一期的每一筆支出。</p>`
     : `<div class="empty">這一期沒有支出。</div>`;
   const n = recordedMonths();
   const refs = cats("expense").map(c => ({c, r: yearlyRef(c)})).filter(o => o.r && o.r.perYear > 0).sort((a,b)=>b.r.perYear-a.r.perYear);
@@ -1403,6 +1416,35 @@ function openEntry(existing, refundOf, prefill){
   openSheet("", draw);
 }
 
+// every expense of one category in one period, with a summary and a date/amount sort
+function openCatDetail(catId, p){
+  const c = state.categories[catId]; let sortBy = "date";
+  const draw = sheet => {
+    const list = txIn(p).filter(t => t.categoryId===catId && outAmt(t));
+    const total = sumOut(list), all = sumOut(txIn(p)), prev = sumOut(txIn(shift(p,-1)).filter(t => t.categoryId===catId));
+    const L = periodLabel(p), PL = periodLabel(shift(p,-1));
+    const diff = total - prev;
+    const b = c && c.monthlyLimit ? budgetOf(c, p) : null; const pct = b && b.cap ? b.used / b.cap : 0;
+    const sorted = sortBy==="amount" ? [...list].sort((x,y) => outAmt(y) - outAmt(x)) : list;
+    sheet.innerHTML = `<div class="hd"><h2 class="cdh"><span class="dot ${catTint(c)}">${catMark(c, catName(catId))}</span>${esc(catName(catId))}</h2><button class="btn ghost" data-x>關閉</button></div>
+      <div class="cdsum">
+        <div><span>${esc(L.title)}</span><b class="num">NT$ ${moneyShort(total)}</b></div>
+        <div><span>筆數</span><b class="num">${list.length}</b></div>
+        <div><span>佔總支出</span><b class="num">${all > 0 ? Math.round(total / all * 100) : 0}%</b></div>
+      </div>
+      <p class="small muted" style="margin:-6px 2px 0">比 ${esc(PL.short)}${diff === 0 ? "持平" : diff > 0 ? `多 <b class="num">${moneyShort(diff)}</b>` : `少 <b class="num">${moneyShort(-diff)}</b>`}（上一期 ${moneyShort(prev)}）</p>
+      ${b ? `<div class="cdbud"><div class="l2"><span>預算 ${moneyShort(b.used)} / ${moneyShort(b.cap)}</span><span class="num">${b.avail >= 0 ? "還剩 " + moneyShort(b.avail) : "超出 " + moneyShort(-b.avail)}</span></div>
+        <div class="bar ${pct > 1 ? "over" : pct >= warnAt() ? "warn" : ""}"><i style="width:${Math.min(100, pct*100)}%"></i></div></div>` : ""}
+      <div class="seg" role="group" aria-label="排序"><button data-sort="date" aria-pressed="${sortBy==="date"}">依日期</button><button data-sort="amount" aria-pressed="${sortBy==="amount"}">依金額</button></div>
+      <div class="card txlist cdlist">${list.length ? txRows(sorted, sortBy==="date", sortBy==="amount") : `<div class="empty">這一期沒有這個類別的支出。</div>`}</div>
+      <p class="small muted" style="margin:0 2px">點一筆可以修改，例如改成別的類別。</p>`;
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    sheet.querySelectorAll("[data-sort]").forEach(x => x.addEventListener("click", () => { sortBy = x.dataset.sort; draw(sheet); }));
+    sheet.querySelectorAll("[data-edit]").forEach(x => x.addEventListener("click", () => { const t = findTx(x.dataset.edit); t && openEntry(t); }));
+    sheet.querySelectorAll("[data-inst]").forEach(x => x.addEventListener("click", () => { const i = state.installments[x.dataset.inst]; i && openInstallment(i); }));
+  };
+  openSheet("", draw);
+}
 function openInstallment(i){
   let confirmDel = false;
   const draw = sheet => {
@@ -1807,6 +1849,8 @@ function restoreBackup(obj){
 
 /* ---------- events ---------- */
 document.addEventListener("click", e => {
+  const rk = e.target.closest("[data-rank]");
+  if(rk && !rk.closest(".sheet")){ openCatDetail(rk.dataset.rank, viewPeriod); return; }
   const rs = e.target.closest("[data-rseg]");
   if(rs){ reportSeg = rs.dataset.rseg; render(); return; }
   const bx = e.target.closest("[data-budx]");
