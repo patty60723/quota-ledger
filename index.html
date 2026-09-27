@@ -882,6 +882,7 @@ html{-webkit-tap-highlight-color:transparent}
 /* horizontal swipe rows: no scrollbar (swiping is enough) */
 .quickrow,.favbar,.nwfilter{scrollbar-width:none}
 .quickrow::-webkit-scrollbar,.favbar::-webkit-scrollbar,.nwfilter::-webkit-scrollbar{display:none}
+.on-settings .fab{display:none}
 /* ---------- shared info popover ---------- */
 .infobtn{display:inline-grid;place-items:center;width:28px;height:28px;margin:-8px 0 -8px 2px;padding:0;border:0;background:none;color:inherit;opacity:.6;vertical-align:middle;position:relative;cursor:pointer}
 .infobtn::after{content:"";position:absolute;inset:-8px}
@@ -1468,6 +1469,7 @@ function applyPalette(){
 function render(){
   applyPalette();
   renderTabs();
+  document.body.classList.toggle("on-settings", tab === "settings"); // no 記一筆 button on settings pages
   const app = $("#app");
   const sync = `<div class="sync" id="sync" ${db && !syncOn ? "" : "hidden"}><i></i><span>同步中斷，先存在這個瀏覽器</span></div>`;
   const head = tab === "settings"
