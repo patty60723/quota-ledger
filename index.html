@@ -669,8 +669,6 @@ header.top .ttl{font-size:17px;font-weight:700}
 .hbig .hof{font-size:19px;font-weight:600;color:var(--hero-ink);opacity:.6;margin-left:var(--space-2)}
 .hstats span{font-size:12.5px}
 .hstats b{font-size:22px;font-weight:600}
-.hleg{display:flex;align-items:center;gap:var(--space-2);font-size:12px;color:var(--hero-muted);margin-top:-4px}
-.hleg i{width:2px;height:11px;border-radius:1px;background:var(--hero-ink);opacity:.85}
 /* type scale: section 20 · row title 16/600 · meta 13 · caption 12 */
 .hhead h2{font-size:20px}
 .section-head h2,.section > h2{font-size:20px}
@@ -873,12 +871,31 @@ nav.tabs .in{height:var(--nav-h)}
 .hbar{overflow:visible}
 .pacebtn{position:absolute;top:50%;width:44px;height:44px;transform:translate(-50%,-50%);border:0;background:none;padding:0;border-radius:50%;cursor:pointer}
 .pacebtn:focus-visible{outline:2px solid var(--hero-ink);outline-offset:-6px}
-.pacepop{position:relative;margin-top:var(--space-2);padding:var(--space-3) var(--space-4);border-radius:var(--r-ctl);background:var(--hero-ink);color:var(--hero-bg);font-size:13px;line-height:1.6}
-.pacepop b{font-weight:700}
-.pacepop::before{content:"";position:absolute;top:-6px;left:clamp(12px,var(--x),calc(100% - 12px));width:12px;height:12px;background:inherit;transform:translateX(-50%) rotate(45deg);border-radius:2px}
-.pacepop[hidden]{display:none}
 /* no grey/blue flash on tap in mobile browsers; buttons keep their own :active feedback */
 html{-webkit-tap-highlight-color:transparent}
+/* ---------- shared info popover ---------- */
+.infobtn{display:inline-grid;place-items:center;width:28px;height:28px;margin:-8px 0 -8px 2px;padding:0;border:0;background:none;color:inherit;opacity:.6;vertical-align:middle;position:relative;cursor:pointer}
+.infobtn::after{content:"";position:absolute;inset:-8px}
+.infobtn .ic{width:16px;height:16px}
+.infobtn[aria-expanded="true"]{opacity:1}
+.hstats .infobtn{width:22px;height:22px;margin:-6px 0 -6px 0}
+.hstats .infobtn::after{inset:-11px}
+.hstats .infobtn .ic{width:14px;height:14px}
+.pop{position:relative;padding:var(--space-3) var(--space-4);border-radius:var(--r-ctl);background:var(--ink);color:var(--paper);font-size:13px;line-height:1.6;font-weight:400}
+.pop b{font-weight:700}
+.pop::before{content:"";position:absolute;top:-6px;left:var(--x,24px);width:12px;height:12px;background:inherit;transform:translateX(-50%) rotate(45deg);border-radius:2px}
+.pop--hero{background:var(--hero-ink);color:var(--hero-bg)}
+.pop[hidden]{display:none}
+.hero .pop{margin-top:calc(var(--space-2) * -1 + 4px)}
+#pop-pace{margin-top:var(--space-2)}
+/* rows that open something show where to tap */
+.rank .r{grid-template-columns:7.5em 1fr auto 16px}
+.rchev,.bchev{color:var(--faint);display:grid;place-items:center}
+.rchev .ic{width:16px;height:16px}
+.bc{position:relative;padding-right:var(--space-8)}
+.bchev{position:absolute;right:var(--space-3);top:var(--space-3)}
+.bchev .ic{width:16px;height:16px;transition:transform .15s}
+.bc[aria-expanded="true"] .bchev .ic{transform:rotate(90deg)}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -954,6 +971,7 @@ const ICON = {
   chevl: '<path d="m15 18-6-6 6-6"/>',
   up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
   down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+  info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r="1"/>',
   archery: '<circle cx="11" cy="13" r="7"/><circle cx="11" cy="13" r="3"/><path d="m11 13 9-9M16 4h4v4"/>'
 };
 // icons offered in the category picker, in display order
@@ -1538,7 +1556,7 @@ function budgetCompactRows(p, list){
     }
     if(c.yearlyLimit){ const yu = yearUsed(c, p.y); detail.push(`${p.y} 年 ${moneyShort(yu)} / ${moneyShort(c.yearlyLimit)}${yu > c.yearlyLimit ? "（超過年度上限）" : ""}`); }
     return `<button class="bc${open ? " open" : ""}" data-budx="${esc(c.id)}" aria-expanded="${open}">
-      <span class="dot sm ${catTint(c)}">${catMark(c)}</span>${main}${bar}${meta ? `<span class="bm num">${meta}</span>` : ""}
+      <span class="bchev" aria-hidden="true">${icon("chev")}</span><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${main}${bar}${meta ? `<span class="bm num">${meta}</span>` : ""}
       ${open && detail.length ? `<span class="bd num">${detail.map(d => `<span>${d}</span>`).join("")}</span>` : ""}</button>`;
   }).join("");
 }
@@ -1625,18 +1643,23 @@ function viewHome(){
     : over ? `本期已經超出 <b class="num">${moneyShort(-t.left)}</b>，今天已花 <b class="num">${moneyShort(t.todayAll)}</b>`
     : t.can < 0 ? `今天多花了 <b class="num">${moneyShort(-t.can)}</b>${t.daysLeft > 1 ? `，明天起每天約 <b class="num">${moneyShort(t.tomorrow)}</b>` : ""}`
     : `今天已花 <b class="num">${moneyShort(t.todayAll)}</b>`;
-  const reserveNote = t.known && t.reserved > 0 && !over ? `<div class="hsub">已先扣掉本期還沒付的固定支出 <b class="num">${moneyShort(t.reserved)}</b></div>` : "";
+  const todayText = `<b>今天可以花</b>：今天一早還剩的預算，平均分給剩下的 <span class="num">${t.daysLeft}</span> 天，再扣掉今天已經花的。`
+    + (t.reserved > 0 ? `<br>本期還沒付的固定支出 <span class="num">NT$${moneyShort(t.reserved)}</span> 已經先扣掉了。` : "")
+    + `<br>各類別之間可以互相挪用，所以這裡用的是全部類別加起來的預算。`;
+  const poolText = `<b>已節省結餘</b>：每一期結束時，有勾選「轉入已節省結餘」的類別沒用完的預算，會存進這裡。超支時可以用它來補。`;
   const hero = `<section class="hero card--hero" aria-label="今天可以花">
-      <div class="hrow"><span class="hlabel">${t.known ? "今天可以花" : "今天已花"}</span><span class="hperiod">${dateLabel}</span></div>
+      <div class="hrow"><span class="hlabel">${t.known ? `今天可以花${infoBtn("today", "今天可以花怎麼算")}` : "今天已花"}</span><span class="hperiod">${dateLabel}</span></div>
+      ${t.known ? infoPop("today", todayText, true) : ""}
       ${big}
-      <div class="hsub">${line}</div>${reserveNote}
-      ${t.hasBudget ? `<div class="hbar${t.usedPct > 1 ? " over" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(t.usedPct*100)}" aria-label="本期預算已用 ${Math.round(t.usedPct*100)}%"><i style="width:${Math.min(100, t.usedPct*100)}%"></i><span class="pace" style="left:${t.elapsed*100}%" aria-hidden="true"></span><button type="button" class="pacebtn" style="left:${t.elapsed*100}%" data-act="pace" aria-label="時間進度說明" aria-expanded="false" aria-controls="pacepop"></button></div>
-      <div class="pacepop" id="pacepop" role="note" hidden style="--x:${Math.round(t.elapsed*100)}%">${paceText}</div>` : ""}
+      <div class="hsub">${line}</div>
+      ${t.hasBudget ? `<div class="hbar${t.usedPct > 1 ? " over" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(t.usedPct*100)}" aria-label="本期預算已用 ${Math.round(t.usedPct*100)}%"><i style="width:${Math.min(100, t.usedPct*100)}%"></i><span class="pace" style="left:${t.elapsed*100}%" aria-hidden="true"></span><button type="button" class="pacebtn" style="left:${t.elapsed*100}%" data-act="info" data-pop="pace" aria-label="時間進度說明" aria-expanded="false" aria-controls="pop-pace"></button></div>
+      ${infoPop("pace", paceText, true)}` : ""}
       <div class="hstats">
         <div><span>${t.hasBudget ? "本期預算還剩" : "本期結餘"}</span><b class="num${over ? " neg" : ""}">${over ? "−" : ""}${moneyShort(Math.abs(t.left))}</b></div>
         <div><span>剩下</span><b class="num">${t.daysLeft} 天</b></div>
-        <div><span>已節省結餘</span><b class="num">${moneyShort(pool)}</b></div>
+        <div><span>已節省結餘${infoBtn("pool", "已節省結餘是什麼")}</span><b class="num">${moneyShort(pool)}</b></div>
       </div>
+      ${infoPop("pool", poolText, true)}
     </section>`;
   const quickFavs = favList();
   const quick = `<section class="hsec"><div class="hhead"><h2>快速記帳</h2><button class="link" data-act="fav-manage">管理</button></div>
@@ -1682,7 +1705,7 @@ function viewReport(){
   const byCat = {}; list.forEach(t => { const v = outAmt(t); if(v) byCat[t.categoryId] = (byCat[t.categoryId]||0)+v; });
   const rows = Object.entries(byCat).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]); const max = rows[0]?.[1] || 1;
   const overIds = new Set(budgetCats().filter(c => c.monthlyLimit && budgetOf(c, viewPeriod).avail < 0).map(c => c.id));
-  const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<button class="r${overIds.has(id) ? " over" : ""}" data-rank="${esc(id)}" aria-label="看${esc(catName(id))}的所有支出"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${out>0?Math.round(v/out*100):0}%</small></span></button>`).join("")}</div><p class="small muted" style="margin:0;padding:0 16px 14px">點類別可以看這一期的每一筆支出。</p>`
+  const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<button class="r${overIds.has(id) ? " over" : ""}" data-rank="${esc(id)}" aria-label="看${esc(catName(id))}的所有支出"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${out>0?Math.round(v/out*100):0}%</small></span><span class="rchev" aria-hidden="true">${icon("chev")}</span></button>`).join("")}</div>`
     : `<div class="empty">這一期沒有支出。</div>`;
   const ns = nwSplit(list); const pctOf = v => ns.total ? Math.round(v / ns.total * 100) : 0;
   const nwHist = []; for(let i=5;i>=0;i--){ const pp = shift(viewPeriod,-i); const sp = nwSplit(txIn(pp)); nwHist.push({ p: pp, pct: sp.total ? sp.want / sp.total : null }); }
@@ -1696,7 +1719,6 @@ function viewReport(){
       ${ns.must ? `<p class="nwfund">必要支出 <b class="num">${moneyShort(ns.must)}</b>，是這一期維持生活的底線；緊急預備金建議準備 6 個月，約 <b class="num">NT$ ${moneyShort(ns.must * 6)}</b>。</p>` : ""}
       ${ns.noneCount ? `<button class="btn small" data-act="nw-tag">補標 ${ns.noneCount} 筆未標記的支出</button>` : ""}
       <div class="nwhist">${nwHist.map(h => `<div><span class="num">${h.pct===null ? "—" : Math.round(h.pct*100)+"%"}</span><i style="height:${h.pct===null ? 0 : Math.max(3, h.pct*100)}%"></i><small>${h.p.m} 月</small></div>`).join("")}</div>
-      <p class="small muted" style="margin:0">上面是近 6 期「想要」占支出的比例。點上方的必要、需要、想要可以看每一筆並修改。</p>
     </div>` : `<div class="empty">這一期沒有支出。</div>`;
   const Y = viewPeriod.y; const yw = yearWindow(Y);
   const refs = cats("expense").map(c => ({c, r: yearCatStats(c, Y)})).filter(o => o.r && o.r.spent > 0).sort((a,b)=>b.r.est-a.r.est);
@@ -1724,11 +1746,11 @@ function viewReport(){
   if(reportSeg === "budget"){
     const bc = budgetCats(); const hot = bc.filter(c => needsAttention(c, viewPeriod)).length;
     return periodNav() + insight + seg + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><span class="label">${bc.length} 個類別${hot ? ` · ${hot} 個需要注意` : ""}</span></div>
-      <div class="card budc">${budgetCompact(viewPeriod)}</div><div class="budtail"><span class="small muted">點類別可以看細節。</span><button class="link" data-set="budget">調整預算${icon("chev","sm")}</button></div></div>`;
+      <div class="card budc">${budgetCompact(viewPeriod)}</div><div class="budtail"><span></span><button class="link" data-set="budget">調整預算${icon("chev","sm")}</button></div></div>`;
   }
   return periodNav() + insight + seg + `
     <div class="section"><div class="section-head"><h2>${icon("report")}支出分類排行</h2><span class="label num">合計 ${money(out)}</span></div><div class="card">${rank}</div></div>
-    <div class="section"><div class="section-head"><h2>必要・需要・想要</h2><span class="label">${ns.total ? `想要占 ${Math.round(ns.wantPct*100)}%` : ""}</span></div><div class="card">${nwHtml}</div></div>
+    <div class="section"><div class="section-head"><h2>必要・需要・想要${infoBtn("nw", "必要・需要・想要的說明")}</h2><span class="label">${ns.total ? `想要占 ${Math.round(ns.wantPct*100)}%` : ""}</span></div>${infoPop("nw", "下方的小長條是近 6 期「想要」占支出的比例。<br>點必要、需要、想要，可以看這一期的每一筆並修改標記。")}<div class="card">${nwHtml}</div></div>
     <div class="section"><div class="section-head"><h2>近 6 期收支</h2><span class="label">到 ${periodLabel(viewPeriod).title}</span></div>
       <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>
     <div class="section"><div class="section-head"><h2>${Y} 年度參考值</h2><span class="label">${yw ? `記錄了 ${yw.n} 個月` : ""}</span></div>
@@ -1869,8 +1891,7 @@ function viewSettings(){
     fixed: `<div class="seg fseg" role="tablist" aria-label="固定收支與分期">
       <button role="tab" data-fseg="rec" aria-pressed="${fixSeg==="rec"}" aria-selected="${fixSeg==="rec"}">固定收支 <small class="num">${recs.length}</small></button>
       <button role="tab" data-fseg="inst" aria-pressed="${fixSeg==="inst"}" aria-selected="${fixSeg==="inst"}">分期 <small class="num">${insts.filter(i => i.status==="active").length}</small></button></div>
-    ${fixSeg === "rec" ? `<div class="section"><div class="section-head"><h2>固定收支</h2><button class="btn small" data-act="rec-new">新增</button></div><div class="card setlist">${recHtml}
-      <div class="note">到了每月收支日，會在首頁出現待確認，確認後才算進帳。</div></div></div>`
+    ${fixSeg === "rec" ? `<div class="section"><div class="section-head"><h2>固定收支${infoBtn("rec", "固定收支怎麼運作")}</h2><button class="btn small" data-act="rec-new">新增</button></div>${infoPop("rec", "到了每月收支日，會出現在首頁「需要注意」等你確認。確認後才算進帳；金額不同可以先改再確認，這個月沒有就按略過。")}<div class="card setlist">${recHtml}</div></div>`
     : `<div class="section"><h2>分期</h2><div class="card setlist">${instHtml}</div></div>`}
 `,
     fav: `<div class="section" id="fav-section"><div class="section-head"><h2>項目</h2><button class="btn small" data-act="fav-new">新增</button></div><div class="card setlist">${favHtml}
@@ -2062,7 +2083,7 @@ function openCatDetail(catId, p){
         <div class="bar ${pct > 1 ? "over" : pct >= warnAt() ? "warn" : ""}"><i style="width:${Math.min(100, pct*100)}%"></i></div></div>` : ""}
       <div class="seg" role="group" aria-label="排序"><button data-sort="date" aria-pressed="${sortBy==="date"}">依日期</button><button data-sort="amount" aria-pressed="${sortBy==="amount"}">依金額</button></div>
       <div class="card txlist cdlist">${list.length ? txRows(sorted, sortBy==="date", sortBy==="amount") : `<div class="empty">這一期沒有這個類別的支出。</div>`}</div>
-      <p class="small muted" style="margin:0 2px">點一筆可以修改，例如改成別的類別。</p>`;
+`;
     $("[data-x]", sheet).addEventListener("click", closeSheet);
     sheet.querySelectorAll("[data-sort]").forEach(x => x.addEventListener("click", () => { sortBy = x.dataset.sort; draw(sheet); }));
     sheet.querySelectorAll("[data-edit]").forEach(x => x.addEventListener("click", () => { const t = findTx(x.dataset.edit); t && openEntry(t); }));
@@ -2505,14 +2526,25 @@ function applyImport(pv){
 }
 
 /* ---------- backup ---------- */
-// the pace note opens in place (no re-render) and closes on any other tap or Esc
-function togglePace(force){
-  const pop = $("#pacepop"), btn = $(".pacebtn"); if(!pop || !btn) return;
-  const open = force === undefined ? pop.hidden : force;
-  pop.hidden = !open; btn.setAttribute("aria-expanded", open);
+// explanations that only need reading once: an ⓘ (or the pace marker) opens them in place, one at a time,
+// without re-rendering; any other tap or Esc closes them
+function infoBtn(id, label){ return `<button type="button" class="infobtn" data-act="info" data-pop="${id}" aria-label="${label || "說明"}" aria-expanded="false" aria-controls="pop-${id}">${icon("info")}</button>`; }
+function infoPop(id, html, hero){ return `<div class="pop${hero ? " pop--hero" : ""}" id="pop-${id}" role="note" hidden>${html}</div>`; }
+function closePops(except){
+  document.querySelectorAll(".pop:not([hidden])").forEach(p => { if(p !== except) p.hidden = true; });
+  document.querySelectorAll('[data-act="info"][aria-expanded="true"]').forEach(b => { if(!except || b.dataset.pop !== except.id.slice(4)) b.setAttribute("aria-expanded", "false"); });
 }
-document.addEventListener("click", e => { if(!e.target.closest(".pacebtn,.pacepop")) togglePace(false); }, true);
-document.addEventListener("keydown", e => { if(e.key === "Escape") togglePace(false); });
+function togglePop(id, btn){
+  const pop = document.getElementById("pop-" + id); if(!pop) return;
+  const open = pop.hidden; closePops(open ? pop : null);
+  pop.hidden = !open; btn.setAttribute("aria-expanded", open);
+  if(open){ // point the arrow at the button that opened it
+    const b = btn.getBoundingClientRect(), r = pop.getBoundingClientRect();
+    pop.style.setProperty("--x", Math.max(14, Math.min(r.width - 14, b.left + b.width / 2 - r.left)) + "px");
+  }
+}
+document.addEventListener("click", e => { if(!e.target.closest('[data-act="info"],.pop')) closePops(); }, true);
+document.addEventListener("keydown", e => { if(e.key === "Escape") closePops(); });
 function markBackup(){ state.settings.lastBackupAt = Date.now(); put.settings(); render(); }
 function openMore(){
   const item = (k, sub) => `<button class="setrow" data-m="${k}"><div class="k"><b>${SET_PAGES[k]}</b><span>${sub}</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button>`;
@@ -2628,7 +2660,7 @@ document.addEventListener("click", e => {
   else if(a==="paste-restore") openPasteRestore();
   else if(a==="back"){ tab = prevTab || "home"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
   else if(a==="more") openMore();
-  else if(a==="pace") togglePace();
+  else if(a==="info") togglePop(el.dataset.pop, el);
   else if(a==="imp-cancel"){ importPreview = null; render(); }
   else if(a==="imp-go"){ const pv = importPreview; importPreview = null; applyImport(pv); render(); }
   else if(a==="copy"){ const ta = $("#bk"); const txt = ta.value;
