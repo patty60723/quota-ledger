@@ -1592,6 +1592,7 @@ function viewSettings(){
       <div class="setrow"><div class="k"><b>匯入 Google Sheet</b><span>在 Google Sheet 選「檔案 → 下載 → .xlsx」</span></div><label class="btn small" for="f-xlsx">選擇檔案</label><input type="file" id="f-xlsx" accept=".xlsx" hidden></div>
       <div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原 · ${backupText()}</span></div><button class="btn small" data-act="export">匯出</button></div>
       <div class="setrow"><div class="k"><b>從備份還原</b><span>會取代目前所有資料</span></div><label class="btn small" for="f-json">選擇檔案</label><input type="file" id="f-json" accept=".json,application/json" hidden></div>
+      <div class="setrow"><div class="k"><b>貼上備份內容還原</b><span>選不了檔案時用：打開備份檔，全選複製後貼上</span></div><button class="btn small" data-act="paste-restore">貼上</button></div>
       <div id="exportBox"></div>
     </div></div>`;
 }
@@ -2231,6 +2232,20 @@ async function doExport(){
   box.innerHTML = `<div class="note"><p style="margin:0 0 6px">這個畫面不能直接下載。請複製下面的內容，存成 .json 檔。</p><textarea class="backup" id="bk" readonly>${esc(data)}</textarea>
     <button class="btn small" data-act="copy" style="margin-top:6px">複製</button></div>`;
 }
+// some in-app browsers can't open a file picker, so the backup's text can be pasted instead
+function openPasteRestore(){
+  openSheet(`<div class="hd"><h2>貼上備份內容</h2><button class="btn ghost" data-x>關閉</button></div>
+    <p class="small muted" style="margin:0">用檔案 App 打開「額度帳本備份-日期.json」，全選、複製，再貼到下面。還原會取代這裡目前所有的資料。</p>
+    <textarea class="backup" id="pr-text" placeholder='{"app":"額度帳本", ...}' aria-label="備份內容"></textarea>
+    <div class="rowbtns"><button class="btn primary" data-go>還原</button></div>`, sheet => {
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    $("[data-go]", sheet).addEventListener("click", () => {
+      let obj; try{ obj = JSON.parse($("#pr-text", sheet).value.trim()); }catch(err){ toast("內容不完整，請確認整份都有複製到"); return; }
+      if(!obj || !obj.data || !obj.data.categories){ toast("這不是額度帳本的備份"); return; }
+      closeSheet(); restoreBackup(obj);
+    });
+  });
+}
 function restoreBackup(obj){
   const d = obj && obj.data; if(!d || !d.categories){ toast("這不是額度帳本的備份檔"); return; }
   const old = clone(state);
@@ -2294,6 +2309,7 @@ document.addEventListener("click", e => {
     render(); toast(`已確認 ${n} 筆固定收支`);
   }
   else if(a==="export") doExport();
+  else if(a==="paste-restore") openPasteRestore();
   else if(a==="back"){ tab = prevTab || "home"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
   else if(a==="more") openMore();
   else if(a==="imp-cancel"){ importPreview = null; render(); }
