@@ -697,7 +697,7 @@ header.top .ttl{font-size:20px}
 /* bottom nav + FAB */
 nav.tabs button .ic{width:56px;height:32px;padding:var(--space-1) var(--space-4)}
 nav.tabs button{font-size:12px;min-height:56px}
-.fab{width:56px;height:56px;border-radius:50%;box-shadow:var(--elev),0 4px 14px rgba(70,63,58,.18)}
+.fab{width:60px;height:60px;border-radius:50%;box-shadow:var(--elev),0 4px 14px rgba(70,63,58,.18)}
 /* touch targets */
 .link{min-height:44px;padding:0 var(--space-1);display:inline-flex;align-items:center}
 .backbtn{min-height:44px}
@@ -777,7 +777,7 @@ header.top .more{width:44px;height:44px}
 .card.setlist{overflow:hidden}
 
 /* ---------- refinement pass 2 ---------- */
-:root{--nav-h:64px;--tile:40px}
+:root{--nav-h:70px;--tile:40px}
 /* card modifiers: one place for the shared looks */
 .card--hero{border-radius:var(--r-hero);background:var(--hero-bg);color:var(--hero-ink);border:0}
 .card--soft{background:var(--surface);border:1px solid var(--line);box-shadow:none}
@@ -836,8 +836,8 @@ header.top .ttl{font-size:22px}
 /* segmented control: clear active state without a heavy shadow */
 .seg button[aria-pressed="true"]{box-shadow:none;border:1px solid var(--line)}
 /* FAB sits above the nav, hugging the app column on wide screens */
-.fab{width:56px;height:56px;right:max(var(--space-4),calc(50% - 280px + var(--space-5)));bottom:calc(var(--nav-h) + var(--space-3) + env(safe-area-inset-bottom,0px))}
-nav.tabs .in{min-height:var(--nav-h)}
+.fab{width:60px;height:60px;right:max(var(--space-4),calc(50% - 280px + var(--space-5)));bottom:calc(var(--nav-h) + 1px + var(--space-3) + env(safe-area-inset-bottom,0px))}
+nav.tabs .in{height:var(--nav-h)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none !important;transition:none !important}}
 /* long category names shorten, the status tag always stays visible */
 .bc .n .t,.nmrow .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -863,6 +863,11 @@ nav.tabs .in{min-height:var(--nav-h)}
 /* tag word: full line height so CJK glyphs aren't clipped by the row's overflow:hidden */
 .nwpill{line-height:1.5;overflow:visible !important}
 .subl{overflow:visible !important;line-height:1.5}
+/* room below the last item: nav + gap + FAB + breathing space, plus the home-indicator inset (nav and FAB both grow by it) */
+.wrap{padding-bottom:calc(var(--nav-h) + var(--space-3) + 60px + var(--space-4) + env(safe-area-inset-bottom,0px))}
+/* if a wider fallback font is used, "/ daily" drops to the next line as a whole instead of running past the card */
+.hbig{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:0;white-space:nowrap}
+.hbig small{align-self:flex-start;margin-top:.45em}
 </style>
 
 <div class="wrap" id="app"></div>
