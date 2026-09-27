@@ -523,6 +523,14 @@ button.r:hover{background:var(--sunk)}
 .cdbud{display:flex;flex-direction:column;gap:6px}
 .cdbud .l2{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
 .cdlist{box-shadow:none;border:1px solid var(--line)}
+.budsum{padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--sunk);margin:10px;border-radius:14px}
+.bs1{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.bs1 span{font-size:13px;color:var(--muted)}
+.bs1 b{font-size:22px;font-weight:700}
+.bs1 small{font-size:12px;color:var(--muted)}
+.budsum p{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
+.budsum b{color:var(--ink)}
+.bad,.bad b{color:var(--stamp)}
 .toast{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .toastbtn{background:none;border:0;color:var(--accent-soft);font-weight:700;padding:2px 4px;text-decoration:underline;text-underline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
@@ -818,6 +826,38 @@ function yearlyRef(c){
   return { n, perYear: total / n * 12 };
 }
 
+
+/* ---------- budget totals ---------- */
+// sum of monthly limits over active expense categories; override lets the category sheet preview an edit
+function monthlyBudgetTotal(override){
+  return cats("expense").reduce((sum, c) => {
+    if(override && c.id === override.id) return sum;
+    return sum + (c.monthlyLimit || 0);
+  }, 0) + (override && !override.archived && override.type === "expense" ? (override.monthlyLimit || 0) : 0);
+}
+// expected monthly income: active recurring income items, else last period's actual income
+function incomeEstimate(){
+  const rec = Object.values(state.recurring).filter(r => r.active && r.type === "income").reduce((s, r) => s + r.amount, 0);
+  if(rec) return { amount: rec, source: "固定收入" };
+  const last = sumIncome(txIn(shift(curPeriod(), -1)));
+  return last ? { amount: last, source: "上一期收入" } : null;
+}
+function allocationLine(total){
+  const inc = incomeEstimate(); if(!inc) return "";
+  const target = state.settings.savingsTarget || 0; const room = inc.amount - target; const left = room - total;
+  return `預估月收入 ${moneyShort(inc.amount)}（${inc.source}）${target ? ` − 目標儲蓄 ${moneyShort(target)}` : ""} = 可分配 <b class="num">${moneyShort(room)}</b>，`
+    + (left >= 0 ? `還有 <b class="num">${moneyShort(left)}</b> 沒分配` : `<span class="bad">超出 <b class="num">${moneyShort(-left)}</b></span>`);
+}
+function budgetSummary(){
+  const list = cats("expense").filter(c => c.monthlyLimit); const total = monthlyBudgetTotal();
+  const inc = incomeEstimate(); const room = inc ? inc.amount - (state.settings.savingsTarget || 0) : 0;
+  const pct = room > 0 ? total / room : 0;
+  return `<div class="budsum">
+    <div class="bs1"><span>每月預算合計</span><b class="num">NT$ ${moneyShort(total)}</b><small>${list.length} 個類別有設上限</small></div>
+    ${room > 0 ? `<div class="bar ${pct > 1 ? "over" : pct >= .95 ? "warn" : ""}"><i style="width:${Math.min(100, pct * 100)}%"></i></div>` : ""}
+    <p>${allocationLine(total) || "設好固定收入（例如薪資）後，這裡會算出還有多少沒分配。"}</p>
+  </div>`;
+}
 /* ---------- period closing: unused budget moves into savings ---------- */
 let loadedOnce = false;
 function afterLoad(){ if(loadedOnce) return; loadedOnce = true; closePeriods(); }
@@ -1269,7 +1309,7 @@ function viewSettings(){
         <div class="seg three" role="radiogroup" aria-label="主題">${THEMES.map(([k,l]) => `<button role="radio" data-theme-pick="${k}" aria-pressed="${(s.theme||"system")===k}" aria-checked="${(s.theme||"system")===k}">${l}</button>`).join("")}</div></div>
       <div class="setrow"><div class="k"><b>配色</b><span>淺色、深色都有對應的版本</span></div><select id="set-palette" aria-label="配色">${Object.entries(PALETTES).map(([k,v]) => `<option value="${k}" ${(s.palette||"blush")===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
     </div></div>
-    <div class="section"><div class="section-head"><h2>類別與預算</h2><button class="btn small" data-act="cat-new">新增類別</button></div><div class="card setlist">${catHtml}</div></div>
+    <div class="section"><div class="section-head"><h2>類別與預算</h2><button class="btn small" data-act="cat-new">新增類別</button></div><div class="card setlist">${budgetSummary()}${catHtml}</div></div>
     <div class="section"><div class="section-head"><h2>固定收支</h2><button class="btn small" data-act="rec-new">新增</button></div><div class="card setlist">${recHtml}
       <div class="note">到了每月收支日，會在首頁出現待確認，確認後才算進帳。</div></div></div>
     <div class="section" id="fav-section"><div class="section-head"><h2>常用項目</h2><button class="btn small" data-act="fav-new">新增</button></div><div class="card setlist">${favHtml}
@@ -1490,6 +1530,7 @@ function openCategory(c){
       <button type="button" class="ipk" data-ic="text" role="radio" aria-checked="${c.icon==="text"}" title="顯示第一個字"><span class="ipk-text">${esc((c.name||"字").slice(0,1))}</span><small>文字</small></button>
       ${CAT_PICK.map(k => `<button type="button" class="ipk" data-ic="${k}" role="radio" aria-checked="${c.icon===k}">${icon(k)}</button>`).join("")}
     </div></div>
+    <p class="small muted" id="c-total" style="margin:-4px 2px 0"></p>
     ${ref ? `<p class="small muted" style="margin:0">依過去 ${ref.n} 個月的紀錄，一年約花 <b class="num">${money(ref.perYear)}</b>${ref.n<12?"（未滿 12 個月，僅供參考）":""}。</p>` : ""}
     <label class="toggle"><input type="checkbox" id="c-warn" ${c.warn?"checked":""}>快用完或超支時提醒我</label>
     <label class="toggle" id="c-pool-row"><input type="checkbox" id="c-pool" ${c.monthlyLimit && (c.toPool ?? !!c.warn)?"checked":""} ${c.monthlyLimit?"":"disabled"}><span>每期沒用完的額度轉入已節省結餘<span class="small muted" id="c-pool-note">${c.monthlyLimit?"":"（先設每月上限才能勾選）"}</span></span></label>
@@ -1506,6 +1547,17 @@ function openCategory(c){
       $(".ipk-text", sheet).textContent = (n||"字").slice(0,1);
     });
     const pool = $("#c-pool", sheet), limitIn = $("#c-limit", sheet);
+    const before = monthlyBudgetTotal();
+    const showTotal = () => {
+      const draft = { ...c, type: $("#c-type", sheet).value, monthlyLimit: intOf(limitIn.value), archived: $("#c-arch", sheet).checked };
+      const after = monthlyBudgetTotal(draft); const line = allocationLine(after);
+      $("#c-total", sheet).innerHTML = after === before
+        ? `每月預算合計 <b class="num">${moneyShort(after)}</b>${line ? `。${line}` : ""}`
+        : `改完後，每月預算合計 <b class="num">${moneyShort(before)} → ${moneyShort(after)}</b>${line ? `。${line}` : ""}`;
+    };
+    showTotal();
+    ["#c-type","#c-arch"].forEach(sel => $(sel, sheet).addEventListener("change", showTotal));
+    limitIn.addEventListener("input", showTotal);
     limitIn.addEventListener("input", () => {
       const has = !!intOf(limitIn.value);
       if(!has) pool.checked = false; else if(pool.disabled) pool.checked = c.toPool ?? !!$("#c-warn", sheet).checked;
