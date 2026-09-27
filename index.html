@@ -651,6 +651,8 @@ header.top .ttl{font-size:17px;font-weight:700}
 .why p{margin:6px 0}
 .why .hint{margin:6px 0}
 .hbig .hof{font-size:17px;font-weight:600;color:var(--hero-muted);margin-left:8px;letter-spacing:0}
+.budtail{display:flex;justify-content:space-between;align-items:center;margin:8px 4px 0}
+.hhead h2 .hsm{font-size:12px;font-weight:400;color:var(--muted);margin-left:4px}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1131,7 +1133,16 @@ function checkOverspend(s){
 /* ---------- UI state ---------- */
 const TABS = [["home","home","今天"],["list","list","明細"],["wish","wish","想買"],["report","report","看懂"]];
 let tab = "home";
-let prevTab = "home";
+let prevTab = "home", setPage = "prefs";
+const SET_PAGES = { budget: "預算與類別", fixed: "固定收支與分期", fav: "常用項目", prefs: "設定", data: "資料與備份" };
+try{ const sp = localStorage.getItem("ledger.setpage"); if(SET_PAGES[sp]) setPage = sp; }catch(e){}
+// settings pages live behind the top-right menu; they open on top of whatever tab was showing
+function goSet(page){
+  if(tab !== "settings") prevTab = tab;
+  tab = "settings"; setPage = page;
+  try{ localStorage.setItem("ledger.tab", tab); localStorage.setItem("ledger.setpage", page); }catch(e){}
+  render(); window.scrollTo(0,0);
+}
 try{ const t = localStorage.getItem("ledger.tab"); if(TABS.some(x=>x[0]===t) || t==="settings") tab = t; }catch(e){}
 let viewPeriod = curPeriod();
 let importPreview = null;
@@ -1177,11 +1188,11 @@ function render(){
   const app = $("#app");
   const sync = `<div class="sync" id="sync" ${db && !syncOn ? "" : "hidden"}><i></i><span>同步中斷，先存在這個瀏覽器</span></div>`;
   const head = tab === "settings"
-    ? `<header class="top sub"><button class="backbtn" data-act="back" aria-label="返回">‹ 返回</button><div class="ttl">設定</div>${sync}</header>`
+    ? `<header class="top sub"><button class="backbtn" data-act="back" aria-label="返回">‹ 返回</button><div class="ttl">${SET_PAGES[setPage] || "設定"}</div>${sync}</header>`
     : `<header class="top"><div class="brand">額度帳本</div>${sync}<button class="iconbtn more" data-act="more" aria-label="更多：設定與備份"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle class="f" cx="5.5" cy="12" r="1.6"/><circle class="f" cx="12" cy="12" r="1.6"/><circle class="f" cx="18.5" cy="12" r="1.6"/></svg></button></header>`;
   const body = tab==="home" ? viewHome() : tab==="list" ? viewList() : tab==="wish" ? viewWish() : tab==="report" ? viewReport() : viewSettings();
   // animate when the screen changes (tab, period, report view); expanding a row, saving or syncing redraws quietly
-  const viewKey = [tab, pkey(viewPeriod), reportSeg].join("|");
+  const viewKey = [tab, pkey(viewPeriod), reportSeg, tab === "settings" ? setPage : ""].join("|");
   app.classList.toggle("anim", viewKey !== lastViewKey); lastViewKey = viewKey;
   app.innerHTML = head + body;
   if(tab==="report") wireChart();
@@ -1228,7 +1239,7 @@ function needsAttention(c, p){
 }
 function budgetRows(p, list){
   list = list || budgetCats();
-  if(!list.length) return `<div class="empty">還沒有設定預算。到「設定 → 類別與預算」幫想控制的類別設上限。</div>`;
+  if(!list.length) return `<div class="empty">還沒有設定預算。到右上角 ⋯ →「預算與類別」幫想控制的類別設上限。</div>`;
   return list.map(c => {
     let html = `<div class="bud">`;
     if(c.monthlyLimit){
@@ -1261,7 +1272,7 @@ let pendOpen = false, reportSeg = "analysis";
 const budOpen = new Set();
 function budgetCompact(p){
   const list = budgetCats();
-  if(!list.length) return `<div class="empty">還沒有設定預算。到「設定 → 類別與預算」幫想控制的類別設上限。</div>`;
+  if(!list.length) return `<div class="empty">還沒有設定預算。到右上角 ⋯ →「預算與類別」幫想控制的類別設上限。</div>`;
   return list.map(c => {
     const open = budOpen.has(c.id);
     let main, bar = "", detail = [];
@@ -1399,11 +1410,11 @@ function viewHome(){
       </div></section>` : "";
   const up = upcoming().slice(0, 5);
   const md = s => { const x = parseYmd(s); return `${x.getMonth()+1}/${x.getDate()}`; };
-  const next = up.length ? `<section class="hsec"><div class="hhead"><h2>接下來</h2><span class="small muted">兩週內 · 本期到 ${L.range.split("–").pop().trim()}</span></div>
+  const next = up.length ? `<section class="hsec"><div class="hhead"><h2>接下來 <small class="hsm">兩週內</small></h2><button class="link" data-set="fixed">管理 ›</button></div>
       <div class="hcard">${up.map(u => { const dd = dayDiff(todayStr(), u.date); return `<div class="trow"><span class="qic ${catTint(u.cat)}">${u.wish ? icon("wish") : catMark(u.cat, u.title)}</span><div class="meta"><b>${esc(u.title)}</b><span>${md(u.date)} · ${u.sub}</span></div><div class="upr"><b class="num${u.income ? " inc" : ""}">${u.amount ? (u.income ? "+" : "−") + moneyShort(u.amount) : ""}</b><small>${dd === 1 ? "明天" : `${dd} 天後`}</small></div></div>`; }).join("")}</div></section>` : "";
   const recent = realTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,5);
   const rec = `<section class="hsec"><div class="hhead"><h2>最近</h2><button class="link" data-tab="list">看全部 ›</button></div>
-      <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到右上角 ⋯ → 設定 匯入資料。</div>`}</div></section>`;
+      <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到右上角 ⋯ →「資料與備份」匯入。</div>`}</div></section>`;
   return `<div class="home">${hero}${quick}${alert}${next}${rec}</div>`;
 }
 
@@ -1445,7 +1456,7 @@ function viewReport(){
   if(reportSeg === "budget"){
     const bc = budgetCats(); const hot = bc.filter(c => needsAttention(c, viewPeriod)).length;
     return periodNav() + seg + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><span class="label">${bc.length} 個類別${hot ? ` · ${hot} 個需要注意` : ""}</span></div>
-      <div class="card budc">${budgetCompact(viewPeriod)}</div><p class="small muted" style="margin:8px 4px 0">點類別可以看細節。</p></div>`;
+      <div class="card budc">${budgetCompact(viewPeriod)}</div><div class="budtail"><span class="small muted">點類別可以看細節。</span><button class="link" data-set="budget">調整預算 ›</button></div></div>`;
   }
   return periodNav() + seg + `
     <div class="section"><div class="section-head"><h2>${icon("report")}支出分類排行</h2><span class="label num">合計 ${money(out)}</span></div><div class="card">${rank}</div></div>
@@ -1468,7 +1479,7 @@ function yearlySavings(Y){
   const tMonths = current || !w ? 12 : w.n; const tYear = target * tMonths;
   const tCard = target
     ? `<div class="ys"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b class="num">${tMonths === 12 ? "全年" : `${tMonths} 個月`} ${moneyShort(tYear)}</b><small>${current && w ? `到目前 ${w.n} 個月應存 ${moneyShort(target * w.n)}` : `每月 ${moneyShort(target)}`}</small></div></div>`
-    : `<button class="ys" data-tab="settings"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b>還沒設定</b><small>到設定填每月要存多少 ›</small></div></button>`;
+    : `<button class="ys" data-set="budget"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b>還沒設定</b><small>到「預算與類別」填每月要存多少 ›</small></div></button>`;
   const pCard = `<div class="ys"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span>${closed.length
       ? (current ? `<b class="num">全年約 ${moneyShort(poolYear)}</b><small>今年已轉入 ${moneyShort(accrued)} · 平均每期 ${moneyShort(avg)}</small>`
                  : `<b class="num">全年 ${moneyShort(accrued)}</b><small>${closed.length} 期轉入</small>`)
@@ -1567,27 +1578,32 @@ function viewSettings(){
   const limited = cats("expense").filter(c => c.monthlyLimit);
   const poolChips = limited.length ? `<div class="chips" role="group" aria-label="可以轉入已節省結餘的類別">${limited.map(c => `<button class="chip" data-pool="${esc(c.id)}" aria-pressed="${toPool(c)}">${esc(c.name)}</button>`).join("")}</div>`
     : `<span class="small muted">先幫類別設每月上限，才能選。</span>`;
-  return `<div class="section"><h2>預算週期</h2><div class="card setlist">
-      <div class="setrow"><div class="k"><b>月預算從哪天開始</b><span>例如設成發薪日；當月沒有這天就用月底</span></div><select id="set-cycle" aria-label="月預算起始日">${dayOpts}</select></div>
-      <div class="setrow"><div class="k"><b>警戒線</b><span>用到這個比例就標「快用完」、記帳時提醒，並列在首頁</span></div><select id="set-warn" aria-label="警戒線">${[50,55,60,65,70,75,80,85,90,95].map(v => `<option value="${v}" ${(s.warnPct||80)===v?"selected":""}>${v}%</option>`).join("")}</select></div>
-    </div></div>
+  const pages = {
+    budget: `<div class="section"><div class="section-head"><h2>類別</h2><button class="btn small" data-act="cat-new">新增類別</button></div><div class="card setlist">${budgetSummary()}${catHtml}</div></div>
     <div class="section"><h2>儲蓄</h2><div class="card setlist">
       <div class="setrow"><div class="k"><b>每月目標儲蓄</b><span>沒有設每月預算時，「今天可以花」會先扣掉這筆</span></div><input class="inp num" id="set-target" inputmode="numeric" value="${s.savingsTarget||""}" placeholder="0" style="width:120px;text-align:right" aria-label="每月目標儲蓄"></div>
       <div class="setrow"><div class="k"><b>已節省結餘</b><span>從開始記帳開始累積，儲蓄以外的小金庫</span></div><span class="num">${money(poolBalance())}</span></div>
       <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>可以轉入已節省結餘的類別</b><span>只列出有設每月上限的類別</span></div>${poolChips}</div>
+    </div></div>
+`,
+    fixed: `<div class="section"><div class="section-head"><h2>固定收支</h2><button class="btn small" data-act="rec-new">新增</button></div><div class="card setlist">${recHtml}
+      <div class="note">到了每月收支日，會在首頁出現待確認，確認後才算進帳。</div></div></div>
+    <div class="section"><h2>分期</h2><div class="card setlist">${instHtml}</div></div>
+`,
+    fav: `<div class="section" id="fav-section"><div class="section-head"><h2>項目</h2><button class="btn small" data-act="fav-new">新增</button></div><div class="card setlist">${favHtml}
+      <div class="note">排序：${s.favManual ? `手動 <button class="btn ghost small" data-act="fav-auto">改回依使用次數</button>` : "依使用次數（按箭頭可手動排）"}。首頁「快速記帳」依這個順序排列，可左右滑。</div></div></div>
+`,
+    prefs: `<div class="section"><h2>預算週期</h2><div class="card setlist">
+      <div class="setrow"><div class="k"><b>月預算從哪天開始</b><span>例如設成發薪日；當月沒有這天就用月底</span></div><select id="set-cycle" aria-label="月預算起始日">${dayOpts}</select></div>
+      <div class="setrow"><div class="k"><b>警戒線</b><span>用到這個比例就標「快用完」、記帳時提醒，並列在首頁</span></div><select id="set-warn" aria-label="警戒線">${[50,55,60,65,70,75,80,85,90,95].map(v => `<option value="${v}" ${(s.warnPct||80)===v?"selected":""}>${v}%</option>`).join("")}</select></div>
     </div></div>
     <div class="section"><h2>外觀</h2><div class="card setlist">
       <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>主題</b><span>跟隨手機時，會照手機的深色模式自動切換</span></div>
         <div class="seg three" role="radiogroup" aria-label="主題">${THEMES.map(([k,l]) => `<button role="radio" data-theme-pick="${k}" aria-pressed="${(s.theme||"system")===k}" aria-checked="${(s.theme||"system")===k}">${l}</button>`).join("")}</div></div>
       <div class="setrow"><div class="k"><b>配色</b><span>淺色、深色都有對應的版本</span></div><select id="set-palette" aria-label="配色">${Object.entries(PALETTES).map(([k,v]) => `<option value="${k}" ${(s.palette||"blush")===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
     </div></div>
-    <div class="section"><div class="section-head"><h2>類別與預算</h2><button class="btn small" data-act="cat-new">新增類別</button></div><div class="card setlist">${budgetSummary()}${catHtml}</div></div>
-    <div class="section"><div class="section-head"><h2>固定收支</h2><button class="btn small" data-act="rec-new">新增</button></div><div class="card setlist">${recHtml}
-      <div class="note">到了每月收支日，會在首頁出現待確認，確認後才算進帳。</div></div></div>
-    <div class="section" id="fav-section"><div class="section-head"><h2>常用項目</h2><button class="btn small" data-act="fav-new">新增</button></div><div class="card setlist">${favHtml}
-      <div class="note">排序：${s.favManual ? `手動 <button class="btn ghost small" data-act="fav-auto">改回依使用次數</button>` : "依使用次數（按箭頭可手動排）"}。首頁「快速記帳」依這個順序排列，可左右滑。</div></div></div>
-    <div class="section"><h2>分期</h2><div class="card setlist">${instHtml}</div></div>
-    <div class="section"><h2>資料</h2><div class="card setlist">
+`,
+    data: `<div class="section"><h2>資料</h2><div class="card setlist">
       ${imp}
       <div class="setrow"><div class="k"><b>資料存放</b><span>${db ? (syncOn ? "雲端，電腦和手機同步" : "雲端（目前連不上，先存在這個瀏覽器）") : "只存在這個瀏覽器，不會同步"}</span></div></div>
       <div class="setrow"><div class="k"><b>匯入 Google Sheet</b><span>在 Google Sheet 選「檔案 → 下載 → .xlsx」</span></div><label class="btn small" for="f-xlsx">選擇檔案</label><input type="file" id="f-xlsx" accept=".xlsx" hidden></div>
@@ -1595,7 +1611,9 @@ function viewSettings(){
       <div class="setrow"><div class="k"><b>從備份還原</b><span>會取代目前所有資料</span></div><label class="btn small" for="f-json">選擇檔案</label><input type="file" id="f-json" accept=".json,application/json" hidden></div>
       <div class="setrow"><div class="k"><b>貼上備份內容還原</b><span>選不了檔案時用：打開備份檔，全選複製後貼上</span></div><button class="btn small" data-act="paste-restore">貼上</button></div>
       <div id="exportBox"></div>
-    </div></div>`;
+    </div></div>`
+  };
+  return pages[setPage] || pages.prefs;
 }
 
 /* ---------- sheets (modal) ---------- */
@@ -2203,17 +2221,17 @@ function applyImport(pv){
 /* ---------- backup ---------- */
 function markBackup(){ state.settings.lastBackupAt = Date.now(); put.settings(); render(); }
 function openMore(){
+  const item = (k, sub) => `<button class="setrow" data-m="${k}"><div class="k"><b>${SET_PAGES[k]}</b><span>${sub}</span></div><span class="chev">›</span></button>`;
   openSheet(`<div class="hd"><h2>更多</h2><button class="btn ghost" data-x>關閉</button></div>
     <div class="card setlist menu">
-      <button class="setrow" data-m="settings"><div class="k"><b>設定</b><span>預算週期、類別與預算、固定收支、外觀</span></div><span class="chev">›</span></button>
-      <button class="setrow" data-m="export"><div class="k"><b>匯出備份</b><span>${backupText()}</span></div><span class="chev">›</span></button>
+      ${item("budget", "類別、每月上限、目標儲蓄")}
+      ${item("fixed", "每月固定的收入、支出，以及分期")}
+      ${item("fav", "快速記帳的項目和排序")}
+      ${item("prefs", "預算週期、警戒線、主題、配色")}
+      ${item("data", `匯出、還原、匯入 · ${backupText()}`)}
     </div>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", closeSheet);
-    sheet.querySelectorAll("[data-m]").forEach(b => b.addEventListener("click", () => {
-      closeSheet();
-      if(b.dataset.m === "export"){ doExport(); return; }
-      prevTab = tab; tab = "settings"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0);
-    }));
+    sheet.querySelectorAll("[data-m]").forEach(b => b.addEventListener("click", () => { closeSheet(); goSet(b.dataset.m); }));
   });
 }
 function backupJson(){ return JSON.stringify({ app: "額度帳本", version: 2, exportedAt: new Date().toISOString(), data: state }, null, 1); }
@@ -2228,7 +2246,7 @@ async function doExport(){
       setTimeout(() => URL.revokeObjectURL(url), 1000); markBackup(); toast("已匯出備份"); return;
     }catch(e){}
   }
-  if(!$("#exportBox")){ prevTab = tab; tab = "settings"; render(); }
+  if(!$("#exportBox")) goSet("data");
   const box = $("#exportBox"); if(!box) return; box.scrollIntoView();
   box.innerHTML = `<div class="note"><p style="margin:0 0 6px">這個畫面不能直接下載。請複製下面的內容，存成 .json 檔。</p><textarea class="backup" id="bk" readonly>${esc(data)}</textarea>
     <button class="btn small" data-act="copy" style="margin-top:6px">複製</button></div>`;
@@ -2271,7 +2289,7 @@ document.addEventListener("click", e => {
   if(bx){ const id = bx.dataset.budx; budOpen.has(id) ? budOpen.delete(id) : budOpen.add(id); render(); return; }
   const tp = e.target.closest("[data-theme-pick]");
   if(tp && !tp.closest(".sheet")){ state.settings.theme = tp.dataset.themePick; put.settings(); render(); return; }
-  const el = e.target.closest("[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-inst],[data-over],[data-pool],[data-favq],[data-favedit],[data-favmove],[data-wishedit],[data-wishbuy]");
+  const el = e.target.closest("[data-set],[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-inst],[data-over],[data-pool],[data-favq],[data-favedit],[data-favmove],[data-wishedit],[data-wishbuy]");
   if(!el || el.closest(".sheet")) return;
   if(el.dataset.favq){ const f = state.favorites[el.dataset.favq]; f && quickRecord(f); return; }
   if(el.dataset.favedit){ const f = state.favorites[el.dataset.favedit]; f && openFavorite(f); return; }
@@ -2279,7 +2297,8 @@ document.addEventListener("click", e => {
   if(el.dataset.wishedit){ const w = state.wishes[el.dataset.wishedit]; w && openWish(w); return; }
   if(el.dataset.wishbuy){ const w = state.wishes[el.dataset.wishbuy]; w && buyWish(w); return; }
   if(el.dataset.pool){ const c = state.categories[el.dataset.pool]; if(c){ put.cat({...c, toPool: !toPool(c)}); render(); } return; }
-  if(el.dataset.tab){ if(el.dataset.tab==="settings" && tab!=="settings") prevTab = tab; tab = el.dataset.tab; if(tab==="report") reportSeg = "analysis"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); return; }
+  if(el.dataset.set){ goSet(el.dataset.set); return; }
+  if(el.dataset.tab){ tab = el.dataset.tab; if(tab==="report") reportSeg = "analysis"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); return; }
   if(el.dataset.edit){ const t = findTx(el.dataset.edit); t && openEntry(t); return; }
   if(el.dataset.inst){ const i = state.installments[el.dataset.inst]; i && openInstallment(i); return; }
   if(el.dataset.over){ const [kind, id] = el.dataset.over.split(":"); const s = subjectOf(kind, id); s && openOverspend(s); return; }
@@ -2299,7 +2318,7 @@ document.addEventListener("click", e => {
   else if(a==="rec-new") openRecurring(null);
   else if(a==="fav-new") openFavorite(null);
   else if(a==="fav-auto"){ state.settings.favManual = false; put.settings(); render(); }
-  else if(a==="fav-manage"){ prevTab = tab; tab = "settings"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); const el2 = document.getElementById("fav-section"); el2 && el2.scrollIntoView(); }
+  else if(a==="fav-manage") goSet("fav");
   else if(a==="wish-new") openWish(null);
   else if(a==="nw-tag") openNwTagger(viewPeriod);
   else if(a==="bud-all"){ tab = "report"; reportSeg = "budget"; viewPeriod = curPeriod(); try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
