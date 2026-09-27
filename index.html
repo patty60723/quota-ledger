@@ -531,6 +531,15 @@ button.r:hover{background:var(--sunk)}
 .budsum p{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
 .budsum b{color:var(--ink)}
 .bad,.bad b{color:var(--stamp)}
+.ysav{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ys{display:flex;align-items:center;gap:10px;background:var(--surface);border:0;border-radius:16px;padding:12px;box-shadow:var(--card-shadow);min-width:0;text-align:left;color:var(--ink)}
+.ys > div{display:flex;flex-direction:column;min-width:0}
+.ys span{font-size:12px;color:var(--muted)}
+.ys b{font-size:16px;font-weight:700;white-space:nowrap}
+.ys small{font-size:11px;color:var(--muted);line-height:1.4}
+.ytotal{margin:0;padding:12px 14px;border-radius:14px;background:var(--accent-soft);font-size:14px;color:var(--ink)}
+.ytotal b{font-weight:700}
+.ytotal small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
 .toast{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .toastbtn{background:none;border:0;color:var(--accent-soft);font-weight:700;padding:2px 4px;text-decoration:underline;text-underline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
@@ -1203,9 +1212,26 @@ function viewReport(){
     <div class="section"><div class="section-head"><h2>近 6 期收支</h2><span class="label">到 ${periodLabel(viewPeriod).title}</span></div>
       <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>
     <div class="section"><div class="section-head"><h2>年度參考值</h2><span class="label">已記錄 ${n} 個月</span></div>
+      ${yearlySavings()}
       <div class="card"><p class="note" style="border-top:0;margin:0">依過去紀錄的每月平均推算一年的花費${n && n<12 ? `。目前紀錄未滿 12 個月，僅供參考` : ""}。</p>${refHtml}</div></div>`;
 }
 
+// yearly view of savings: the monthly target ×12, and the pool's pace from closed periods
+function yearlySavings(){
+  const target = state.settings.savingsTarget || 0;
+  const closed = Object.values(state.closings); const accrued = closed.reduce((s, c) => s + (c.total || 0), 0);
+  const avg = closed.length ? accrued / closed.length : 0; const pool = poolBalance();
+  const yT = target * 12, yP = Math.round(avg * 12);
+  const tCard = target
+    ? `<div class="ys"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b class="num">一年 ${moneyShort(yT)}</b><small>每月 ${moneyShort(target)}</small></div></div>`
+    : `<button class="ys" data-tab="settings"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b>還沒設定</b><small>到設定填每月要存多少 ›</small></div></button>`;
+  const pCard = closed.length
+    ? `<div class="ys"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span><b class="num">一年約 ${moneyShort(yP)}</b><small>目前 ${moneyShort(pool)} · 平均每期 ${moneyShort(avg)}</small></div></div>`
+    : `<div class="ys"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span><b class="num">目前 ${moneyShort(pool)}</b><small>這一期結束後開始累積</small></div></div>`;
+  const both = yT + (closed.length ? yP : 0);
+  return `<div class="ysav">${tCard}${pCard}</div>
+    ${both > 0 ? `<p class="ytotal">照這樣下去，一年約可存 <b class="num">NT$ ${moneyShort(both)}</b>${closed.length && closed.length < 12 ? `<small>（結餘依 ${closed.length} 期的平均推算）</small>` : ""}</p>` : ""}`;
+}
 function trendData(){
   const out = []; for(let i=5;i>=0;i--){ const p = shift(viewPeriod,-i); const l = txIn(p); out.push({p, inc: sumIncome(l), exp: sumOut(l)}); }
   return out;
