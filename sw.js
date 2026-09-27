@@ -1,5 +1,5 @@
 // Bump VERSION after changing any app file so installed copies pick up the new version.
-const VERSION = "v31";
+const VERSION = "v32";
 const CACHE = `quota-ledger-${VERSION}`;
 const APP_SHELL = [
   "./",
@@ -8,6 +8,10 @@ const APP_SHELL = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png",
+  "./icons/icon-maskable-192.png",
+  "./icons/icon-maskable-512.png",
+  "./icons/icon-48.png",
+  "./icons/icon-96.png",
   "./icons/icon.svg"
 ];
 // Third-party files are cached separately; failing to fetch them must not block install.

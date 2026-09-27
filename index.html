@@ -4,14 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#463F3A">
-<meta name="description" content="幫自己控制衝動消費的記帳 App">
+<meta name="description" content="幫你在花錢之前，看懂這筆錢會帶來什麼影響的消費手帳。">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="icon" type="image/png" sizes="48x48" href="icons/icon-48.png">
+<link rel="icon" type="image/png" sizes="96x96" href="icons/icon-96.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="額度帳本">
+<meta name="apple-mobile-web-app-title" content="慢慢花">
 <style>
   /* 獨立 PWA 版的基本設定（claude.ai 發佈版由平台提供） */
   body{margin:0}
@@ -21,7 +22,7 @@
 </style>
 </head>
 <body>
-<title>額度帳本</title>
+<title>慢慢花手帳</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=LXGW+WenKai+TC:wght@700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
@@ -1452,7 +1453,7 @@ function render(){
   const sync = `<div class="sync" id="sync" ${db && !syncOn ? "" : "hidden"}><i></i><span>同步中斷，先存在這個瀏覽器</span></div>`;
   const head = tab === "settings"
     ? `<header class="top sub"><button class="backbtn" data-act="back" aria-label="返回">${icon("chevl")}返回</button><div class="ttl">${SET_PAGES[setPage] || "設定"}</div>${sync}</header>`
-    : `<header class="top"><div class="brand">額度帳本</div>${sync}<button class="iconbtn more" data-act="more" aria-label="更多：設定與備份">${icon("more")}</button></header>`;
+    : `<header class="top"><div class="brand">慢慢花手帳</div>${sync}<button class="iconbtn more" data-act="more" aria-label="更多：設定與備份">${icon("more")}</button></header>`;
   const body = tab==="home" ? viewHome() : tab==="list" ? viewList() : tab==="wish" ? viewWish() : tab==="report" ? viewReport() : viewSettings();
   // animate when the screen changes (tab, period, report view); expanding a row, saving or syncing redraws quietly
   const viewKey = [tab, pkey(viewPeriod), reportSeg, tab === "settings" ? setPage : ""].join("|");
