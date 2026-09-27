@@ -820,7 +820,7 @@ function icon(name, cls){ return ICON[name] ? `<svg class="ic${cls ? " " + cls :
 // category name → icon; first match wins, so specific words come before general ones
 const CAT_ICONS = [
   [/射箭|弓/, "archery"], [/運動|健身|球|跑步|游泳|瑜伽|重訓/, "sport"],
-  [/大餐|聚餐|餐廳/, "dine"], [/餐|飯|吃|早餐|午餐|晚餐|飲料|咖啡|食/, "meal"],
+  [/大餐|聚餐|餐廳/, "dine"], [/飲料|咖啡|點心|零食|手搖/, "coffee"], [/餐|飯|吃|早餐|午餐|晚餐|食/, "meal"],
   [/交通|車|捷運|油|停車|機票|高鐵/, "bus"], [/娛樂|電影|遊戲|旅遊|休閒/, "ticket"], [/服飾|衣|鞋|穿/, "shirt"],
   [/水電|瓦斯|電費|水費/, "utility"], [/網路|寬頻/, "wifi"], [/手機|電話|電信/, "phone"], [/寵物|貓|狗/, "paw"],
   [/日常|用品|生活|雜貨/, "basket"], [/美容|美髮|剪髮|保養|化妝/, "scissors"], [/保險/, "shield"], [/稅|規費|罰單/, "receipt"],
@@ -836,10 +836,12 @@ function catMark(c, fallbackName){ const n = catIconFor(c); return n ? icon(n) :
 
 
 /* ---------- state ---------- */
+// only used when there is no data at all; existing ledgers keep their own categories
 const DEFAULT_CATS = [
-  ["一般用餐","expense"],["交通","expense"],["娛樂","expense"],["服飾","expense"],["日常用品","expense"],
-  ["水電瓦斯","expense"],["手機網路","expense"],["醫療與健康","expense"],["訂閱","expense"],["其他支出","expense"],
-  ["薪資","income"],["其他收入","income"]
+  ["一般用餐","expense"],["大餐聚餐","expense"],["飲料點心","expense"],["交通","expense"],["日常用品","expense"],
+  ["服飾","expense"],["娛樂","expense"],["運動","expense"],["醫療與健康","expense"],["水電瓦斯","expense"],
+  ["手機網路","expense"],["房租房貸","expense"],["保險","expense"],["訂閱","expense"],["寵物","expense"],["其他支出","expense"],
+  ["薪資","income"],["獎金","income"],["退款","income"],["其他收入","income"]
 ].map(([name,type],i)=>({id:"d"+i,name,type,monthlyLimit:null,perTxLimit:null,dailyLimit:null,yearlyLimit:null,warn:false,archived:false,sort:i}));
 const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null, palette: "blush", favManual: false, favDismissed: [], warnPct: 80, theme: "system", lastBackupAt: null };
 const warnAt = () => (state.settings.warnPct || 80) / 100;
