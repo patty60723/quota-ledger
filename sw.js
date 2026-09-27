@@ -12,6 +12,8 @@ const APP_SHELL = [
   "./icons/icon-maskable-512.png",
   "./icons/icon-48.png",
   "./icons/icon-96.png",
+  "./icons/wordmark.png",
+  "./icons/wordmark-dark.png",
   "./icons/icon.svg"
 ];
 // Third-party files are cached separately; failing to fetch them must not block install.

@@ -901,6 +901,17 @@ html{-webkit-tap-highlight-color:transparent}
 .sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .section > .budsum{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card)}
 .section > .budsum + .section-head{margin-top:var(--space-2)}
+/* brand bar: the wordmark artwork (light/dark versions follow the app's theme choice) */
+#app > header.top .brand{display:flex;align-items:center;min-width:0;flex:1 1 auto;margin-left:-2px}
+.wm{display:block;height:38px;width:auto;max-width:100%;object-fit:contain;object-position:left center}
+.wm-dark{display:none}
+:root[data-theme="dark"] .wm-light{display:none}
+:root[data-theme="dark"] .wm-dark{display:block}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .wm-light{display:none}
+  :root:not([data-theme="light"]) .wm-dark{display:block}
+}
+@media (max-width:340px){ .wm{height:34px} }
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1453,7 +1464,7 @@ function render(){
   const sync = `<div class="sync" id="sync" ${db && !syncOn ? "" : "hidden"}><i></i><span>同步中斷，先存在這個瀏覽器</span></div>`;
   const head = tab === "settings"
     ? `<header class="top sub"><button class="backbtn" data-act="back" aria-label="返回">${icon("chevl")}返回</button><div class="ttl">${SET_PAGES[setPage] || "設定"}</div>${sync}</header>`
-    : `<header class="top"><div class="brand">慢慢花手帳</div>${sync}<button class="iconbtn more" data-act="more" aria-label="更多：設定與備份">${icon("more")}</button></header>`;
+    : `<header class="top"><div class="brand"><img class="wm wm-light" src="icons/wordmark.png" alt="慢慢花手帳" width="172" height="38"><img class="wm wm-dark" src="icons/wordmark-dark.png" alt="慢慢花手帳" width="172" height="38"></div>${sync}<button class="iconbtn more" data-act="more" aria-label="更多：設定與備份">${icon("more")}</button></header>`;
   const body = tab==="home" ? viewHome() : tab==="list" ? viewList() : tab==="wish" ? viewWish() : tab==="report" ? viewReport() : viewSettings();
   // animate when the screen changes (tab, period, report view); expanding a row, saving or syncing redraws quietly
   const viewKey = [tab, pkey(viewPeriod), reportSeg, tab === "settings" ? setPage : ""].join("|");
