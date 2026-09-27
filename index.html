@@ -824,15 +824,21 @@ function poolBalance(){
   const used = Object.values(state.adjustments).filter(a => a.kind==="pool").reduce((s,a)=>s+a.amount,0);
   return inTotal - used;
 }
-function recordedMonths(){
-  const dates = realTx().map(t=>t.date).filter(d => d <= todayStr()).sort();
-  if(!dates.length) return 0;
-  return monthsBetween(periodOf(dates[0]), curPeriod()) + 1;
+// Calendar year Y, from January (or the first recorded period that year) to now (or December for past years)
+function yearWindow(Y){
+  const cur = curPeriod(); if(Y > cur.y) return null;
+  const dates = realTx().map(t => t.date).sort(); if(!dates.length) return null;
+  const first = periodOf(dates[0]); if(first.y > Y) return null;
+  const start = first.y === Y ? first : { y: Y, m: 1 };
+  const end = Y === cur.y ? cur : { y: Y, m: 12 };
+  return { Y, n: monthsBetween(start, end) + 1, current: Y === cur.y };
 }
-function yearlyRef(c){
-  const n = recordedMonths(); if(!n) return null;
-  const total = allTx().filter(t => t.categoryId===c.id && t.date <= todayStr()).reduce((s,t)=>s+outAmt(t),0);
-  return { n, perYear: total / n * 12 };
+// spent so far in year Y and, for the current year, the full-year estimate at this pace
+function yearCatStats(c, Y){
+  const w = yearWindow(Y); if(!w) return null;
+  const today = todayStr();
+  const spent = allTx().filter(t => t.categoryId===c.id && t.date >= `${Y}-01-01` && t.date <= `${Y}-12-31` && t.date <= today).reduce((s,t)=>s+outAmt(t),0);
+  return { spent, est: w.current ? spent / w.n * 12 : spent, n: w.n, current: w.current };
 }
 
 
@@ -1194,11 +1200,12 @@ function viewReport(){
   const rows = Object.entries(byCat).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]); const max = rows[0]?.[1] || 1;
   const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<button class="r" data-rank="${esc(id)}" aria-label="看${esc(catName(id))}的所有支出"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${out>0?Math.round(v/out*100):0}%</small></span></button>`).join("")}</div><p class="small muted" style="margin:0;padding:0 16px 14px">點類別可以看這一期的每一筆支出。</p>`
     : `<div class="empty">這一期沒有支出。</div>`;
-  const n = recordedMonths();
-  const refs = cats("expense").map(c => ({c, r: yearlyRef(c)})).filter(o => o.r && o.r.perYear > 0).sort((a,b)=>b.r.perYear-a.r.perYear);
-  const refHtml = refs.length ? `<div class="tblwrap" style="padding:0 14px 14px"><table><thead><tr><th>類別</th><th>一年約</th><th>年度上限</th></tr></thead><tbody>
-      ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.perYear)}</td><td>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) : "—"}</td></tr>`).join("")}</tbody></table></div>`
-    : `<div class="empty">還沒有足夠的紀錄。</div>`;
+  const Y = viewPeriod.y; const yw = yearWindow(Y);
+  const refs = cats("expense").map(c => ({c, r: yearCatStats(c, Y)})).filter(o => o.r && o.r.spent > 0).sort((a,b)=>b.r.est-a.r.est);
+  const refHtml = refs.length ? `<div class="tblwrap" style="padding:0 14px 14px"><table><thead><tr><th>類別</th>${yw.current ? "<th>今年已花</th><th>全年預估</th>" : "<th>全年實際</th>"}<th>年度上限</th></tr></thead><tbody>
+      ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.spent)}</td>${yw.current ? `<td>${moneyShort(o.r.est)}</td>` : ""}<td${o.c.yearlyLimit && o.r.est > o.c.yearlyLimit ? ' class="bad"' : ""}>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) : "—"}</td></tr>`).join("")}</tbody></table></div>`
+    : `<div class="empty">${Y} 年還沒有支出紀錄。</div>`;
+  const yNote = !yw ? "" : yw.current ? `依 ${Y} 年已記錄 ${yw.n} 個月的平均推算全年${yw.n < 12 ? "，未滿 12 個月僅供參考" : ""}。` : `${Y} 年的全年實際花費。`;
   const seg = `<div class="seg rseg" role="tablist" aria-label="報表內容">
       <button role="tab" data-rseg="analysis" aria-pressed="${reportSeg==="analysis"}" aria-selected="${reportSeg==="analysis"}">收支分析</button>
       <button role="tab" data-rseg="budget" aria-pressed="${reportSeg==="budget"}" aria-selected="${reportSeg==="budget"}">預算進度</button></div>`;
@@ -1211,26 +1218,32 @@ function viewReport(){
     <div class="section"><div class="section-head"><h2>${icon("report")}支出分類排行</h2><span class="label num">合計 ${money(out)}</span></div><div class="card">${rank}</div></div>
     <div class="section"><div class="section-head"><h2>近 6 期收支</h2><span class="label">到 ${periodLabel(viewPeriod).title}</span></div>
       <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>
-    <div class="section"><div class="section-head"><h2>年度參考值</h2><span class="label">已記錄 ${n} 個月</span></div>
-      ${yearlySavings()}
-      <div class="card"><p class="note" style="border-top:0;margin:0">依過去紀錄的每月平均推算一年的花費${n && n<12 ? `。目前紀錄未滿 12 個月，僅供參考` : ""}。</p>${refHtml}</div></div>`;
+    <div class="section"><div class="section-head"><h2>${Y} 年度參考值</h2><span class="label">${yw ? `記錄了 ${yw.n} 個月` : ""}</span></div>
+      ${yearlySavings(Y)}
+      <div class="card">${yNote ? `<p class="note" style="border-top:0;margin:0">${yNote}</p>` : ""}${refHtml}</div></div>`;
 }
 
 // yearly view of savings: the monthly target ×12, and the pool's pace from closed periods
-function yearlySavings(){
+function yearlySavings(Y){
+  const w = yearWindow(Y); const current = Y === curPeriod().y;
   const target = state.settings.savingsTarget || 0;
-  const closed = Object.values(state.closings); const accrued = closed.reduce((s, c) => s + (c.total || 0), 0);
-  const avg = closed.length ? accrued / closed.length : 0; const pool = poolBalance();
-  const yT = target * 12, yP = Math.round(avg * 12);
+  const closed = Object.values(state.closings).filter(c => (c.period || "").startsWith(Y + "-"));
+  const accrued = closed.reduce((s, c) => s + (c.total || 0), 0); const avg = closed.length ? accrued / closed.length : 0;
+  const poolYear = current ? Math.round(avg * 12) : accrued;
+  // past years only count the months that were actually recorded
+  const tMonths = current || !w ? 12 : w.n; const tYear = target * tMonths;
   const tCard = target
-    ? `<div class="ys"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b class="num">一年 ${moneyShort(yT)}</b><small>每月 ${moneyShort(target)}</small></div></div>`
+    ? `<div class="ys"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b class="num">${tMonths === 12 ? "全年" : `${tMonths} 個月`} ${moneyShort(tYear)}</b><small>${current && w ? `到目前 ${w.n} 個月應存 ${moneyShort(target * w.n)}` : `每月 ${moneyShort(target)}`}</small></div></div>`
     : `<button class="ys" data-tab="settings"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b>還沒設定</b><small>到設定填每月要存多少 ›</small></div></button>`;
-  const pCard = closed.length
-    ? `<div class="ys"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span><b class="num">一年約 ${moneyShort(yP)}</b><small>目前 ${moneyShort(pool)} · 平均每期 ${moneyShort(avg)}</small></div></div>`
-    : `<div class="ys"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span><b class="num">目前 ${moneyShort(pool)}</b><small>這一期結束後開始累積</small></div></div>`;
-  const both = yT + (closed.length ? yP : 0);
-  return `<div class="ysav">${tCard}${pCard}</div>
-    ${both > 0 ? `<p class="ytotal">照這樣下去，一年約可存 <b class="num">NT$ ${moneyShort(both)}</b>${closed.length && closed.length < 12 ? `<small>（結餘依 ${closed.length} 期的平均推算）</small>` : ""}</p>` : ""}`;
+  const pCard = `<div class="ys"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span>${closed.length
+      ? (current ? `<b class="num">全年約 ${moneyShort(poolYear)}</b><small>今年已轉入 ${moneyShort(accrued)} · 平均每期 ${moneyShort(avg)}</small>`
+                 : `<b class="num">全年 ${moneyShort(accrued)}</b><small>${closed.length} 期轉入</small>`)
+      : (current ? `<b class="num">今年 0</b><small>這一期結束後開始累積</small>` : `<b class="num">全年 0</b><small>這一年沒有轉入</small>`)}</div></div>`;
+  const both = tYear + poolYear;
+  const line = both > 0 ? (current
+      ? `照這樣下去，${Y} 年約可存 <b class="num">NT$ ${moneyShort(both)}</b>${closed.length && closed.length < 12 ? `<small>（結餘依今年 ${closed.length} 期的平均推算）</small>` : ""}`
+      : `${Y} 年目標儲蓄加已節省結餘，共 <b class="num">NT$ ${moneyShort(both)}</b>`) : "";
+  return `<div class="ysav">${tCard}${pCard}</div>${line ? `<p class="ytotal">${line}</p>` : ""}`;
 }
 function trendData(){
   const out = []; for(let i=5;i>=0;i--){ const p = shift(viewPeriod,-i); const l = txIn(p); out.push({p, inc: sumIncome(l), exp: sumOut(l)}); }
@@ -1542,7 +1555,7 @@ function openInstallment(i){
 
 function openCategory(c){
   const isNew = !c; c = c ? {...c} : { id: uid(), name: "", type: "expense", monthlyLimit: null, perTxLimit: null, dailyLimit: null, yearlyLimit: null, warn: true, archived: false, sort: Object.keys(state.categories).length };
-  const ref0 = !isNew && c.type==="expense" ? yearlyRef(c) : null; const ref = ref0 && ref0.perYear > 0 ? ref0 : null;
+  const ref0 = !isNew && c.type==="expense" ? yearCatStats(c, curPeriod().y) : null; const ref = ref0 && ref0.spent > 0 ? ref0 : null;
   const lim = (id, label, v) => `<label>${label}<input class="inp num" id="${id}" inputmode="numeric" value="${v ?? ""}" placeholder="不設定"></label>`;
   openSheet(`<div class="hd"><h2>${isNew?"新增類別":"編輯類別"}</h2><button class="btn ghost" data-x>關閉</button></div>
     <div class="fields">
@@ -1557,7 +1570,7 @@ function openCategory(c){
       ${CAT_PICK.map(k => `<button type="button" class="ipk" data-ic="${k}" role="radio" aria-checked="${c.icon===k}">${icon(k)}</button>`).join("")}
     </div></div>
     <p class="small muted" id="c-total" style="margin:-4px 2px 0"></p>
-    ${ref ? `<p class="small muted" style="margin:0">依過去 ${ref.n} 個月的紀錄，一年約花 <b class="num">${money(ref.perYear)}</b>${ref.n<12?"（未滿 12 個月，僅供參考）":""}。</p>` : ""}
+    ${ref ? `<p class="small muted" style="margin:0">今年已花 <b class="num">${money(ref.spent)}</b>，照這個速度全年約 <b class="num">${money(ref.est)}</b>${ref.n<12?`（今年記錄了 ${ref.n} 個月，僅供參考）`:""}。</p>` : ""}
     <label class="toggle"><input type="checkbox" id="c-warn" ${c.warn?"checked":""}>快用完或超支時提醒我</label>
     <label class="toggle" id="c-pool-row"><input type="checkbox" id="c-pool" ${c.monthlyLimit && (c.toPool ?? !!c.warn)?"checked":""} ${c.monthlyLimit?"":"disabled"}><span>每期沒用完的額度轉入已節省結餘<span class="small muted" id="c-pool-note">${c.monthlyLimit?"":"（先設每月上限才能勾選）"}</span></span></label>
     <label class="toggle"><input type="checkbox" id="c-arch" ${c.archived?"checked":""}>停用這個類別（舊紀錄保留）</label>
