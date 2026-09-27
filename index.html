@@ -728,6 +728,13 @@ header.top .more{width:44px;height:44px}
 .bc .n{font-weight:600;font-size:16px}
 .hstats{grid-template-columns:minmax(0,1.35fr) minmax(0,.8fr) minmax(0,1fr)}
 @media (max-width:360px){.hstats b{font-size:20px}.hstats span{font-size:12px}}
+/* 看懂: top rhythm 24 → title → 20 → month selector → 16 → summary */
+#app.v-report{padding-top:0}
+#app.v-report header.top{padding-block:24px 0}
+#app.v-report .brand{line-height:1}
+#app.v-report header.top .more{margin-block:-11px}
+#app.v-report .period{margin-top:20px}
+#app.v-report .period + .insight{margin-top:16px}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1279,6 +1286,7 @@ function render(){
   // animate when the screen changes (tab, period, report view); expanding a row, saving or syncing redraws quietly
   const viewKey = [tab, pkey(viewPeriod), reportSeg, tab === "settings" ? setPage : ""].join("|");
   app.classList.toggle("anim", viewKey !== lastViewKey); lastViewKey = viewKey;
+  app.classList.toggle("v-report", tab === "report");
   app.innerHTML = head + body;
   if(tab==="report") wireChart();
 }
