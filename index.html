@@ -653,6 +653,9 @@ header.top .ttl{font-size:17px;font-weight:700}
 .hbig .hof{font-size:17px;font-weight:600;color:var(--hero-muted);margin-left:8px;letter-spacing:0}
 .budtail{display:flex;justify-content:space-between;align-items:center;margin:8px 4px 0}
 .hhead h2 .hsm{font-size:12px;font-weight:400;color:var(--muted);margin-left:4px}
+.fseg{margin:4px 0 2px}
+.fseg small{font-size:12px;color:var(--faint);margin-left:2px}
+.recgrp{display:flex;justify-content:space-between;padding:10px 16px 6px;font-size:12px;color:var(--muted);background:var(--sunk)}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1133,7 +1136,7 @@ function checkOverspend(s){
 /* ---------- UI state ---------- */
 const TABS = [["home","home","今天"],["list","list","明細"],["wish","wish","想買"],["report","report","看懂"]];
 let tab = "home";
-let prevTab = "home", setPage = "prefs";
+let prevTab = "home", setPage = "prefs", fixSeg = "rec";
 const SET_PAGES = { budget: "預算與類別", fixed: "固定收支與分期", fav: "常用項目", prefs: "設定", data: "資料與備份" };
 try{ const sp = localStorage.getItem("ledger.setpage"); if(SET_PAGES[sp]) setPage = sp; }catch(e){}
 // settings pages live behind the top-right menu; they open on top of whatever tab was showing
@@ -1556,10 +1559,14 @@ function viewSettings(){
       <b class="catname"><span class="cmark">${catMark(c)}</span>${esc(c.name)}</b><span class="small muted">${c.type==="income"?"收入":(c.warn?"提醒開":"不提醒")}</span>
       <span class="sub num">${c.type==="expense" ? limitsText(c) : "收入類別"}${c.archived?" · 已停用":""}</span></button>`).join("");
   const recs = Object.values(state.recurring).sort((a,b)=>(a.day||0)-(b.day||0));
-  const recHtml = recs.length ? recs.map(r => `<button class="catrow${r.active?"":" arch"}" data-rec="${esc(r.id)}">
+  const recRow = r => `<button class="catrow${r.active?"":" arch"}" data-rec="${esc(r.id)}">
       <b>${esc(r.title)}</b><span class="num small">${r.type==="income"?"+":"−"}${moneyShort(r.amount)}</span>
-      <span class="sub">每月 ${r.day} 日 · ${esc(catName(r.categoryId))}${r.active?"":" · 已關閉"}</span></button>`).join("")
-    : `<div class="empty">還沒有固定收支。</div>`;
+      <span class="sub">每月 ${r.day} 日 · ${esc(catName(r.categoryId))}${r.active?"":" · 已關閉"}</span></button>`;
+  // many fixed items: group by expense / income, each with its monthly total
+  const recGroup = (type, label) => { const l = recs.filter(r => r.type === type); if(!l.length) return "";
+    const sum = l.filter(r => r.active).reduce((a, r) => a + r.amount, 0);
+    return `<div class="recgrp"><span>${label} ${l.length} 筆</span><span class="num">每月 ${type==="income"?"+":"−"}${moneyShort(sum)}</span></div>${l.map(recRow).join("")}`; };
+  const recHtml = recs.length ? recGroup("expense", "支出") + recGroup("income", "收入") : `<div class="empty">還沒有固定收支。</div>`;
   const favs = favList();
   const favHtml = favs.length ? favs.map((f,i) => `<div class="favitem${favUsable(f)?"":" arch"}">
       <button class="favmain" data-favedit="${esc(f.id)}"><b>${esc(f.name)}</b><span class="sub">${esc(catName(f.categoryId))} · ${f.amount ? moneyShort(f.amount) : "每次輸入金額"} · 用了 ${f.uses||0} 次${favUsable(f)?"":" · 類別已停用"}</span></button>
@@ -1586,9 +1593,12 @@ function viewSettings(){
       <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>可以轉入已節省結餘的類別</b><span>只列出有設每月上限的類別</span></div>${poolChips}</div>
     </div></div>
 `,
-    fixed: `<div class="section"><div class="section-head"><h2>固定收支</h2><button class="btn small" data-act="rec-new">新增</button></div><div class="card setlist">${recHtml}
-      <div class="note">到了每月收支日，會在首頁出現待確認，確認後才算進帳。</div></div></div>
-    <div class="section"><h2>分期</h2><div class="card setlist">${instHtml}</div></div>
+    fixed: `<div class="seg fseg" role="tablist" aria-label="固定收支與分期">
+      <button role="tab" data-fseg="rec" aria-pressed="${fixSeg==="rec"}" aria-selected="${fixSeg==="rec"}">固定收支 <small class="num">${recs.length}</small></button>
+      <button role="tab" data-fseg="inst" aria-pressed="${fixSeg==="inst"}" aria-selected="${fixSeg==="inst"}">分期 <small class="num">${insts.filter(i => i.status==="active").length}</small></button></div>
+    ${fixSeg === "rec" ? `<div class="section"><div class="section-head"><h2>固定收支</h2><button class="btn small" data-act="rec-new">新增</button></div><div class="card setlist">${recHtml}
+      <div class="note">到了每月收支日，會在首頁出現待確認，確認後才算進帳。</div></div></div>`
+    : `<div class="section"><h2>分期</h2><div class="card setlist">${instHtml}</div></div>`}
 `,
     fav: `<div class="section" id="fav-section"><div class="section-head"><h2>項目</h2><button class="btn small" data-act="fav-new">新增</button></div><div class="card setlist">${favHtml}
       <div class="note">排序：${s.favManual ? `手動 <button class="btn ghost small" data-act="fav-auto">改回依使用次數</button>` : "依使用次數（按箭頭可手動排）"}。首頁「快速記帳」依這個順序排列，可左右滑。</div></div></div>
@@ -2283,6 +2293,8 @@ document.addEventListener("click", e => {
   if(nf && !nf.closest(".sheet")){ openNwTagger(viewPeriod, nf.dataset.nwf); return; }
   const rk = e.target.closest("[data-rank]");
   if(rk && !rk.closest(".sheet")){ openCatDetail(rk.dataset.rank, viewPeriod); return; }
+  const fs = e.target.closest("[data-fseg]");
+  if(fs){ fixSeg = fs.dataset.fseg; render(); return; }
   const rs = e.target.closest("[data-rseg]");
   if(rs){ reportSeg = rs.dataset.rseg; render(); return; }
   const bx = e.target.closest("[data-budx]");
