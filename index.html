@@ -1561,7 +1561,8 @@ function viewReport(){
   const topCat = rows[0];
   const insight = `<div class="card insight">
       <p class="lead">${viewPeriod.m} 月${isCur ? "目前" : ""}支出 <b class="num">NT$${moneyShort(out)}</b>${inc ? `，收入 <span class="num">NT$${moneyShort(inc)}</span>` : ""}</p>
-      ${topCat ? `<p class="sub">花最多的是${esc(catName(topCat[0]))} <span class="num">NT$${moneyShort(topCat[1])}</span>（${out > 0 ? Math.round(topCat[1]/out*100) : 0}%）${ns.total ? ` · 想要占 ${Math.round(ns.wantPct*100)}%` : ""}</p>` : ""}
+      ${topCat ? `<p class="sub">花最多的是${esc(catName(topCat[0]))} <span class="num">NT$${moneyShort(topCat[1])}</span>（${out > 0 ? Math.round(topCat[1]/out*100) : 0}%）</p>` : ""}
+      ${ns.total && ns.want ? `<p class="sub">整體支出中，標成「想要」的有 <span class="num">NT$${moneyShort(ns.want)}</span>，占 ${Math.round(ns.wantPct*100)}%</p>` : ""}
       ${hotCats.length ? `<ul>${hotCats.slice(0,3).map(({c,b}) => { const over = b.avail < 0; return `<li><button data-rseg="budget"><span>${esc(c.name)} <span class="st ${over ? "over" : "warn"}">${over ? "超支" : "快用完"}</span></span><span class="num small muted">${over ? "超出 NT$" + moneyShort(-b.avail) : "還剩 NT$" + moneyShort(b.avail)}</span></button></li>`; }).join("")}</ul>`
         : budgetCats().length ? `<p class="sub">每個有預算的類別都還在範圍內。</p>` : ""}
     </div>`;
