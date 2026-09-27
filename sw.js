@@ -1,5 +1,5 @@
 // Bump VERSION after changing any app file so installed copies pick up the new version.
-const VERSION = "v27";
+const VERSION = "v28";
 const CACHE = `quota-ledger-${VERSION}`;
 const APP_SHELL = [
   "./",
