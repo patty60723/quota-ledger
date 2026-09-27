@@ -72,7 +72,7 @@
   --paper:#F4F3EE; --surface:#FFFFFF; --sunk:#ECE9E3; --ink:#463F3A; --muted:#6F6762; --faint:#8A817C;
   --line:#DDD9D2; --accent:#463F3A; --accent-ink:#F4F3EE; --accent-soft:#F3E1DA;
   --bar:#8A817C; --pos:#3D72A8; --income:#3D72A8; --expense:#C26A50; --warn:#8A6220; --warn-soft:#F2E6CF;
-  --stamp:#B0473A; --stamp-soft:#F6DED8; --fab-bg:#E0AFA0; --fab-ink:#463F3A;
+  --stamp:#A34A45; --stamp-soft:#F4E3E0; --fab-bg:#E0AFA0; --fab-ink:#463F3A;
   --hero-bg:#463F3A; --hero-ink:#F4F3EE; --hero-muted:#BCB8B1; --hero-track:#5E5550; --hero-fill:#E0AFA0;
   --shadow:0 1px 2px rgba(70,63,58,.06),0 8px 24px rgba(70,63,58,.10);
 }
@@ -86,7 +86,7 @@
     --paper:#1F1B18; --surface:#29241F; --sunk:#332D28; --ink:#F4F3EE; --muted:#BCB8B1; --faint:#8A817C;
     --line:#3E3731; --accent:#E0AFA0; --accent-ink:#2A2420; --accent-soft:#45322C;
     --bar:#BCB8B1; --pos:#8DB4DE; --income:#4C80B8; --expense:#C9735A; --warn:#DDAE5C; --warn-soft:#3D3120;
-    --stamp:#EE8C7A; --stamp-soft:#48261F; --fab-bg:#E0AFA0; --fab-ink:#2A2420;
+    --stamp:#E09A93; --stamp-soft:#432927; --fab-bg:#E0AFA0; --fab-ink:#2A2420;
     --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
   }
 }
@@ -99,7 +99,7 @@
   --paper:#1F1B18; --surface:#29241F; --sunk:#332D28; --ink:#F4F3EE; --muted:#BCB8B1; --faint:#8A817C;
   --line:#3E3731; --accent:#E0AFA0; --accent-ink:#2A2420; --accent-soft:#45322C;
   --bar:#BCB8B1; --pos:#8DB4DE; --income:#4C80B8; --expense:#C9735A; --warn:#DDAE5C; --warn-soft:#3D3120;
-  --stamp:#EE8C7A; --stamp-soft:#48261F; --fab-bg:#E0AFA0; --fab-ink:#2A2420;
+  --stamp:#E09A93; --stamp-soft:#432927; --fab-bg:#E0AFA0; --fab-ink:#2A2420;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
 }
 *{box-sizing:border-box}
@@ -229,7 +229,7 @@ textarea.backup{width:100%;min-height:120px;font-family:var(--f-num);font-size:1
 
 /* tabbar + fab */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
 nav.tabs button{background:none;border:0;padding:10px 0 12px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
 nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .fab{position:fixed;z-index:6;right:max(16px,calc(50% - 264px));bottom:calc(76px + env(safe-area-inset-bottom,0px));width:60px;height:60px;border-radius:18px;border:0;background:var(--fab-bg);color:var(--fab-ink);font-size:30px;line-height:1;box-shadow:var(--shadow)}
@@ -303,7 +303,7 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .wish .w1{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
 .wscore{width:46px;height:46px;border-radius:12px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:18px;font-weight:600}
 .wmain{display:flex;flex-direction:column;min-width:0}
-.wmain b{font-weight:500}
+.wmain b{font-weight:600;font-size:16px}
 .wprice{font-weight:600}
 .wacts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .wacts a.btn{text-decoration:none;color:var(--ink)}
@@ -361,7 +361,7 @@ nav.tabs button .ic{width:23px;height:23px;margin-bottom:1px}
 .hbig.neg{color:var(--hero-fill)}
 .hbar{position:relative;height:8px;border-radius:4px;background:var(--hero-track);margin-top:4px}
 .hbar i{position:absolute;inset:0 auto 0 0;border-radius:4px;background:var(--hero-fill)}
-.hbar.over i{background:#EE8C7A}
+.hbar.over i{background:#E09A93}
 .hbar .pace{position:absolute;top:-4px;width:2px;height:16px;border-radius:1px;background:var(--hero-ink);transform:translateX(-1px);opacity:.85}
 .hsub{font-size:13px;color:var(--hero-muted)}
 .hsub b{color:var(--hero-ink);font-weight:600}
@@ -611,6 +611,45 @@ button.r:hover{background:var(--sunk)}
 :root{--nw-need:#1A9A7A}
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--nw-need:#22A583} }
 :root[data-theme="dark"]{--nw-need:#22A583}
+
+/* ---------- 2.0 ---------- */
+header.top{align-items:center}
+header.top .more{margin-left:auto;border:0;background:transparent}
+header.top .more .ic{width:22px;height:22px}
+header.top.sub{justify-content:flex-start}
+header.top .ttl{font-size:17px;font-weight:700}
+.backbtn{border:0;background:none;padding:8px 8px 8px 0;font-size:15px;color:var(--muted)}
+.menu .setrow{width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line)}
+.menu .setrow:last-child{border-bottom:0}
+.chev{color:var(--faint);font-size:18px;margin-left:auto}
+.trow.tap{width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);font:inherit;color:inherit}
+.trow.tap:first-child{border-top:0}
+.alertc .tag{font-size:11px;padding:1px 7px;vertical-align:1px;margin-left:4px}
+.upr{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0}
+.upr b{font-size:15px;font-weight:600}
+.upr b.inc{color:var(--income)}
+.upr small{font-size:12px;color:var(--muted)}
+.rlist{padding:4px 16px}
+.rl{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.rl:last-child{border-bottom:0}
+.rl .n{font-size:14px}
+.rl s{color:var(--faint);text-decoration:none;margin-right:2px}
+.rl b{font-size:17px;font-weight:700}
+.rl b.bad{color:var(--stamp)}
+.rlnote{margin:0;font-size:14px;color:var(--muted)}
+.wish .w1{grid-template-columns:1fr auto;align-items:start}
+.wmain{display:flex;flex-direction:column;gap:2px;align-items:flex-start;min-width:0}
+.wst{font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;margin-bottom:4px}
+.wst.ok{background:color-mix(in srgb,var(--nw-need) 16%,transparent);color:var(--nw-need)}
+.wst.wait{background:var(--sunk);color:var(--muted)}
+.wst.impact{background:var(--stamp-soft);color:var(--stamp)}
+.why{font-size:14px}
+.why summary{cursor:pointer;color:var(--muted);font-size:13px;list-style:none;display:inline-block}
+.why summary::-webkit-details-marker{display:none}
+.why summary::after{content:" ›"}
+.why[open] summary::after{content:" ⌄"}
+.why p{margin:6px 0}
+.why .hint{margin:6px 0}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -708,7 +747,7 @@ const DEFAULT_CATS = [
   ["水電瓦斯","expense"],["手機網路","expense"],["醫療與健康","expense"],["訂閱","expense"],["其他支出","expense"],
   ["薪資","income"],["其他收入","income"]
 ].map(([name,type],i)=>({id:"d"+i,name,type,monthlyLimit:null,perTxLimit:null,dailyLimit:null,yearlyLimit:null,warn:false,archived:false,sort:i}));
-const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null, palette: "blush", favManual: false, favDismissed: [], warnPct: 80, theme: "system" };
+const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null, palette: "blush", favManual: false, favDismissed: [], warnPct: 80, theme: "system", lastBackupAt: null };
 const warnAt = () => (state.settings.warnPct || 80) / 100;
 const PALETTES = { blush: { name: "奶茶", bar: "#463F3A", dark: "#1F1B18" }, teal: { name: "存摺綠", bar: "#0B6E66", dark: "#0E1719" } };
 const THEMES = [["system","跟隨手機"],["light","淺色"],["dark","深色"]];
@@ -1058,10 +1097,28 @@ function openOverspend(s){
     <p class="small muted" style="margin:0">先不決定的話，這筆會留在首頁「待處理的超支」。</p>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", () => { closeSheet(); render(); });
     sheet.querySelectorAll("[data-o]").forEach(b => b.addEventListener("click", () => {
-      const ch = b.dataset.o; resolveOver(s, ch, ch==="cat" ? $("#o-cat", sheet).value : null);
-      closeSheet(); render(); toast(ch==="cat" ? "已向其他類別借用" : ch==="next" ? "已向下個月借用" : "已從已節省結餘補上");
+      const ch = b.dataset.o; const fromId = ch==="cat" ? $("#o-cat", sheet).value : null;
+      const snap = () => ({ me: budgetOf(c, p).avail, lender: fromId ? budgetOf(state.categories[fromId], p).avail : 0, next: budgetOf(c, next).avail, pool: poolBalance() });
+      const before = snap(); resolveOver(s, ch, fromId); const after = snap();
+      closeSheet(); render(); showRealloc(c, ch, fromId, before, after, next);
     }));
   });
+}
+// after moving budget around: show each number that changed, and that nothing was added
+function showRealloc(c, ch, fromId, b, a, next){
+  const row = (name, x, y) => `<div class="rl"><span class="n">${name}</span><span class="num"><s>${x < 0 ? "−" : ""}${moneyShort(Math.abs(x))}</s> → <b class="${y < 0 ? "bad" : ""}">${y < 0 ? "−" : ""}${moneyShort(Math.abs(y))}</b></span></div>`;
+  const rows = [], moved = a.me - b.me;
+  if(ch === "cat"){ const lc = state.categories[fromId]; rows.push(row(`${esc(lc.name)} 本期還剩`, b.lender, a.lender)); }
+  if(ch === "next") rows.push(row(`${esc(c.name)} ${next.m} 月期還剩`, b.next, a.next));
+  if(ch === "pool") rows.push(row("已節省結餘", b.pool, a.pool));
+  rows.push(row(`${esc(c.name)} 本期還剩`, b.me, a.me));
+  const foot = ch === "cat" ? `本期總額度沒有增加，只是把 ${moneyShort(moved)} 從${esc(state.categories[fromId].name)}移到${esc(c.name)}。`
+    : ch === "next" ? `本期總額度沒有增加，是先用掉下個月的 ${moneyShort(moved)}。`
+    : `本期預算沒有增加，這 ${moneyShort(moved)} 由之前省下來的結餘支付。`;
+  openSheet(`<div class="hd"><h2>已重新分配</h2></div>
+    <div class="card rlist">${rows.join("")}</div>
+    <p class="rlnote">${foot}</p>
+    <div class="rowbtns"><button class="btn primary" data-x>知道了</button></div>`, sheet => { $("[data-x]", sheet).addEventListener("click", closeSheet); });
 }
 function checkOverspend(s){
   const c = state.categories[s.categoryId];
@@ -1071,9 +1128,10 @@ function checkOverspend(s){
 }
 
 /* ---------- UI state ---------- */
-const TABS = [["home","home","首頁"],["list","list","明細"],["wish","wish","願望"],["report","report","報表"],["settings","settings","設定"]];
+const TABS = [["home","home","今天"],["list","list","明細"],["wish","wish","想買"],["report","report","看懂"]];
 let tab = "home";
-try{ const t = localStorage.getItem("ledger.tab"); if(TABS.some(x=>x[0]===t)) tab = t; }catch(e){}
+let prevTab = "home";
+try{ const t = localStorage.getItem("ledger.tab"); if(TABS.some(x=>x[0]===t) || t==="settings") tab = t; }catch(e){}
 let viewPeriod = curPeriod();
 let importPreview = null;
 
@@ -1116,7 +1174,10 @@ function render(){
   applyPalette();
   renderTabs();
   const app = $("#app");
-  const head = `<header class="top"><div class="brand">額度帳本</div><div class="sync" id="sync" ${db && !syncOn ? "" : "hidden"}><i></i><span>同步中斷，先存在這個瀏覽器</span></div></header>`;
+  const sync = `<div class="sync" id="sync" ${db && !syncOn ? "" : "hidden"}><i></i><span>同步中斷，先存在這個瀏覽器</span></div>`;
+  const head = tab === "settings"
+    ? `<header class="top sub"><button class="backbtn" data-act="back" aria-label="返回">‹ 返回</button><div class="ttl">設定</div>${sync}</header>`
+    : `<header class="top"><div class="brand">額度帳本</div>${sync}<button class="iconbtn more" data-act="more" aria-label="更多：設定與備份"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle class="f" cx="5.5" cy="12" r="1.6"/><circle class="f" cx="12" cy="12" r="1.6"/><circle class="f" cx="18.5" cy="12" r="1.6"/></svg></button></header>`;
   const body = tab==="home" ? viewHome() : tab==="list" ? viewList() : tab==="wish" ? viewWish() : tab==="report" ? viewReport() : viewSettings();
   // animate when the screen changes (tab, period, report view); expanding a row, saving or syncing redraws quietly
   const viewKey = [tab, pkey(viewPeriod), reportSeg].join("|");
@@ -1234,57 +1295,115 @@ function confirmRun(item, v){
   const t = { id: uid(), date: item.due, type: item.r.type, categoryId: item.r.categoryId, amount: v, title: item.r.title, note: v!==item.r.amount ? `設定金額 ${item.r.amount}` : "", recurringId: item.r.id, createdAt: Date.now() };
   addTx(t); put.run(item.key, {status:"confirmed", transactionId: t.id, at: Date.now()});
 }
-function viewHome(){
-  const p = curPeriod(); const list = txIn(p);
-  const inc = sumIncome(list), out = sumOut(list), target = state.settings.savingsTarget || 0, free = inc - out - target;
-  const L = periodLabel(p); const [pa, pb] = periodRange(p); const today = todayStr();
+// 今天可以花: what was left of the period this morning, spread over the days left, minus what today already spent
+function todayPlan(p){
+  const list = txIn(p); const today = todayStr(); const [pa, pb] = periodRange(p);
   const daysTotal = dayDiff(pa, pb) + 1, daysLeft = Math.max(1, dayDiff(today, pb) + 1), elapsed = Math.min(1, (dayDiff(pa, today) + 1) / daysTotal);
-  const now = new Date(); const ws = state.settings.weekStart ?? 1;
-  const back = (now.getDay() - ws + 7) % 7; const wStart = new Date(now); wStart.setDate(now.getDate()-back);
-  const wOut = sumOut(allTx().filter(t => t.date >= ymd(wStart) && t.date <= today));
-  const pool = poolBalance();
-  // hero: the whole period's budget (sum of monthly limits) when there is one, otherwise cash left after the savings target
-  const limited = cats("expense").filter(c => c.monthlyLimit);
+  const inc = sumIncome(list), out = sumOut(list), target = state.settings.savingsTarget || 0;
+  const limited = cats("expense").filter(c => c.monthlyLimit); const ids = new Set(limited.map(c => c.id));
   const bs = limited.map(c => budgetOf(c, p)); const cap = bs.reduce((s,b)=>s+b.cap,0), used = bs.reduce((s,b)=>s+b.used,0);
-  const hasBudget = cap > 0; const left = hasBudget ? cap - used : free; const usedPct = hasBudget ? used / cap : 0;
-  const perDay = left > 0 ? Math.floor(left / daysLeft) : 0;
-  const d = new Date(); const dateLabel = `${d.getMonth()+1} 月 ${d.getDate()} 日 週${WEEK[d.getDay()]}`;
-  const hero = `<section class="hero" aria-label="本期概況">
-      <div class="hrow"><span class="hlabel">${hasBudget ? "本期預算還剩" : target ? "本期可支配" : "本期結餘"}</span><span class="hperiod num">${L.range}</span></div>
-      <div class="hbig num${left < 0 ? " neg" : ""}"><small>NT$</small>${left < 0 ? "−" : ""}${moneyShort(Math.abs(left))}</div>
-      ${hasBudget ? `<div class="hbar${usedPct > 1 ? " over" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(usedPct*100)}" aria-label="本期預算已用 ${Math.round(usedPct*100)}%"><i style="width:${Math.min(100, usedPct*100)}%"></i><span class="pace" style="left:${elapsed*100}%" title="今天在這一期的位置"></span></div>
-      <div class="hsub">已用 ${Math.round(usedPct*100)}% · 剩 ${daysLeft} 天${left > 0 ? `，平均每天可花 <b class="num">${moneyShort(perDay)}</b>` : "，已經超出預算"}</div>` : `<div class="hsub">剩 ${daysLeft} 天${left > 0 ? `，平均每天 <b class="num">${moneyShort(perDay)}</b>` : ""}</div>`}
+  const hasBudget = cap > 0;
+  const todayList = list.filter(t => t.date === today);
+  const todayAll = sumOut(todayList);
+  const todayCounted = hasBudget ? sumOut(todayList.filter(t => ids.has(t.categoryId))) : todayAll;
+  // fixed expenses still to come this period are set aside first, capped at what their category has left
+  const due = {};
+  Object.values(state.recurring).forEach(r => {
+    if(!r.active || r.type !== "expense") return;
+    for(let d = parseYmd(pa); ymd(d) <= pb; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)){
+      const y = d.getFullYear(), m = d.getMonth() + 1, ym = `${y}-${pad(m)}`;
+      const at = ymd(new Date(y, m-1, Math.min(r.day||1, dim(y,m))));
+      if(at < pa || at > pb || (r.startMonth && ym < r.startMonth) || state.runs[`${r.id}_${ym}`]) continue;
+      if(!hasBudget || ids.has(r.categoryId)) due[r.categoryId] = (due[r.categoryId]||0) + r.amount;
+    }
+  });
+  const reserved = Object.entries(due).reduce((sum, [id, v]) => sum + (hasBudget ? Math.min(v, Math.max(0, budgetOf(state.categories[id], p).avail)) : v), 0);
+  const left = (hasBudget ? cap - used : inc - out - target);
+  const spendable = left - reserved;
+  const morning = spendable + todayCounted;
+  const perDay = morning > 0 ? Math.floor(morning / daysLeft) : 0;
+  const can = perDay - todayCounted;
+  const tomorrow = daysLeft > 1 && spendable > 0 ? Math.floor(spendable / (daysLeft - 1)) : 0;
+  return { hasBudget, cap, used, left, reserved, perDay, can, todayAll, daysLeft, elapsed, tomorrow, usedPct: hasBudget ? used / cap : 0, known: hasBudget || inc > 0 };
+}
+function daysSince(ms){ return ms ? Math.floor((Date.now() - ms) / 86400000) : null; }
+// remind when there are records and the last backup is missing or two weeks old
+function backupDue(){ if(!realTx().length) return false; const d = daysSince(state.settings.lastBackupAt); return d === null || d >= 14; }
+function backupText(){ const d = daysSince(state.settings.lastBackupAt); return d === null ? "還沒備份過" : d === 0 ? "今天備份過" : `上次備份是 ${d} 天前`; }
+// next 14 days: recurring items not due yet, installment portions and wishes with a deadline
+function upcoming(){
+  const today = todayStr(); const end = new Date(parseYmd(today)); end.setDate(end.getDate() + 14); const lim = ymd(end);
+  const out = []; const now = parseYmd(today);
+  Object.values(state.recurring).forEach(r => {
+    if(!r.active) return;
+    for(let k = 0; k < 2; k++){
+      const d0 = new Date(now.getFullYear(), now.getMonth() + k, 1); const y = d0.getFullYear(), m = d0.getMonth() + 1; const ym = `${y}-${pad(m)}`;
+      if(r.startMonth && ym < r.startMonth) continue;
+      const due = ymd(new Date(y, m-1, Math.min(r.day||1, dim(y,m))));
+      if(due > today && due <= lim && !state.runs[`${r.id}_${ym}`]) out.push({ date: due, title: r.title, sub: `固定${r.type==="income"?"收入":"支出"}`, amount: r.amount, income: r.type==="income", cat: state.categories[r.categoryId] });
+    }
+  });
+  Object.values(state.installments).filter(i => i.status==="active").forEach(i => instPortions(i).forEach(t => {
+    if(t.date > today && t.date <= lim) out.push({ date: t.date, title: i.title, sub: `分期 ${t.k+1}/${i.n}`, amount: t.amount, cat: state.categories[i.categoryId] });
+  }));
+  Object.values(state.wishes).filter(w => !w.purchasedOn && w.deadline && w.deadline >= today && w.deadline <= lim).forEach(w =>
+    out.push({ date: w.deadline, title: w.name, sub: "想買的最晚購買日", amount: w.price, wish: true, cat: state.categories[w.categoryId] }));
+  return out.sort((a,b) => a.date.localeCompare(b.date));
+}
+function viewHome(){
+  const p = curPeriod(); const L = periodLabel(p);
+  const t = todayPlan(p); const pool = poolBalance(); const target = state.settings.savingsTarget || 0;
+  const d = new Date(); const dateLabel = `${d.getMonth()+1}/${d.getDate()} 週${WEEK[d.getDay()]}`;
+  const over = t.left < 0;
+  const big = !t.known ? `<div class="hbig num"><small>NT$</small>${moneyShort(t.todayAll)}</div>`
+    : `<div class="hbig num${t.can < 0 ? " neg" : ""}"><small>NT$</small>${t.can < 0 ? "−" : ""}${moneyShort(Math.abs(t.can))}</div>`;
+  const line = !t.known ? `設定每月預算後，這裡會算出今天可以花多少`
+    : over ? `本期已經超出 <b class="num">${moneyShort(-t.left)}</b>，今天已花 <b class="num">${moneyShort(t.todayAll)}</b>`
+    : t.can < 0 ? `今天多花了 <b class="num">${moneyShort(-t.can)}</b>${t.daysLeft > 1 ? `，明天起每天約 <b class="num">${moneyShort(t.tomorrow)}</b>` : ""}`
+    : `今天已花 <b class="num">${moneyShort(t.todayAll)}</b> · 每天額度 <b class="num">${moneyShort(t.perDay)}</b>`;
+  const reserveNote = t.known && t.reserved > 0 && !over ? `<div class="hsub">已先扣掉本期還沒付的固定支出 <b class="num">${moneyShort(t.reserved)}</b></div>` : "";
+  const hero = `<section class="hero" aria-label="今天可以花">
+      <div class="hrow"><span class="hlabel">${t.known ? "今天可以花" : "今天已花"}</span><span class="hperiod">${dateLabel}</span></div>
+      ${big}
+      <div class="hsub">${line}</div>${reserveNote}
+      ${t.hasBudget ? `<div class="hbar${t.usedPct > 1 ? " over" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(t.usedPct*100)}" aria-label="本期預算已用 ${Math.round(t.usedPct*100)}%"><i style="width:${Math.min(100, t.usedPct*100)}%"></i><span class="pace" style="left:${t.elapsed*100}%" title="今天在這一期的位置"></span></div>` : ""}
       <div class="hstats">
-        <div><span>支出</span><b class="num">${moneyShort(out)}</b></div>
-        <div><span>收入</span><b class="num">${moneyShort(inc)}</b></div>
-        <div><span>${hasBudget ? (target ? "可支配" : "結餘") : "本週支出"}</span><b class="num${hasBudget && free < 0 ? " neg" : ""}">${hasBudget ? (free < 0 ? "−" : "") + moneyShort(Math.abs(free)) : moneyShort(wOut)}</b></div>
+        <div><span>${t.hasBudget ? "本期預算還剩" : "本期結餘"}</span><b class="num${over ? " neg" : ""}">${over ? "−" : ""}${moneyShort(Math.abs(t.left))}</b></div>
+        <div><span>剩下</span><b class="num">${t.daysLeft} 天</b></div>
+        <div><span>已節省結餘</span><b class="num">${moneyShort(pool)}</b></div>
       </div>
-    </section>
-    <div class="minis">
-      <div class="mini"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b class="num">${target ? moneyShort(target) : "未設定"}</b></div></div>
-      <div class="mini"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span><b class="num">${moneyShort(pool)}</b></div></div>
-    </div>`;
+    </section>`;
   const quickFavs = favList();
   const quick = `<section class="hsec"><div class="hhead"><h2>快速記帳</h2><button class="link" data-act="fav-manage">管理</button></div>
       ${quickFavs.length ? `<div class="quickrow" role="group" aria-label="快速記帳">${quickFavs.map(f => { const c = state.categories[f.categoryId];
         return `<button class="qchip${favUsable(f)?"":" off"}" data-favq="${esc(f.id)}"><span class="qic ${catTint(c)}">${catMark(c, f.name)}</span><span class="qt"><b>${esc(f.name)}</b><span class="num">${f.amount ? (f.type==="income"?"+":"")+moneyShort(f.amount) : "輸入金額"}</span></span></button>`; }).join("")}</div>`
         : `<p class="hint-empty">記帳時按「存成常用」，常記的項目就會出現在這裡，點一下就記好。</p>`}</section>`;
-  // to-dos: pending recurring items and pending overspends in one card
+  // one alert card, only when something needs a decision
   const pend = pendingRecurring(); const overs = pendingOverspends();
+  const hot = budgetCats().filter(c => c.monthlyLimit && c.warn && needsAttention(c, p));
+  const bk = backupDue();
   const pendShown = pendOpen ? pend : pend.slice(0, 3);
-  const todoCount = pend.length + overs.length;
-  const todo = todoCount ? `<section class="hsec"><div class="hhead"><h2>待處理 <span class="count">${todoCount}</span></h2>${pend.length > 1 ? `<button class="link" data-act="rec-all">固定收支全部確認</button>` : ""}</div>
-      <div class="hcard">
-      ${overs.map(s => `<div class="trow"><span class="qic warnic">${icon("alert")}</span><div class="meta"><b>${esc(s.title)}</b><span>${esc(catName(s.categoryId))}超出 <span class="num">${moneyShort(overOf(s))}</span></span></div><button class="btn small" data-over="${s.kind}:${esc(s.id)}">處理</button></div>`).join("")}
-      ${pendShown.map(x => { const c = state.categories[x.r.categoryId]; return `<div class="trow"><span class="qic ${catTint(c)}">${catMark(c, x.r.title)}</span><div class="meta"><b>${esc(x.r.title)}</b><span>${x.due.slice(5).replace("-","/")} 固定${x.r.type==="income"?"收入":"支出"}</span></div>
+  const n = pend.length + overs.length + hot.length + (bk ? 1 : 0);
+  const budRow = c => { const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1; const isOver = b.avail < 0;
+    return `<button class="trow tap" data-act="bud-all"><span class="qic ${catTint(c)}">${catMark(c)}</span><div class="meta"><b>${esc(c.name)} <span class="tag ${isOver ? "over" : "warn"}">${isOver ? "超支" : "快用完"}</span></b><span class="num">已用 ${Math.round(pct*100)}% · ${isOver ? "超出 " + moneyShort(-b.avail) : "還剩 " + moneyShort(b.avail)}</span></div><span class="chev" aria-hidden="true">›</span></button>`; };
+  const alert = n ? `<section class="hsec"><div class="hhead"><h2>需要注意 <span class="count">${n}</span></h2>${pend.length > 1 ? `<button class="link" data-act="rec-all">固定收支全部確認</button>` : ""}</div>
+      <div class="hcard alertc">
+      ${overs.map(s => `<div class="trow"><span class="qic warnic">${icon("alert")}</span><div class="meta"><b>${esc(s.title)}</b><span>${esc(catName(s.categoryId))}超出 <span class="num">${moneyShort(overOf(s))}</span>，還沒決定從哪裡補</span></div><button class="btn small" data-over="${s.kind}:${esc(s.id)}">處理</button></div>`).join("")}
+      ${hot.filter(c => !overs.some(s => s.categoryId === c.id)).map(budRow).join("")}
+      ${pendShown.map(x => { const c = state.categories[x.r.categoryId]; return `<div class="trow"><span class="qic ${catTint(c)}">${catMark(c, x.r.title)}</span><div class="meta"><b>${esc(x.r.title)}</b><span>${x.due.slice(5).replace("-","/")} 待確認</span></div>
         <input class="amtin num" id="pa-${esc(x.key)}" inputmode="numeric" value="${x.r.amount}" aria-label="${esc(x.r.title)} 金額">
         <button class="okbtn" data-confirm="${esc(x.key)}" aria-label="確認 ${esc(x.r.title)}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button><button class="link sm" data-skip="${esc(x.key)}" aria-label="這個月略過 ${esc(x.r.title)}">略過</button></div>`; }).join("")}
-      ${pend.length > 3 ? `<button class="budfoot" data-act="pend-toggle">${pendOpen ? "收起" : `還有 ${pend.length - 3} 筆固定收支`}</button>` : ""}</div></section>` : "";
-  const budget = `<section class="hsec"><div class="hhead"><h2>需要注意的預算</h2><button class="link" data-act="bud-all">全部預算 ›</button></div>${homeBudget(p)}</section>`;
+      ${pend.length > 3 ? `<button class="budfoot" data-act="pend-toggle">${pendOpen ? "收起" : `還有 ${pend.length - 3} 筆固定收支`}</button>` : ""}
+      ${bk ? `<div class="trow"><span class="qic tint6">${icon("shield")}</span><div class="meta"><b>備份資料</b><span>${backupText()}，資料只存在這台裝置</span></div><button class="btn small" data-act="export">匯出</button></div>` : ""}
+      </div></section>` : "";
+  const up = upcoming().slice(0, 5);
+  const md = s => { const x = parseYmd(s); return `${x.getMonth()+1}/${x.getDate()}`; };
+  const next = up.length ? `<section class="hsec"><div class="hhead"><h2>接下來</h2><span class="small muted">兩週內 · 本期到 ${L.range.split("–").pop().trim()}</span></div>
+      <div class="hcard">${up.map(u => { const dd = dayDiff(todayStr(), u.date); return `<div class="trow"><span class="qic ${catTint(u.cat)}">${u.wish ? icon("wish") : catMark(u.cat, u.title)}</span><div class="meta"><b>${esc(u.title)}</b><span>${md(u.date)} · ${u.sub}</span></div><div class="upr"><b class="num${u.income ? " inc" : ""}">${u.amount ? (u.income ? "+" : "−") + moneyShort(u.amount) : ""}</b><small>${dd === 1 ? "明天" : `${dd} 天後`}</small></div></div>`; }).join("")}</div></section>` : "";
   const recent = realTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,5);
-  const rec = `<section class="hsec"><div class="hhead"><h2>最近紀錄</h2><button class="link" data-tab="list">看全部 ›</button></div>
-      <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到「設定」匯入 Google Sheet。</div>`}</div></section>`;
-  return `<div class="home"><div class="hdate">${dateLabel}</div>${hero}${quick}${todo}${budget}${rec}</div>`;
+  const rec = `<section class="hsec"><div class="hhead"><h2>最近</h2><button class="link" data-tab="list">看全部 ›</button></div>
+      <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到右上角 ⋯ → 設定 匯入資料。</div>`}</div></section>`;
+  return `<div class="home">${hero}${quick}${alert}${next}${rec}</div>`;
 }
 
 function viewList(){
@@ -1450,10 +1569,9 @@ function viewSettings(){
   return `<div class="section"><h2>預算週期</h2><div class="card setlist">
       <div class="setrow"><div class="k"><b>月預算從哪天開始</b><span>例如設成發薪日；當月沒有這天就用月底</span></div><select id="set-cycle" aria-label="月預算起始日">${dayOpts}</select></div>
       <div class="setrow"><div class="k"><b>警戒線</b><span>用到這個比例就標「快用完」、記帳時提醒，並列在首頁</span></div><select id="set-warn" aria-label="警戒線">${[50,55,60,65,70,75,80,85,90,95].map(v => `<option value="${v}" ${(s.warnPct||80)===v?"selected":""}>${v}%</option>`).join("")}</select></div>
-      <div class="setrow"><div class="k"><b>一週從哪天開始</b><span>影響首頁「本週支出」</span></div><select id="set-week" aria-label="週起始日"><option value="1" ${s.weekStart===1?"selected":""}>週一</option><option value="0" ${s.weekStart===0?"selected":""}>週日</option></select></div>
     </div></div>
     <div class="section"><h2>儲蓄</h2><div class="card setlist">
-      <div class="setrow"><div class="k"><b>每月目標儲蓄</b><span>首頁的「可支配」會先扣掉這筆</span></div><input class="inp num" id="set-target" inputmode="numeric" value="${s.savingsTarget||""}" placeholder="0" style="width:120px;text-align:right" aria-label="每月目標儲蓄"></div>
+      <div class="setrow"><div class="k"><b>每月目標儲蓄</b><span>沒有設每月預算時，「今天可以花」會先扣掉這筆</span></div><input class="inp num" id="set-target" inputmode="numeric" value="${s.savingsTarget||""}" placeholder="0" style="width:120px;text-align:right" aria-label="每月目標儲蓄"></div>
       <div class="setrow"><div class="k"><b>已節省結餘</b><span>從開始記帳開始累積，儲蓄以外的小金庫</span></div><span class="num">${money(poolBalance())}</span></div>
       <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>可以轉入已節省結餘的類別</b><span>只列出有設每月上限的類別</span></div>${poolChips}</div>
     </div></div>
@@ -1472,7 +1590,7 @@ function viewSettings(){
       ${imp}
       <div class="setrow"><div class="k"><b>資料存放</b><span>${db ? (syncOn ? "雲端，電腦和手機同步" : "雲端（目前連不上，先存在這個瀏覽器）") : "只存在這個瀏覽器，不會同步"}</span></div></div>
       <div class="setrow"><div class="k"><b>匯入 Google Sheet</b><span>在 Google Sheet 選「檔案 → 下載 → .xlsx」</span></div><label class="btn small" for="f-xlsx">選擇檔案</label><input type="file" id="f-xlsx" accept=".xlsx" hidden></div>
-      <div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原</span></div><button class="btn small" data-act="export">匯出</button></div>
+      <div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原 · ${backupText()}</span></div><button class="btn small" data-act="export">匯出</button></div>
       <div class="setrow"><div class="k"><b>從備份還原</b><span>會取代目前所有資料</span></div><label class="btn small" for="f-json">選擇檔案</label><input type="file" id="f-json" accept=".json,application/json" hidden></div>
       <div id="exportBox"></div>
     </div></div>`;
@@ -1907,28 +2025,43 @@ function wishBudgetLine(w){
   if(pool >= -left) return ["warn", `${esc(c.name)}本期還剩 ${moneyShort(Math.max(0, avail))}，買了會超出 <b class="num">${moneyShort(-left)}</b>，可用已節省結餘補（結餘 ${moneyShort(pool)}）`];
   return ["over", `${esc(c.name)}本期還剩 ${moneyShort(Math.max(0, avail))}，買了會超出 <b class="num">${moneyShort(-left)}</b>，已節省結餘也不夠`];
 }
+// a plain answer instead of a score: can I buy it now?
+const WISH_COOL = 7;
+function wishStatus(w, s){
+  const [cls] = wishBudgetLine(w);
+  if(cls === "warn" || cls === "over") return ["impact", "會影響本期預算", "買了這一期的預算會超出"];
+  if(!w.price || !w.categoryId) return ["wait", "再等等", "先填價格和類別，才能判斷預算夠不夠"];
+  const soon = w.deadline && dayDiff(todayStr(), w.deadline) <= 7;
+  if(w.need !== "need" && s.days < WISH_COOL && !soon) return ["wait", "再等等", `想要的東西先放 ${WISH_COOL} 天，還差 ${WISH_COOL - s.days} 天；到時候還想要再買`];
+  return ["ok", "可以買", w.need === "need" ? "是需要的東西，本期預算也夠" : soon ? "快到最晚購買日，本期預算也夠" : `已經放了 ${s.days} 天，本期預算也夠`];
+}
 function markWishBought(wishId, rec){
   const w = state.wishes[wishId]; if(!w) return;
   put.wish({ ...w, purchasedOn: rec.date || todayStr(), boughtRef: rec.id, boughtKind: rec.n ? "inst" : "tx" });
 }
 function viewWish(){
-  const open = Object.values(state.wishes).filter(w => !w.purchasedOn).map(w => ({ w, s: wishScore(w) })).sort((a,b) => b.s.total - a.s.total);
+  const RANK = { ok: 0, wait: 1, impact: 2 };
+  const open = Object.values(state.wishes).filter(w => !w.purchasedOn).map(w => { const s = wishScore(w); return { w, s, st: wishStatus(w, s) }; })
+    .sort((a,b) => RANK[a.st[0]] - RANK[b.st[0]] || b.s.total - a.s.total);
   const bought = Object.values(state.wishes).filter(w => w.purchasedOn).sort((a,b) => b.purchasedOn.localeCompare(a.purchasedOn));
   const md = s => { const d = parseYmd(s); return `${d.getMonth()+1}/${d.getDate()}`; };
-  const cards = open.length ? open.map(({w, s}) => {
+  const cards = open.length ? open.map(({w, s, st}) => {
     const [cls, line] = wishBudgetLine(w);
     const meta = [catName(w.categoryId), w.need==="need" ? "需要" : "想要", `放了 ${s.days} 天`, w.deadline ? `${md(w.deadline)} 前要買` : ""].filter(Boolean).join(" · ");
     return `<div class="card wish">
-      <div class="w1"><div class="wscore num" aria-label="分數 ${s.total}">${s.total}</div>
-        <div class="wmain"><b>${esc(w.name)}</b><span class="small muted">${esc(meta)}</span></div>
+      <div class="w1"><div class="wmain"><span class="wst ${st[0]}">${st[1]}</span><b>${esc(w.name)}</b><span class="small muted">${esc(meta)}</span></div>
         <div class="num wprice">${w.price ? moneyShort(w.price) : "—"}</div></div>
-      <div class="hint ${cls}">${line}</div>
-      <div class="small muted num">需要 ${s.parts.need} · 冷靜期 ${s.parts.wait} · 預算 ${s.parts.budget} · 期限 ${s.parts.deadline}</div>
+      <details class="why"><summary>為什麼？</summary>
+        <p>${st[2]}。</p>
+        <div class="hint ${cls}">${line}</div>
+        <p class="small muted num">參考分數 ${s.total}：需要 ${s.parts.need} · 冷靜期 ${s.parts.wait} · 預算 ${s.parts.budget} · 期限 ${s.parts.deadline}</p>
+      </details>
       <div class="wacts">${w.url ? `<a class="btn small" href="${esc(w.url)}" target="_blank" rel="noopener">看商品</a>` : ""}<button class="btn small" data-wishedit="${esc(w.id)}">編輯</button><button class="btn small primary" data-wishbuy="${esc(w.id)}">買了</button></div>
     </div>`;
-  }).join("") : `<div class="card"><div class="empty">想買的東西先放這裡，放越久還想要，分數越高。按「新增」加第一個。</div></div>`;
-  return `<div class="section" style="margin-top:8px"><div class="section-head"><h2>慾望清單</h2><button class="btn small" data-act="wish-new">新增</button></div>
-      <p class="small muted" style="margin:0">依分數排序：需要 40／想要 10，放越久最多加 20，本期預算夠加 25，快到期加 15。</p>
+  }).join("") : `<div class="card"><div class="empty">想買的東西先放這裡，過幾天還想要再買。按「新增」加第一個。</div></div>`;
+  const cnt = k => open.filter(o => o.st[0] === k).length;
+  return `<div class="section" style="margin-top:8px"><div class="section-head"><h2>想買清單</h2><button class="btn small" data-act="wish-new">新增</button></div>
+      ${open.length ? `<p class="small muted" style="margin:0">可以買 ${cnt("ok")} · 再等等 ${cnt("wait")} · 會影響本期預算 ${cnt("impact")}</p>` : ""}
       <div class="wishes">${cards}</div></div>
     ${bought.length ? `<div class="section"><details class="card bought"><summary><b>已購入</b> <span class="muted small">${bought.length} 個</span></summary>
       ${bought.map(w => `<button class="catrow" data-wishedit="${esc(w.id)}"><b>${esc(w.name)}</b><span class="num small">${w.price ? moneyShort(w.price) : ""}</span><span class="sub">${esc(catName(w.categoryId))} · ${md(w.purchasedOn)} 購入</span></button>`).join("")}</details></div>` : ""}`;
@@ -1938,7 +2071,7 @@ function openWish(w){
   w = w ? { ...w } : { id: uid(), name: "", url: "", categoryId: null, need: "want", price: null, deadline: "", note: "", addedOn: todayStr(), createdAt: Date.now() };
   let confirmDel = false;
   const draw = sheet => {
-    sheet.innerHTML = `<div class="hd"><h2>${isNew ? "新增願望" : "編輯願望"}</h2><button class="btn ghost" data-x>關閉</button></div>
+    sheet.innerHTML = `<div class="hd"><h2>${isNew ? "新增想買的東西" : "編輯想買的東西"}</h2><button class="btn ghost" data-x>關閉</button></div>
       <div class="fields">
         <label class="full">名稱<input class="inp" id="w-name" value="${esc(w.name)}" placeholder="例如：電動傘"></label>
         <label class="full">網址<input class="inp" id="w-url" type="url" inputmode="url" value="${esc(w.url)}" placeholder="選填"></label>
@@ -1959,7 +2092,7 @@ function openWish(w){
       const name = $("#w-name", sheet).value.trim(); if(!name){ toast("請輸入名稱"); return; }
       put.wish({ ...w, name, url: $("#w-url", sheet).value.trim(), price: intOf($("#w-price", sheet).value), need: $("#w-need", sheet).value,
         categoryId: $("#w-cat", sheet).value || null, deadline: $("#w-deadline", sheet).value || "", note: $("#w-note", sheet).value.trim() });
-      closeSheet(); render(); toast(isNew ? "已加進慾望清單" : "已儲存");
+      closeSheet(); render(); toast(isNew ? "已加進想買清單" : "已儲存");
     });
   };
   openSheet("", draw);
@@ -2066,19 +2199,35 @@ function applyImport(pv){
 }
 
 /* ---------- backup ---------- */
+function markBackup(){ state.settings.lastBackupAt = Date.now(); put.settings(); render(); }
+function openMore(){
+  openSheet(`<div class="hd"><h2>更多</h2><button class="btn ghost" data-x>關閉</button></div>
+    <div class="card setlist menu">
+      <button class="setrow" data-m="settings"><div class="k"><b>設定</b><span>預算週期、類別與預算、固定收支、外觀</span></div><span class="chev">›</span></button>
+      <button class="setrow" data-m="export"><div class="k"><b>匯出備份</b><span>${backupText()}</span></div><span class="chev">›</span></button>
+    </div>`, sheet => {
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    sheet.querySelectorAll("[data-m]").forEach(b => b.addEventListener("click", () => {
+      closeSheet();
+      if(b.dataset.m === "export"){ doExport(); return; }
+      prevTab = tab; tab = "settings"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0);
+    }));
+  });
+}
 function backupJson(){ return JSON.stringify({ app: "額度帳本", version: 2, exportedAt: new Date().toISOString(), data: state }, null, 1); }
 async function doExport(){
   const name = `額度帳本備份-${todayStr()}.json`; const data = backupJson();
   let dl = null; try{ dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null; }catch(e){}
-  if(dl){ try{ const r = await dl.save({ filename: name, data }); if(r && r.status==="saved") toast("已匯出備份"); return; }catch(e){ if(e && e.code==="cancelled") return; } }
+  if(dl){ try{ const r = await dl.save({ filename: name, data }); if(r && r.status==="saved"){ markBackup(); toast("已匯出備份"); } return; }catch(e){ if(e && e.code==="cancelled") return; } }
   if(!window.claude){
     try{
       const url = URL.createObjectURL(new Blob([data], {type:"application/json"}));
       const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000); toast("已匯出備份"); return;
+      setTimeout(() => URL.revokeObjectURL(url), 1000); markBackup(); toast("已匯出備份"); return;
     }catch(e){}
   }
-  const box = $("#exportBox"); if(!box) return;
+  if(!$("#exportBox")){ prevTab = tab; tab = "settings"; render(); }
+  const box = $("#exportBox"); if(!box) return; box.scrollIntoView();
   box.innerHTML = `<div class="note"><p style="margin:0 0 6px">這個畫面不能直接下載。請複製下面的內容，存成 .json 檔。</p><textarea class="backup" id="bk" readonly>${esc(data)}</textarea>
     <button class="btn small" data-act="copy" style="margin-top:6px">複製</button></div>`;
 }
@@ -2114,7 +2263,7 @@ document.addEventListener("click", e => {
   if(el.dataset.wishedit){ const w = state.wishes[el.dataset.wishedit]; w && openWish(w); return; }
   if(el.dataset.wishbuy){ const w = state.wishes[el.dataset.wishbuy]; w && buyWish(w); return; }
   if(el.dataset.pool){ const c = state.categories[el.dataset.pool]; if(c){ put.cat({...c, toPool: !toPool(c)}); render(); } return; }
-  if(el.dataset.tab){ tab = el.dataset.tab; if(tab==="report") reportSeg = "analysis"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); return; }
+  if(el.dataset.tab){ if(el.dataset.tab==="settings" && tab!=="settings") prevTab = tab; tab = el.dataset.tab; if(tab==="report") reportSeg = "analysis"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); return; }
   if(el.dataset.edit){ const t = findTx(el.dataset.edit); t && openEntry(t); return; }
   if(el.dataset.inst){ const i = state.installments[el.dataset.inst]; i && openInstallment(i); return; }
   if(el.dataset.over){ const [kind, id] = el.dataset.over.split(":"); const s = subjectOf(kind, id); s && openOverspend(s); return; }
@@ -2134,7 +2283,7 @@ document.addEventListener("click", e => {
   else if(a==="rec-new") openRecurring(null);
   else if(a==="fav-new") openFavorite(null);
   else if(a==="fav-auto"){ state.settings.favManual = false; put.settings(); render(); }
-  else if(a==="fav-manage"){ tab = "settings"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); const el2 = document.getElementById("fav-section"); el2 && el2.scrollIntoView(); }
+  else if(a==="fav-manage"){ prevTab = tab; tab = "settings"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); const el2 = document.getElementById("fav-section"); el2 && el2.scrollIntoView(); }
   else if(a==="wish-new") openWish(null);
   else if(a==="nw-tag") openNwTagger(viewPeriod);
   else if(a==="bud-all"){ tab = "report"; reportSeg = "budget"; viewPeriod = curPeriod(); try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
@@ -2145,11 +2294,13 @@ document.addEventListener("click", e => {
     render(); toast(`已確認 ${n} 筆固定收支`);
   }
   else if(a==="export") doExport();
+  else if(a==="back"){ tab = prevTab || "home"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
+  else if(a==="more") openMore();
   else if(a==="imp-cancel"){ importPreview = null; render(); }
   else if(a==="imp-go"){ const pv = importPreview; importPreview = null; applyImport(pv); render(); }
   else if(a==="copy"){ const ta = $("#bk"); const txt = ta.value;
     const fallback = () => { ta.focus(); ta.select(); toast("已選取，請手動複製"); };
-    try{ navigator.clipboard.writeText(txt).then(()=>toast("已複製"), fallback); }catch(err){ fallback(); } }
+    try{ navigator.clipboard.writeText(txt).then(()=>{ markBackup(); toast("已複製，存成 .json 檔就完成備份"); }, fallback); }catch(err){ fallback(); } }
 });
 document.addEventListener("change", e => {
   const id = e.target.id;
