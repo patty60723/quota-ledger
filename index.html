@@ -875,6 +875,13 @@ nav.tabs .in{height:var(--nav-h)}
 .pacebtn:focus-visible{outline:2px solid var(--hero-ink);outline-offset:-6px}
 /* no grey/blue flash on tap in mobile browsers; buttons keep their own :active feedback */
 html{-webkit-tap-highlight-color:transparent}
+/* entry sheet: category chips carry the same pastel tile as everywhere else */
+.chip .dot.sm{width:24px;height:24px;margin:-2px 0 -2px -4px;flex-shrink:0}
+.chip .dot.sm .ic{width:15px;height:15px}
+.chip.fav{background:var(--surface);border:1px solid var(--line)}
+/* horizontal swipe rows: no scrollbar (swiping is enough) */
+.quickrow,.favbar,.nwfilter{scrollbar-width:none}
+.quickrow::-webkit-scrollbar,.favbar::-webkit-scrollbar,.nwfilter::-webkit-scrollbar{display:none}
 /* ---------- shared info popover ---------- */
 .infobtn{display:inline-grid;place-items:center;width:28px;height:28px;margin:-8px 0 -8px 2px;padding:0;border:0;background:none;color:inherit;opacity:.6;vertical-align:middle;position:relative;cursor:pointer}
 .infobtn::after{content:"";position:absolute;inset:-8px}
@@ -1972,11 +1979,11 @@ function openEntry(existing, refundOf, prefill){
     const canSaveFav = !isRefund && !inst && !(t.favoriteId && state.favorites[t.favoriteId]);
     const refundable = existing && existing.type==="expense";
     sheet.innerHTML = `<div class="hd"><h2>${heading}</h2><button class="btn ghost" data-x>關閉</button></div>
-      ${favs.length ? `<div class="favbar" role="group" aria-label="常用">${favs.map(f => `<button class="chip fav" data-favq="${esc(f.id)}">${icon(catIconFor(state.categories[f.categoryId]))}${esc(f.name)}${f.amount ? ` <span class="num">${moneyShort(f.amount)}</span>` : ""}</button>`).join("")}</div>` : ""}
+      ${favs.length ? `<div class="favbar" role="group" aria-label="常用">${favs.map(f => `<button class="chip fav" data-favq="${esc(f.id)}"><span class="dot sm ${catTint(state.categories[f.categoryId])}">${catMark(state.categories[f.categoryId], f.name)}</span>${esc(f.name)}${f.amount ? ` <span class="num">${moneyShort(f.amount)}</span>` : ""}</button>`).join("")}</div>` : ""}
       ${isRefund ? `<div class="hint">退款會算回「${esc(catName(catId))}」，那一期的額度會還回來。</div>`
         : `<div class="seg" role="group" aria-label="收支"><button data-type="expense" aria-pressed="${type==="expense"}">支出</button><button data-type="income" aria-pressed="${type==="income"}">收入</button></div>`}
       <label class="amount"><span>${inst ? "總額" : "NT$"}</span><input id="e-amt" inputmode="numeric" pattern="[0-9]*" placeholder="0" value="${t.amount ?? ""}" aria-label="金額"></label>
-      ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}">${icon(catIconFor(c))}${esc(c.name)}</button>`).join("")}</div>`}
+      ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}"><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${esc(c.name)}</button>`).join("")}</div>`}
       ${!existing && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期付款</label>
         ${inst ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">期數<input class="inp num" id="e-n" inputmode="numeric" value="${n}" style="width:70px;text-align:right"></label>` : ""}</div>` : ""}
       ${type==="expense" && !isRefund ? `<div class="nwrow" role="radiogroup" aria-label="必要、需要或想要"><span>這筆是</span><div class="nwseg" id="e-nw"></div></div>` : ""}
