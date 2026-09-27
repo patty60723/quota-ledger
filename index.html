@@ -1072,7 +1072,7 @@ function budgetRows(p, list){
         <div class="l2"><span>已用 ${Math.round(pct*100)}%</span><span class="num">${b.avail>=0?"還剩 "+moneyShort(b.avail):"超出 "+moneyShort(-b.avail)}</span></div>
         ${parts.length ? `<div class="l3 num">${parts.join(" · ")}</div>` : ""}`;
     } else {
-      html += `<div class="l1"><span class="n">${esc(c.name)}</span><span class="small muted">沒有每月上限</span></div>`;
+      html += `<div class="l1"><span class="n">${esc(c.name)}</span><span class="small muted">只設每年預算</span></div>`;
     }
     if(c.yearlyLimit){
       const yu = yearUsed(c, p.y); const over = yu > c.yearlyLimit;
@@ -1100,7 +1100,7 @@ function budgetCompact(p){
       if(b.inst || b.occupied || b.received) detail.push([`實際 ${moneyShort(b.actual)}`, b.inst && `分期 ${moneyShort(b.inst)}`, b.occupied && `被占用 ${moneyShort(b.occupied)}`, b.received && `借入 ${moneyShort(b.received)}`].filter(Boolean).join(" · "));
       if(!c.warn) detail.push("這個類別不提醒");
     } else {
-      main = `<span class="n">${esc(c.name)}</span><span class="v small muted">沒有每月上限</span>`;
+      main = `<span class="n">${esc(c.name)}</span><span class="v small muted">只設每年預算</span>`;
     }
     if(c.yearlyLimit){ const yu = yearUsed(c, p.y); detail.push(`${p.y} 年 ${moneyShort(yu)} / ${moneyShort(c.yearlyLimit)}${yu > c.yearlyLimit ? "（超過年度上限）" : ""}`); }
     return `<button class="bc${open ? " open" : ""}" data-budx="${esc(c.id)}" aria-expanded="${open}">
@@ -1256,7 +1256,7 @@ function limitsText(c){
   if(c.dailyLimit) parts.push(`單日 ${moneyShort(c.dailyLimit)}`);
   if(c.monthlyLimit) parts.push(`每月 ${moneyShort(c.monthlyLimit)}`);
   if(c.yearlyLimit) parts.push(`每年 ${moneyShort(c.yearlyLimit)}`);
-  return parts.length ? parts.join(" · ") : "不設上限";
+  return parts.length ? parts.join(" · ") : "不設定預算";
 }
 function instStatus(i){
   if(i.status==="paidoff") return "已提前還清";
@@ -1517,7 +1517,7 @@ function openInstallment(i){
 function openCategory(c){
   const isNew = !c; c = c ? {...c} : { id: uid(), name: "", type: "expense", monthlyLimit: null, perTxLimit: null, dailyLimit: null, yearlyLimit: null, warn: true, archived: false, sort: Object.keys(state.categories).length };
   const ref0 = !isNew && c.type==="expense" ? yearlyRef(c) : null; const ref = ref0 && ref0.perYear > 0 ? ref0 : null;
-  const lim = (id, label, v) => `<label>${label}<input class="inp num" id="${id}" inputmode="numeric" value="${v ?? ""}" placeholder="不設"></label>`;
+  const lim = (id, label, v) => `<label>${label}<input class="inp num" id="${id}" inputmode="numeric" value="${v ?? ""}" placeholder="不設定"></label>`;
   openSheet(`<div class="hd"><h2>${isNew?"新增類別":"編輯類別"}</h2><button class="btn ghost" data-x>關閉</button></div>
     <div class="fields">
       <label>名稱<input class="inp" id="c-name" value="${esc(c.name)}"></label>
@@ -1706,7 +1706,7 @@ function wishBudgetLine(w){
   if(!w.price) return ["", "還沒填價格，填了才能算預算"];
   const c = state.categories[w.categoryId];
   if(!c) return ["", "還沒選類別"];
-  if(!c.monthlyLimit) return ["", `${esc(c.name)}沒有每月上限`];
+  if(!c.monthlyLimit) return ["", `${esc(c.name)}沒有設定每月預算`];
   const avail = budgetOf(c, curPeriod()).avail; const left = avail - w.price; const pool = poolBalance();
   if(left >= 0) return ["ok", `${esc(c.name)}本期還剩 ${moneyShort(avail)}，買了剩 <b class="num">${moneyShort(left)}</b>`];
   if(pool >= -left) return ["warn", `${esc(c.name)}本期還剩 ${moneyShort(Math.max(0, avail))}，買了會超出 <b class="num">${moneyShort(-left)}</b>，可用已節省結餘補（結餘 ${moneyShort(pool)}）`];
