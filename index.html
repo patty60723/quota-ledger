@@ -1470,7 +1470,11 @@ function render(){
   // animate when the screen changes (tab, period, report view); expanding a row, saving or syncing redraws quietly
   const viewKey = [tab, pkey(viewPeriod), reportSeg, tab === "settings" ? setPage : ""].join("|");
   app.classList.toggle("anim", viewKey !== lastViewKey); lastViewKey = viewKey;
-  app.innerHTML = head + body;
+  // keep the header (and its wordmark images) when it hasn't changed, so they don't blank out and re-decode on every tab switch
+  const hd = app.firstElementChild;
+  if(hd && hd.tagName === "HEADER" && app._head === head){ while(hd.nextSibling) hd.nextSibling.remove(); hd.insertAdjacentHTML("afterend", body); }
+  else app.innerHTML = head + body;
+  app._head = head;
   if(tab==="report") wireChart();
 }
 let lastViewKey = null;
