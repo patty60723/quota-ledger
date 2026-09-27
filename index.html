@@ -544,7 +544,8 @@ button.r:hover{background:var(--sunk)}
 .nwrow{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)}
 .nwseg{display:flex;gap:6px;align-items:center}
 .nwb{border:0;border-radius:10px;padding:7px 14px;font-weight:600;font-size:14px;background:var(--sunk);color:var(--muted)}
-.nwb.need[aria-checked="true"],.tagrow .nwb.need:hover{background:var(--t3);color:var(--t3f)}
+.nwb.must[aria-checked="true"],.tagrow .nwb.must:hover{background:var(--t3);color:var(--t3f)}
+.nwb.need[aria-checked="true"],.tagrow .nwb.need:hover{background:var(--t8);color:var(--t8f)}
 .nwb.want[aria-checked="true"],.tagrow .nwb.want:hover{background:var(--t1);color:var(--t1f)}
 .nwask{font-size:12px;color:var(--warn)}
 .setrow.flat{padding:0;border:0}
@@ -553,32 +554,29 @@ button.r:hover{background:var(--sunk)}
 .nwbar i{display:block;height:100%}
 .nwbar i:first-child{border-radius:7px 0 0 7px}.nwbar i:last-of-type{border-radius:0 7px 7px 0}
 .nwbar i + i{border-left:2px solid var(--surface)}
-.nwbar .need,.sw.need{background:var(--income)}
+.nwbar .must,.sw.must{background:var(--income)}
+.nwbar .need,.sw.need{background:var(--nw-need)}
 .nwbar .want,.sw.want{background:var(--expense)}
 .nwbar .none,.sw.none{background:var(--line)}
-.nwmark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:1px}
 .nwleg{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px}
 .nwleg div{display:grid;grid-template-columns:auto 1fr;gap:0 6px;align-items:center;font-size:12px;color:var(--muted)}
 .nwleg b{grid-column:2;font-size:16px;color:var(--ink)}
 .nwleg small{grid-column:2}
-.nwleg b.bad{color:var(--stamp)}
 .sw{width:10px;height:10px;border-radius:3px;display:inline-block}
 .nwhist{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;height:96px;align-items:end}
 .nwhist div{display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
 .nwhist i{width:60%;max-width:28px;background:var(--expense);border-radius:4px 4px 0 0;display:block}
-.nwhist i.over{background:var(--stamp)}
 .nwhist span{font-size:11px;color:var(--muted)}
 .nwhist small{font-size:11px;color:var(--muted)}
-.nwwarn{display:flex;gap:10px;align-items:center;padding:12px 14px;margin-bottom:10px;border-radius:16px;background:var(--stamp-soft)}
-.nwwarn div{display:flex;flex-direction:column;min-width:0}
-.nwwarn b{font-size:14px;color:var(--stamp)}
-.nwwarn span{font-size:12px;color:var(--ink)}
 .tagrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
 .tagrow:first-child{border-top:0}
 .tagrow .meta{display:flex;flex-direction:column;min-width:0}
 .tagrow .meta b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tagrow .meta > span{font-size:12px;color:var(--muted)}
 .tagrow .nwb{padding:6px 10px;font-size:13px}
+.nwfund{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
+.nwfund b{color:var(--ink)}
+.nwrow .nwb{padding:7px 12px}
 .toast{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .toastbtn{background:none;border:0;color:var(--accent-soft);font-weight:700;padding:2px 4px;text-decoration:underline;text-underline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
@@ -586,6 +584,10 @@ button.r:hover{background:var(--sunk)}
   .sheet{animation:up .22s ease-out}
   @keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
 }
+/* 需要 in the three-way split (validated against the blue and terracotta beside it) */
+:root{--nw-need:#1A9A7A}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--nw-need:#22A583} }
+:root[data-theme="dark"]{--nw-need:#22A583}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -683,7 +685,7 @@ const DEFAULT_CATS = [
   ["水電瓦斯","expense"],["手機網路","expense"],["醫療與健康","expense"],["訂閱","expense"],["其他支出","expense"],
   ["薪資","income"],["其他收入","income"]
 ].map(([name,type],i)=>({id:"d"+i,name,type,monthlyLimit:null,perTxLimit:null,dailyLimit:null,yearlyLimit:null,warn:false,archived:false,sort:i}));
-const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null, palette: "blush", favManual: false, favDismissed: [], warnPct: 80, theme: "system", wantMax: 30 };
+const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null, palette: "blush", favManual: false, favDismissed: [], warnPct: 80, theme: "system" };
 const warnAt = () => (state.settings.warnPct || 80) / 100;
 const PALETTES = { blush: { name: "奶茶", bar: "#463F3A", dark: "#1F1B18" }, teal: { name: "存摺綠", bar: "#0B6E66", dark: "#0E1719" } };
 const THEMES = [["system","跟隨手機"],["light","淺色"],["dark","深色"]];
@@ -890,10 +892,15 @@ function yearCatStats(c, Y){
 function defaultNw(name){
   name = name || "";
   if(/大餐|聚餐|娛樂|遊戲|旅遊|服飾|衣|美容|美髮|化妝|訂閱|會員|零食|飲料|咖啡/.test(name)) return "want";
-  if(/房貸|房租|租金|保險|交通|水電|瓦斯|網路|手機|電信|稅|醫療|健康|看診|藥|學費/.test(name)) return "need";
+  if(/運動|健身|射箭|瑜伽|學習|書|課|學費|醫療|健康|看診|藥|捐/.test(name)) return "need";
+  if(/房貸|房租|租金|保險|交通|水電|瓦斯|網路|手機|電信|稅|一般用餐|三餐|伙食/.test(name)) return "must";
   return "ask";
 }
-const catNw = c => !c ? "ask" : (c.nw || defaultNw(c.name));
+const catNw = c => {
+  if(!c) return "ask";
+  if(c.nw === "need" && !c.nw3 && defaultNw(c.name) === "must") return "must";
+  return c.nw || defaultNw(c.name);
+};
 // an expense's tag: its own pick, else its installment's, else its category's default (refunds follow the original)
 function nwOf(t){
   if(t.type === "refund"){ const o = t.refOf && findTx(t.refOf); if(o) return nwOf(o); }
@@ -902,11 +909,12 @@ function nwOf(t){
   const d = catNw(state.categories[t.categoryId]); return d === "ask" ? null : d;
 }
 function nwSplit(list){
-  const r = { need: 0, want: 0, none: 0, noneCount: 0 };
+  const r = { must: 0, need: 0, want: 0, none: 0, noneCount: 0 };
   list.forEach(t => { const v = outAmt(t); if(!v) return; const k = nwOf(t); if(k) r[k] += v; else { r.none += v; if(!t.virtual && t.type === "expense") r.noneCount++; } });
-  r.total = r.need + r.want + r.none; r.wantPct = r.total ? r.want / r.total : 0; return r;
+  r.total = r.must + r.need + r.want + r.none; r.wantPct = r.total ? r.want / r.total : 0; return r;
 }
-const NW_LABEL = { need: "需要", want: "想要", ask: "每次問" };
+const NW_LABEL = { must: "必要", need: "需要", want: "想要", ask: "每次問" };
+const NW_KEYS = ["must","need","want"];
 /* ---------- budget totals ---------- */
 // sum of monthly limits over active expense categories; override lets the category sheet preview an edit
 function monthlyBudgetTotal(override){
@@ -1188,12 +1196,7 @@ function budgetCompact(p){
       ${open && detail.length ? `<span class="bd num">${detail.map(d => `<span>${d}</span>`).join("")}</span>` : ""}</button>`;
   }).join("");
 }
-function homeBudget(p){
-  const ns = nwSplit(txIn(p)); const wantMax = state.settings.wantMax || 0;
-  const nwWarn = wantMax && ns.total && ns.wantPct * 100 > wantMax
-    ? `<div class="nwwarn"><span class="qic warnic">${icon("alert")}</span><div><b>「想要」占本期支出 ${Math.round(ns.wantPct*100)}%</b><span>超過你設的 ${wantMax}%，想要類花了 <span class="num">${moneyShort(ns.want)}</span></span></div></div>` : "";
-  return nwWarn + homeBudgetInner(p);
-}
+function homeBudget(p){ return homeBudgetInner(p); }
 function homeBudgetInner(p){
   const all = budgetCats();
   if(!all.length) return `<div class="card budgets">${budgetRows(p)}</div>`;
@@ -1271,19 +1274,18 @@ function viewReport(){
   const rows = Object.entries(byCat).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]); const max = rows[0]?.[1] || 1;
   const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<button class="r" data-rank="${esc(id)}" aria-label="看${esc(catName(id))}的所有支出"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${out>0?Math.round(v/out*100):0}%</small></span></button>`).join("")}</div><p class="small muted" style="margin:0;padding:0 16px 14px">點類別可以看這一期的每一筆支出。</p>`
     : `<div class="empty">這一期沒有支出。</div>`;
-  const ns = nwSplit(list); const wantMax = state.settings.wantMax || 0;
+  const ns = nwSplit(list); const pctOf = v => ns.total ? Math.round(v / ns.total * 100) : 0;
   const nwHist = []; for(let i=5;i>=0;i--){ const pp = shift(viewPeriod,-i); const sp = nwSplit(txIn(pp)); nwHist.push({ p: pp, pct: sp.total ? sp.want / sp.total : null }); }
   const nwHtml = ns.total ? `<div class="nwcard">
-      <div class="nwbar" role="img" aria-label="需要 ${Math.round(ns.need/ns.total*100)}%，想要 ${Math.round(ns.want/ns.total*100)}%">
-        <i class="need" style="width:${ns.need/ns.total*100}%"></i><i class="want" style="width:${ns.want/ns.total*100}%"></i><i class="none" style="width:${ns.none/ns.total*100}%"></i>
-        ${wantMax ? `<span class="nwmark" style="left:${100 - wantMax}%" title="想要上限 ${wantMax}%"></span>` : ""}</div>
+      <div class="nwbar" role="img" aria-label="必要 ${pctOf(ns.must)}%，需要 ${pctOf(ns.need)}%，想要 ${pctOf(ns.want)}%">
+        ${["must","need","want","none"].filter(k => ns[k]).map(k => `<i class="${k}" style="width:${ns[k]/ns.total*100}%"></i>`).join("")}</div>
       <div class="nwleg">
-        <div><span class="sw need"></span>需要<b class="num">${moneyShort(ns.need)}</b><small>${Math.round(ns.need/ns.total*100)}%</small></div>
-        <div><span class="sw want"></span>想要<b class="num${wantMax && ns.wantPct*100 > wantMax ? " bad" : ""}">${moneyShort(ns.want)}</b><small>${Math.round(ns.wantPct*100)}%${wantMax ? ` / 上限 ${wantMax}%` : ""}</small></div>
+        ${NW_KEYS.map(k => `<div><span class="sw ${k}"></span>${NW_LABEL[k]}<b class="num">${moneyShort(ns[k])}</b><small>${pctOf(ns[k])}%</small></div>`).join("")}
         ${ns.none ? `<div><span class="sw none"></span>未標記<b class="num">${moneyShort(ns.none)}</b><small>${ns.noneCount} 筆</small></div>` : ""}
       </div>
+      ${ns.must ? `<p class="nwfund">必要支出 <b class="num">${moneyShort(ns.must)}</b>，是這一期維持生活的底線；緊急預備金建議準備 6 個月，約 <b class="num">NT$ ${moneyShort(ns.must * 6)}</b>。</p>` : ""}
       ${ns.noneCount ? `<button class="btn small" data-act="nw-tag">補標 ${ns.noneCount} 筆未標記的支出</button>` : ""}
-      <div class="nwhist">${nwHist.map(h => `<div><span class="num">${h.pct===null ? "—" : Math.round(h.pct*100)+"%"}</span><i style="height:${h.pct===null ? 0 : Math.max(3, h.pct*100)}%"${wantMax && h.pct !== null && h.pct*100 > wantMax ? ' class="over"' : ""}></i><small>${h.p.m} 月</small></div>`).join("")}</div>
+      <div class="nwhist">${nwHist.map(h => `<div><span class="num">${h.pct===null ? "—" : Math.round(h.pct*100)+"%"}</span><i style="height:${h.pct===null ? 0 : Math.max(3, h.pct*100)}%"></i><small>${h.p.m} 月</small></div>`).join("")}</div>
       <p class="small muted" style="margin:0">上面是近 6 期「想要」占支出的比例。</p>
     </div>` : `<div class="empty">這一期沒有支出。</div>`;
   const Y = viewPeriod.y; const yw = yearWindow(Y);
@@ -1302,7 +1304,7 @@ function viewReport(){
   }
   return periodNav() + seg + `
     <div class="section"><div class="section-head"><h2>${icon("report")}支出分類排行</h2><span class="label num">合計 ${money(out)}</span></div><div class="card">${rank}</div></div>
-    <div class="section"><div class="section-head"><h2>需要 vs 想要</h2><span class="label">${ns.total ? `想要占 ${Math.round(ns.wantPct*100)}%` : ""}</span></div><div class="card">${nwHtml}</div></div>
+    <div class="section"><div class="section-head"><h2>必要・需要・想要</h2><span class="label">${ns.total ? `想要占 ${Math.round(ns.wantPct*100)}%` : ""}</span></div><div class="card">${nwHtml}</div></div>
     <div class="section"><div class="section-head"><h2>近 6 期收支</h2><span class="label">到 ${periodLabel(viewPeriod).title}</span></div>
       <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>
     <div class="section"><div class="section-head"><h2>${Y} 年度參考值</h2><span class="label">${yw ? `記錄了 ${yw.n} 個月` : ""}</span></div>
@@ -1422,7 +1424,6 @@ function viewSettings(){
     : `<span class="small muted">先幫類別設每月上限，才能選。</span>`;
   return `<div class="section"><h2>預算週期</h2><div class="card setlist">
       <div class="setrow"><div class="k"><b>月預算從哪天開始</b><span>例如設成發薪日；當月沒有這天就用月底</span></div><select id="set-cycle" aria-label="月預算起始日">${dayOpts}</select></div>
-      <div class="setrow"><div class="k"><b>「想要」比例上限</b><span>想要類支出超過這個比例，首頁會提醒</span></div><select id="set-wantmax" aria-label="想要比例上限"><option value="0" ${!s.wantMax?"selected":""}>不設定</option>${[10,15,20,25,30,35,40,45,50,60].map(v => `<option value="${v}" ${s.wantMax===v?"selected":""}>${v}%</option>`).join("")}</select></div>
       <div class="setrow"><div class="k"><b>警戒線</b><span>用到這個比例就標「快用完」、記帳時提醒，並列在首頁</span></div><select id="set-warn" aria-label="警戒線">${[50,55,60,65,70,75,80,85,90,95].map(v => `<option value="${v}" ${(s.warnPct||80)===v?"selected":""}>${v}%</option>`).join("")}</select></div>
       <div class="setrow"><div class="k"><b>一週從哪天開始</b><span>影響首頁「本週支出」</span></div><select id="set-week" aria-label="週起始日"><option value="1" ${s.weekStart===1?"selected":""}>週一</option><option value="0" ${s.weekStart===0?"selected":""}>週日</option></select></div>
     </div></div>
@@ -1485,7 +1486,7 @@ function openEntry(existing, refundOf, prefill){
       ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}">${icon(catIconFor(c))}${esc(c.name)}</button>`).join("")}</div>`}
       ${!existing && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期付款</label>
         ${inst ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">期數<input class="inp num" id="e-n" inputmode="numeric" value="${n}" style="width:70px;text-align:right"></label>` : ""}</div>` : ""}
-      ${type==="expense" && !isRefund ? `<div class="nwrow" role="radiogroup" aria-label="需要還是想要"><span>這筆是</span><div class="nwseg" id="e-nw"></div></div>` : ""}
+      ${type==="expense" && !isRefund ? `<div class="nwrow" role="radiogroup" aria-label="必要、需要或想要"><span>這筆是</span><div class="nwseg" id="e-nw"></div></div>` : ""}
       <div id="e-hint"></div>
       <div class="fields">
         <label>日期<input class="inp" type="date" id="e-date" value="${t.date}"></label>
@@ -1533,7 +1534,7 @@ function openEntry(existing, refundOf, prefill){
     // need/want: shows the category default until the user picks one
     const nwBox = $("#e-nw", sheet);
     const drawNw = () => { if(!nwBox) return; const cur = nwPick || (catNw(state.categories[catId]) === "ask" ? null : catNw(state.categories[catId]));
-      nwBox.innerHTML = ["need","want"].map(k => `<button type="button" class="nwb ${k}" data-nw="${k}" role="radio" aria-checked="${cur===k}">${NW_LABEL[k]}</button>`).join("")
+      nwBox.innerHTML = NW_KEYS.map(k => `<button type="button" class="nwb ${k}" data-nw="${k}" role="radio" aria-checked="${cur===k}">${NW_LABEL[k]}</button>`).join("")
         + (catId && catNw(state.categories[catId]) === "ask" && !nwPick ? `<span class="nwask">選一下</span>` : "");
       nwBox.querySelectorAll("[data-nw]").forEach(b => b.addEventListener("click", () => { nwPick = b.dataset.nw; drawNw(); })); };
     drawNw();
@@ -1627,11 +1628,11 @@ function openCatDetail(catId, p){
 function openNwTagger(p){
   const draw = sheet => {
     const list = txIn(p).filter(t => !t.virtual && t.type === "expense" && !nwOf(t)).sort((a,b) => b.date.localeCompare(a.date));
-    sheet.innerHTML = `<div class="hd"><h2>補標需要／想要</h2><button class="btn ghost" data-x>完成</button></div>
+    sheet.innerHTML = `<div class="hd"><h2>補標必要／需要／想要</h2><button class="btn ghost" data-x>完成</button></div>
       <p class="small muted" style="margin:-6px 2px 0">${list.length ? `還有 ${list.length} 筆。` : "都標好了。"}想讓某個類別以後自動帶入，可以到類別設定改預設。</p>
       <div class="card txlist cdlist">${list.length ? list.map(t => `<div class="tagrow"><span class="dot sm ${catTint(state.categories[t.categoryId])}">${catMark(state.categories[t.categoryId], catName(t.categoryId))}</span>
         <div class="meta"><b>${esc(t.title || catName(t.categoryId))}</b><span>${t.date.slice(5).replace("-","/")} · ${esc(catName(t.categoryId))} · <span class="num">${moneyShort(t.amount)}</span></span></div>
-        <div class="nwseg"><button class="nwb need" data-tag="${esc(t.id)}:need">需要</button><button class="nwb want" data-tag="${esc(t.id)}:want">想要</button></div></div>`).join("") : `<div class="empty">這一期的支出都有標記了。</div>`}</div>`;
+        <div class="nwseg">${NW_KEYS.map(k => `<button class="nwb ${k}" data-tag="${esc(t.id)}:${k}">${NW_LABEL[k]}</button>`).join("")}</div></div>`).join("") : `<div class="empty">這一期的支出都有標記了。</div>`}</div>`;
     $("[data-x]", sheet).addEventListener("click", () => { closeSheet(); render(); });
     sheet.querySelectorAll("[data-tag]").forEach(b => b.addEventListener("click", () => {
       const [id, k] = b.dataset.tag.split(":"); const t = findTx(id); if(!t) return;
@@ -1687,7 +1688,7 @@ function openCategory(c){
     </div></div>
     <p class="small muted" id="c-total" style="margin:-4px 2px 0"></p>
     ${ref ? `<p class="small muted" style="margin:0">今年已花 <b class="num">${money(ref.spent)}</b>，照這個速度全年約 <b class="num">${money(ref.est)}</b>${ref.n<12?`（今年記錄了 ${ref.n} 個月，僅供參考）`:""}。</p>` : ""}
-    <div class="setrow flat"><div class="k"><b>預設是需要還是想要</b><span>記帳時自動帶入；「每次問」會請你每筆選一下</span></div><select id="c-nw" aria-label="預設需要或想要">${["need","want","ask"].map(k => `<option value="${k}" ${catNw(c)===k?"selected":""}>${NW_LABEL[k]}</option>`).join("")}</select></div>
+    <div class="setrow flat"><div class="k"><b>預設是必要、需要還是想要</b><span>記帳時自動帶入；「每次問」會請你每筆選一下</span></div><select id="c-nw" aria-label="預設必要、需要或想要">${[...NW_KEYS,"ask"].map(k => `<option value="${k}" ${catNw(c)===k?"selected":""}>${NW_LABEL[k]}</option>`).join("")}</select></div>
     <label class="toggle"><input type="checkbox" id="c-warn" ${c.warn?"checked":""}>快用完或超支時提醒我</label>
     <label class="toggle" id="c-pool-row"><input type="checkbox" id="c-pool" ${c.monthlyLimit && (c.toPool ?? !!c.warn)?"checked":""} ${c.monthlyLimit?"":"disabled"}><span>每期沒用完的額度轉入已節省結餘<span class="small muted" id="c-pool-note">${c.monthlyLimit?"":"（先設每月上限才能勾選）"}</span></span></label>
     <label class="toggle"><input type="checkbox" id="c-arch" ${c.archived?"checked":""}>停用這個類別（舊紀錄保留）</label>
@@ -1722,7 +1723,7 @@ function openCategory(c){
     $("[data-save]", sheet).addEventListener("click", () => {
       const name = $("#c-name", sheet).value.trim(); if(!name){ toast("請輸入類別名稱"); return; }
       Object.assign(c, { name, type: $("#c-type", sheet).value, perTxLimit: intOf($("#c-tx", sheet).value), dailyLimit: intOf($("#c-day", sheet).value),
-        monthlyLimit: intOf($("#c-limit", sheet).value), yearlyLimit: intOf($("#c-year", sheet).value), nw: c.type === "expense" || $("#c-type", sheet).value === "expense" ? $("#c-nw", sheet).value : undefined, warn: $("#c-warn", sheet).checked, toPool: !!intOf($("#c-limit", sheet).value) && $("#c-pool", sheet).checked, archived: $("#c-arch", sheet).checked, icon: pickedIcon });
+        monthlyLimit: intOf($("#c-limit", sheet).value), yearlyLimit: intOf($("#c-year", sheet).value), nw: c.type === "expense" || $("#c-type", sheet).value === "expense" ? $("#c-nw", sheet).value : undefined, nw3: true, warn: $("#c-warn", sheet).checked, toPool: !!intOf($("#c-limit", sheet).value) && $("#c-pool", sheet).checked, archived: $("#c-arch", sheet).checked, icon: pickedIcon });
       put.cat(c); closeSheet(); render(); toast("已儲存");
     });
   });
@@ -2115,7 +2116,6 @@ document.addEventListener("click", e => {
 document.addEventListener("change", e => {
   const id = e.target.id;
   if(id==="set-cycle"){ state.settings.cycleStartDay = +e.target.value; put.settings(); viewPeriod = curPeriod(); render(); toast("已更新月預算週期"); }
-  else if(id==="set-wantmax"){ state.settings.wantMax = +e.target.value; put.settings(); render(); }
   else if(id==="set-warn"){ state.settings.warnPct = +e.target.value; put.settings(); render(); toast(`警戒線改成 ${e.target.value}%`); }
   else if(id==="set-week"){ state.settings.weekStart = +e.target.value; put.settings(); render(); }
   else if(id==="set-palette"){ state.settings.palette = e.target.value; put.settings(); render(); }
