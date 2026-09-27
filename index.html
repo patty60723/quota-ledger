@@ -896,6 +896,8 @@ html{-webkit-tap-highlight-color:transparent}
 .bchev{position:absolute;right:var(--space-3);top:var(--space-3)}
 .bchev .ic{width:16px;height:16px;transition:transform .15s}
 .bc[aria-expanded="true"] .bchev .ic{transform:rotate(90deg)}
+/* read by screen readers only */
+.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1723,7 +1725,7 @@ function viewReport(){
   const Y = viewPeriod.y; const yw = yearWindow(Y);
   const refs = cats("expense").map(c => ({c, r: yearCatStats(c, Y)})).filter(o => o.r && o.r.spent > 0).sort((a,b)=>b.r.est-a.r.est);
   const refHtml = refs.length ? `<div class="tblwrap" style="padding:0 14px 14px"><table><thead><tr><th>類別</th>${yw.current ? "<th>今年已花</th><th>全年預估</th>" : "<th>全年實際</th>"}<th>年度上限</th></tr></thead><tbody>
-      ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.spent)}</td>${yw.current ? `<td>${moneyShort(o.r.est)}</td>` : ""}<td${o.c.yearlyLimit && o.r.est > o.c.yearlyLimit ? ' class="bad"' : ""}>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) + (o.r.est > o.c.yearlyLimit ? "（會超過）" : "") : "—"}</td></tr>`).join("")}</tbody></table></div>`
+      ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.spent)}</td>${yw.current ? `<td>${moneyShort(o.r.est)}</td>` : ""}<td${o.c.yearlyLimit && o.r.est > o.c.yearlyLimit ? ' class="bad"' : ""}>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) + (o.r.est > o.c.yearlyLimit ? `<span class="sr">，預估會超過</span>` : "") : "—"}</td></tr>`).join("")}</tbody></table></div>`
     : `<div class="empty">${Y} 年還沒有支出紀錄。</div>`;
   const yNote = !yw ? "" : yw.current ? `依 ${Y} 年已記錄 ${yw.n} 個月的平均推算全年${yw.n < 12 ? "，未滿 12 個月僅供參考" : ""}。` : `${Y} 年的全年實際花費。`;
   const seg = `<div class="seg rseg" role="tablist" aria-label="報表內容">
