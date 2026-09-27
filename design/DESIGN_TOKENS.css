@@ -1,0 +1,11 @@
+:root {
+  --ql-bg:#F7F5EF; --ql-surface:#FFFEFB; --ql-surface-subtle:#F0EDE7;
+  --ql-text:#4A443F; --ql-text-2:#77716C; --ql-text-3:#9C9690; --ql-border:#E5E0D9;
+  --ql-hero:#4B433D; --ql-hero-text:#FFFDF9; --ql-accent:#DFA593; --ql-accent-soft:#F3DDD5;
+  --ql-sage:#71806B; --ql-sage-soft:#E2EADF; --ql-blue:#718796; --ql-blue-soft:#E0EAF0;
+  --ql-ochre:#9A741F; --ql-ochre-soft:#F3E8C9; --ql-terracotta:#A9534D; --ql-terracotta-soft:#F3DCD9;
+  --ql-lavender:#7D6D88; --ql-lavender-soft:#EAE2EE;
+  --ql-radius-hero:24px; --ql-radius-card:20px; --ql-radius-small:16px; --ql-radius-control:12px;
+  --ql-shadow-elevated:0 2px 6px rgba(50,44,39,.05),0 10px 24px rgba(50,44,39,.06);
+}
+.money { font-variant-numeric: tabular-nums; }

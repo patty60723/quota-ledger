@@ -69,11 +69,11 @@
 }
 /* 奶茶配色：Taupe #463F3A · Grey Olive #8A817C · Silver #BCB8B1 · Parchment #F4F3EE · Powder Blush #E0AFA0 */
 :root[data-palette="blush"]{
-  --paper:#F4F3EE; --surface:#FFFFFF; --sunk:#ECE9E3; --ink:#463F3A; --muted:#6F6762; --faint:#8A817C;
-  --line:#DDD9D2; --accent:#463F3A; --accent-ink:#F4F3EE; --accent-soft:#F3E1DA;
-  --bar:#8A817C; --pos:#3D72A8; --income:#3D72A8; --expense:#C26A50; --warn:#8A6220; --warn-soft:#F2E6CF;
-  --stamp:#A34A45; --stamp-soft:#F4E3E0; --fab-bg:#E0AFA0; --fab-ink:#463F3A;
-  --hero-bg:#463F3A; --hero-ink:#F4F3EE; --hero-muted:#BCB8B1; --hero-track:#5E5550; --hero-fill:#E0AFA0;
+  --paper:#F7F5EF; --surface:#FFFEFB; --sunk:#F0EDE7; --ink:#4A443F; --muted:#77716C; --faint:#9C9690;
+  --line:#E5E0D9; --accent:#4A443F; --accent-ink:#FFFDF9; --accent-soft:#F3DDD5;
+  --bar:#8A817C; --pos:#3D72A8; --income:#3D72A8; --expense:#C26A50; --warn:#9A741F; --warn-soft:#F3E8C9;
+  --stamp:#A9534D; --stamp-soft:#F3DCD9; --fab-bg:#DFA593; --fab-ink:#4A443F;
+  --hero-bg:#4B433D; --hero-ink:#FFFDF9; --hero-muted:#C9C3BC; --hero-track:#645A53; --hero-fill:#DFA593;
   --shadow:0 1px 2px rgba(70,63,58,.06),0 8px 24px rgba(70,63,58,.10);
 }
 @media (prefers-color-scheme:dark){
@@ -325,11 +325,11 @@ details.bought summary{padding:12px 14px;cursor:pointer}
 .budfoot{display:block;width:100%;padding:12px 14px;border:0;border-top:1px solid var(--line);background:none;color:var(--muted);font-size:13px;text-align:center}
 .budgets .budfoot:first-child{border-top:0}
 .section-head h2 .label{font-family:var(--f-body);font-weight:400;margin-left:6px}
-.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .ic .f{fill:currentColor;stroke:none}
 nav.tabs button .ic{width:23px;height:23px;margin-bottom:1px}
 .fab{display:grid;place-items:center}
-.fab .ic{width:28px;height:28px;stroke-width:2.2}
+.fab .ic{width:26px;height:26px}
 .tx .dot .ic{width:19px;height:19px}
 .section-head h2{display:flex;align-items:center;gap:8px}
 .section-head h2 > .ic{width:19px;height:19px;color:var(--faint)}
@@ -656,6 +656,78 @@ header.top .ttl{font-size:17px;font-weight:700}
 .fseg{margin:4px 0 2px}
 .fseg small{font-size:12px;color:var(--faint);margin-left:2px}
 .recgrp{display:flex;justify-content:space-between;padding:10px 16px 6px;font-size:12px;color:var(--muted);background:var(--sunk)}
+
+/* ---------- 2.0 refinement (design handoff) ---------- */
+:root{--r-hero:24px;--r-card:20px;--r-small:16px;--r-ctl:12px;--elev:0 2px 6px rgba(50,44,39,.05),0 10px 24px rgba(50,44,39,.06)}
+.wrap{padding-inline:20px}
+/* cards lean on surface + border; only the FAB and sheets float */
+.card,.hcard{border:1px solid var(--line);border-radius:var(--r-card);box-shadow:none}
+.home .qchip{box-shadow:none;border:1px solid var(--line)}
+.mini{box-shadow:none;border:1px solid var(--line)}
+.hero{border-radius:var(--r-hero);box-shadow:none;padding:22px 22px 18px}
+.hbig{font-size:clamp(40px,12.5vw,48px)}
+.hbig .hof{font-size:19px;font-weight:600;color:var(--hero-ink);opacity:.6;margin-left:8px}
+.hstats span{font-size:12.5px}
+.hstats b{font-size:22px;font-weight:600}
+.hleg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--hero-muted);margin-top:-4px}
+.hleg i{width:2px;height:11px;border-radius:1px;background:var(--hero-ink);opacity:.85}
+/* type scale: section 20 · row title 16/600 · meta 13 · caption 12 */
+.hhead h2{font-size:20px}
+.section-head h2,.section > h2{font-size:20px}
+header.top .ttl{font-size:20px}
+.trow .meta b,.tx .mid b,.catrow > b,.wmain b{font-size:16px;font-weight:600}
+.trow .meta > span,.tx .mid .subt,.catrow .sub{font-size:13px}
+.catrow > .small.num,.catrow > .num:not(.sub){font-size:16px;font-weight:600;color:var(--ink)}
+.tx .amt{font-size:16px;font-weight:600}
+/* category tiles: 20–22px icon in a 44px pastel tile */
+.tx .dot,.qic{width:44px;height:44px;border-radius:14px}
+.tx .dot .ic,.qic .ic{width:21px;height:21px}
+/* quick add */
+.home .qchip{min-width:132px;max-width:180px;border-radius:var(--r-small);padding:8px 12px 8px 8px}
+.home .qchip .qic{width:38px;height:38px;border-radius:12px}
+.home .qchip .qic .ic{width:20px;height:20px}
+.home .qchip .qt{min-width:0}
+.home .qchip .qt b{font-size:15px;font-weight:600;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* attention rows: ochre for 快用完, terracotta for 超支; words carry the state too */
+.alertc .meta .st{font-weight:600}
+.alertc .meta .st.warn{color:var(--warn)}
+.alertc .meta .st.over{color:var(--stamp)}
+.chev{display:grid;place-items:center;color:var(--faint)}
+.chev .ic{width:20px;height:20px}
+/* bottom nav + FAB */
+nav.tabs button .ic{width:56px;height:32px;padding:5px 16px}
+nav.tabs button{font-size:12px;min-height:56px}
+.fab{width:56px;height:56px;border-radius:50%;box-shadow:var(--elev),0 4px 14px rgba(70,63,58,.18)}
+/* touch targets */
+.link{min-height:44px;padding:0 4px;display:inline-flex;align-items:center}
+.backbtn{min-height:44px}
+header.top .more{width:44px;height:44px}
+.iconbtn{width:44px;height:44px}
+.iconbtn.sm{width:40px;height:40px}
+.okbtn{min-width:40px;min-height:40px}
+/* budget progress groups */
+.bgh{padding:12px 16px 6px;font-size:13px;font-weight:600;color:var(--muted);background:var(--sunk)}
+.bgh:first-child{border-radius:var(--r-card) var(--r-card) 0 0}
+/* insight summary at the top of 看懂 */
+.insight{padding:18px 18px 14px;display:flex;flex-direction:column;gap:6px}
+.insight .lead{font-size:17px;line-height:1.5;margin:0}
+.insight .lead b{font-size:22px}
+.insight .sub{font-size:13px;color:var(--muted);margin:0}
+.insight ul{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+.insight li button{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;background:none;border:0;padding:8px 0;border-top:1px solid var(--line);text-align:left;font:inherit;color:inherit;min-height:44px}
+.insight li .st.warn{color:var(--warn);font-weight:600}
+.insight li .st.over{color:var(--stamp);font-weight:600}
+/* yearly projection: neutral surface, the number carries the weight */
+.ytotal{background:var(--surface);border:1px solid var(--line)}
+.ytrust{display:flex;gap:8px;align-items:flex-start;margin:0;padding:10px 14px;border-radius:var(--r-ctl);background:var(--warn-soft);color:var(--ink);font-size:13px}
+/* budget settings hero */
+.budsum .bs1 b{font-size:28px}
+.budsum .bs2{display:flex;gap:18px;font-size:13px;color:var(--muted)}
+.budsum .bs2 b{font-size:16px;color:var(--ink);margin-left:4px}
+.bc .bm{grid-column:2 / -1;font-size:13px;color:var(--muted)}
+.bc .n{font-weight:600;font-size:16px}
+.hstats{grid-template-columns:minmax(0,1.35fr) minmax(0,.8fr) minmax(0,1fr)}
+@media (max-width:360px){.hstats b{font-size:20px}.hstats span{font-size:12px}}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -685,35 +757,35 @@ const WEEK = ["日","一","二","三","四","五","六"];
 
 /* ---------- icons: 24px grid, round 1.8px strokes; ".f" parts are filled ---------- */
 const ICON = {
-  home: '<path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
-  list: '<path d="M9 6h11M9 12h11M9 18h11"/><circle class="f" cx="4.5" cy="6" r="1.3"/><circle class="f" cx="4.5" cy="12" r="1.3"/><circle class="f" cx="4.5" cy="18" r="1.3"/>',
-  wish: '<path d="M4 11h16v9H4zM3 7.5h18V11H3zM12 7.5V20"/><path d="M12 7.5C10.5 4.5 7 4.3 7 6.2s3 1.3 5 1.3M12 7.5c1.5-3 5-3.2 5-1.3s-3 1.3-5 1.3"/>',
-  report: '<path d="M3 20h18M6 20v-8M12 20V5M18 20v-5"/>',
+  home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5"/><path d="M9 21v-6h6v6"/>',
+  list: '<path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
+  wish: '<path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M12 17s-3-1.7-3-4a1.8 1.8 0 0 1 3-1.3 1.8 1.8 0 0 1 3 1.3c0 2.3-3 4-3 4Z"/>',
+  report: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   settings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
-  jar: '<path d="M9 3h6v2.5H9z"/><path d="M7.5 7h9A1.5 1.5 0 0 1 18 8.5V18a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V8.5A1.5 1.5 0 0 1 7.5 7z"/><path d="M6 12.5h12"/>',
+  jar: '<path d="M5 8h14v11H5z"/><path d="M8 8V6h8v2M9 13h6M12 10v6"/>',
   bolt: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
   calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M9 15l2 2 4-4"/>',
   alert: '<path d="M12 4 21.5 20h-19z"/><path d="M12 10v4.5"/><circle class="f" cx="12" cy="17.3" r="1.1"/>',
   clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   // categories
-  meal: '<path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M9 4.5c-.8 1 .8 2 0 3.2M13 4.5c-.8 1 .8 2 0 3.2"/>',
-  dine: '<path d="M7 3v6a2 2 0 0 0 2 2m2-8v6a2 2 0 0 1-2 2m0 0v10M9 3v5"/><path d="M17 21V3c-2.2 1.6-3 4.5-3 8h3"/>',
-  bus: '<rect x="5" y="3.5" width="14" height="14" rx="3"/><path d="M5 11h14M7.5 17.5V20M16.5 17.5V20"/><circle class="f" cx="8.5" cy="14.3" r="1.1"/><circle class="f" cx="15.5" cy="14.3" r="1.1"/>',
-  ticket: '<path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"/><path d="M14.5 7.5v1.5M14.5 11v2M14.5 15v1.5"/>',
-  shirt: '<path d="M8.5 4 4 7l2 4 2-1v10h8V10l2 1 2-4-4.5-3c-.8 1.4-2 2-3.5 2s-2.7-.6-3.5-2z"/>',
-  utility: '<path d="M12 3.5c3 3.6 5 6.5 5 9.2a5 5 0 0 1-10 0c0-2.7 2-5.6 5-9.2z"/><path d="m12.8 10-2 3.3h2.4l-2 3.2"/>',
-  wifi: '<path d="M4.5 9.5a11 11 0 0 1 15 0M7.5 13a6.5 6.5 0 0 1 9 0"/><circle class="f" cx="12" cy="17" r="1.4"/>',
+  meal: '<path d="M5 4v6M8 4v6M5 7h3M6.5 10v10"/><path d="M15 4v16M15 4c3 1 4 3.5 4 6h-4"/>',
+  dine: '<path d="M5 4v7M8 4v7M5 8h3M6.5 11v9"/><path d="M15 4v16M15 4c3 1 4 3.5 4 7h-4"/>',
+  bus: '<rect x="5" y="3" width="14" height="15" rx="3"/><path d="M8 7h8M8 12h8M8 21l2-3M16 18l2 3"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/>',
+  ticket: '<path d="M4 8h16l-1 9H5L4 8Z"/><path d="M8 8 6 4M16 8l2-4M9 12h.01M15 12h.01M12 11v3"/>',
+  shirt: '<path d="m8 4 4 2 4-2 4 4-3 2v10H7V10L4 8l4-4Z"/><path d="M10 5.2c.4 1.2 1 1.8 2 1.8s1.6-.6 2-1.8"/>',
+  utility: '<path d="M13 2 6.5 13H12l-1 9 6.5-11H12l1-9Z"/>',
+  wifi: '<path d="M4 9a12 12 0 0 1 16 0M7 12.5a7.5 7.5 0 0 1 10 0M10 16a3 3 0 0 1 4 0"/><circle cx="12" cy="19" r="1"/>',
   phone: '<rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M11 17.5h2"/>',
-  paw: '<path d="M12 12.5c-2.6 0-4.5 2.7-4.5 4.6 0 1.4 1 2.1 2.2 2.1.9 0 1.5-.5 2.3-.5s1.4.5 2.3.5c1.2 0 2.2-.7 2.2-2.1 0-1.9-1.9-4.6-4.5-4.6z"/><circle cx="6" cy="10" r="1.6"/><circle cx="9.5" cy="6" r="1.6"/><circle cx="14.5" cy="6" r="1.6"/><circle cx="18" cy="10" r="1.6"/>',
-  basket: '<path d="M3.5 10h17l-2 9.5h-13z"/><path d="m8 10 3.5-6M16 10l-3.5-6M9.5 13.5v3M14.5 13.5v3"/>',
+  paw: '<circle cx="8" cy="8" r="1.5"/><circle cx="16" cy="8" r="1.5"/><circle cx="5.5" cy="12" r="1.5"/><circle cx="18.5" cy="12" r="1.5"/><path d="M8 18c0-2.4 1.8-4.5 4-4.5s4 2.1 4 4.5c0 1.5-1 2-2.2 1.3a3.8 3.8 0 0 0-3.6 0C9 20 8 19.5 8 18Z"/>',
+  basket: '<path d="M5 8h14l-1.5 11h-11L5 8Z"/><path d="M8 8l2-4h4l2 4M9 12v3M15 12v3"/>',
   scissors: '<circle cx="6.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><path d="M8.3 15.7 18 4M15.7 15.7 6 4"/>',
   shield: '<path d="M12 3.5 19 6v5.2c0 4.5-3 7.6-7 9.3-4-1.7-7-4.8-7-9.3V6z"/>',
   receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
   heart: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.5a4.2 4.2 0 0 1 7.5 2.3C19.5 15.4 12 20 12 20z"/>',
   coin: '<circle cx="12" cy="12" r="8.5"/><path d="M12 6.8v10.4M14.8 9.4c-.4-.9-1.4-1.4-2.8-1.4-1.7 0-2.8.8-2.8 1.9s1.1 1.6 2.8 1.9 2.8.8 2.8 2-1.1 2-2.8 2c-1.4 0-2.5-.6-2.9-1.5"/>',
   house: '<path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M10 20v-5h4v5"/>',
-  give: '<path d="M12 12.5s-3.8-2.3-3.8-5a2.1 2.1 0 0 1 3.8-1.2 2.1 2.1 0 0 1 3.8 1.2c0 2.7-3.8 5-3.8 5z"/><path d="M3.5 16.5H7l2.5 1.5h4.2a1.5 1.5 0 0 0 0-3H11M3.5 20.5h11l5.5-3.8a1.4 1.4 0 0 0-1.8-2.1L15 16.5"/>',
+  give: '<path d="M4 14c3-1 4.5-.5 6 1h4c1.2 0 1.5 1.5.4 2H11"/><path d="M4 14v6h9c2.5 0 5-2 7-4"/><path d="M12 11s-4-2.2-4-5a2.3 2.3 0 0 1 4-1.5A2.3 2.3 0 0 1 16 6c0 2.8-4 5-4 5Z"/>',
   repeat: '<path d="m17 3.5 3 3-3 3M4 11.5v-1a4 4 0 0 1 4-4h12M7 20.5l-3-3 3-3M20 12.5v1a4 4 0 0 1-4 4H4"/>',
   book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 21H20M8.5 7.5h7"/>',
   refund: '<path d="M9 13.5 4 8.5l5-5"/><path d="M4 8.5h10a6 6 0 0 1 0 12h-3"/>',
@@ -723,11 +795,15 @@ const ICON = {
   bag: '<path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 10.5V7a3 3 0 0 1 6 0v3.5"/>',
   star: '<path d="m12 3.8 2.5 5.1 5.6.8-4 4 .9 5.6L12 16.6l-5 2.7.9-5.6-4-4 5.6-.8z"/>',
   music: '<path d="M9 18V6l10-2v12"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="16" r="2"/>',
-  sport: '<path d="M8.5 12h7M2.5 9.5v5M21.5 9.5v5"/><rect x="4.5" y="6" width="4" height="12" rx="1.3"/><rect x="15.5" y="6" width="4" height="12" rx="1.3"/>',
+  sport: '<path d="M7 9v6M17 9v6M4 10v4M20 10v4M7 12h10M2 11v2M22 11v2"/>',
+  medical: '<path d="M9 3h6v5h5v6h-5v7H9v-7H4V8h5V3Z"/>',
+  recurring: '<path d="M20 7h-5V2"/><path d="M20 7a8 8 0 1 0 1 8"/>',
+  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  chev: '<path d="m9 18 6-6-6-6"/>',
   archery: '<circle cx="10.5" cy="13.5" r="7.5"/><circle cx="10.5" cy="13.5" r="4"/><circle class="f" cx="10.5" cy="13.5" r="1.3"/><path d="m10.5 13.5 9-9M16.2 4.5h3.3v3.3"/>'
 };
 // icons offered in the category picker, in display order
-const CAT_PICK = ["meal","dine","coffee","bus","travel","ticket","game","music","sport","archery","shirt","bag","basket","scissors","utility","wifi","phone","house","paw","heart","shield","receipt","book","repeat","give","star","coin","refund"];
+const CAT_PICK = ["meal","dine","coffee","bus","travel","ticket","game","music","sport","archery","shirt","bag","basket","scissors","utility","wifi","phone","house","paw","medical","heart","shield","receipt","book","repeat","give","star","coin","refund"];
 function icon(name, cls){ return ICON[name] ? `<svg class="ic${cls ? " " + cls : ""}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>` : ""; }
 // category name → icon; first match wins, so specific words come before general ones
 const CAT_ICONS = [
@@ -736,7 +812,7 @@ const CAT_ICONS = [
   [/交通|車|捷運|油|停車|機票|高鐵/, "bus"], [/娛樂|電影|遊戲|旅遊|休閒/, "ticket"], [/服飾|衣|鞋|穿/, "shirt"],
   [/水電|瓦斯|電費|水費/, "utility"], [/網路|寬頻/, "wifi"], [/手機|電話|電信/, "phone"], [/寵物|貓|狗/, "paw"],
   [/日常|用品|生活|雜貨/, "basket"], [/美容|美髮|剪髮|保養|化妝/, "scissors"], [/保險/, "shield"], [/稅|規費|罰單/, "receipt"],
-  [/醫療|健康|藥|看診/, "heart"], [/退貨|退款|銷帳/, "refund"], [/薪資|收入|獎金|紅利|股利|利息|接案|兼職/, "coin"],
+  [/醫療|健康|藥|看診/, "medical"], [/退貨|退款|銷帳/, "refund"], [/薪資|收入|獎金|紅利|股利|利息|接案|兼職/, "coin"],
   [/房貸|房租|租金|房/, "house"], [/捐款|捐|公益/, "give"], [/訂閱|會員/, "repeat"], [/學習|書|課|教育|學費/, "book"]
 ];
 function catIconName(name){ const hit = CAT_ICONS.find(([re]) => re.test(name || "")); return hit ? hit[1] : null; }
@@ -1008,6 +1084,12 @@ function budgetSummary(){
   const list = cats("expense").filter(c => c.monthlyLimit); const total = monthlyBudgetTotal();
   const inc = incomeEstimate(); const room = inc ? inc.amount - (state.settings.savingsTarget || 0) : 0;
   const pct = room > 0 ? total / room : 0;
+  if(room > 0) return `<div class="budsum">
+    <div class="bs1"><span>可分配預算</span><b class="num">NT$ ${moneyShort(room)}</b></div>
+    <div class="bs2"><span>已分配<b class="num">${moneyShort(total)}</b></span><span>${room - total >= 0 ? `未分配<b class="num">${moneyShort(room - total)}</b>` : `<span class="bad">超出<b class="num">${moneyShort(total - room)}</b></span>`}</span></div>
+    <div class="bar ${pct > 1 ? "over" : pct >= .95 ? "warn" : ""}" role="img" aria-label="已分配 ${Math.round(pct*100)}%"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
+    <p>預估月收入 ${moneyShort(inc.amount)}（${inc.source}）${state.settings.savingsTarget ? ` − 目標儲蓄 ${moneyShort(state.settings.savingsTarget)}` : ""} · ${list.length} 個類別有設上限</p>
+  </div>`;
   return `<div class="budsum">
     <div class="bs1"><span>每月預算合計</span><b class="num">NT$ ${moneyShort(total)}</b><small>${list.length} 個類別有設上限</small></div>
     ${room > 0 ? `<div class="bar ${pct > 1 ? "over" : pct >= .95 ? "warn" : ""}"><i style="width:${Math.min(100, pct * 100)}%"></i></div>` : ""}
@@ -1192,7 +1274,7 @@ function render(){
   const sync = `<div class="sync" id="sync" ${db && !syncOn ? "" : "hidden"}><i></i><span>同步中斷，先存在這個瀏覽器</span></div>`;
   const head = tab === "settings"
     ? `<header class="top sub"><button class="backbtn" data-act="back" aria-label="返回">‹ 返回</button><div class="ttl">${SET_PAGES[setPage] || "設定"}</div>${sync}</header>`
-    : `<header class="top"><div class="brand">額度帳本</div>${sync}<button class="iconbtn more" data-act="more" aria-label="更多：設定與備份"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle class="f" cx="5.5" cy="12" r="1.6"/><circle class="f" cx="12" cy="12" r="1.6"/><circle class="f" cx="18.5" cy="12" r="1.6"/></svg></button></header>`;
+    : `<header class="top"><div class="brand">額度帳本</div>${sync}<button class="iconbtn more" data-act="more" aria-label="更多：設定與備份">${icon("more")}</button></header>`;
   const body = tab==="home" ? viewHome() : tab==="list" ? viewList() : tab==="wish" ? viewWish() : tab==="report" ? viewReport() : viewSettings();
   // animate when the screen changes (tab, period, report view); expanding a row, saving or syncing redraws quietly
   const viewKey = [tab, pkey(viewPeriod), reportSeg, tab === "settings" ? setPage : ""].join("|");
@@ -1274,18 +1356,25 @@ function budgetRows(p, list){
 let pendOpen = false, reportSeg = "analysis";
 const budOpen = new Set();
 function budgetCompact(p){
-  const list = budgetCats();
-  if(!list.length) return `<div class="empty">還沒有設定預算。到右上角 ⋯ →「預算與類別」幫想控制的類別設上限。</div>`;
+  const all = budgetCats();
+  if(!all.length) return `<div class="empty">還沒有設定預算。到右上角 ⋯ →「預算與類別」幫想控制的類別設上限。</div>`;
+  const use = c => c.monthlyLimit ? (b => b.cap ? b.used / b.cap : 1)(budgetOf(c, p)) : -1;
+  const hot = all.filter(c => needsAttention(c, p)).sort((a,b) => use(b) - use(a));
+  const rest = all.filter(c => !needsAttention(c, p)).sort((a,b) => use(b) - use(a));
+  return (hot.length ? `<div class="bgh">需要注意 ${hot.length}</div>` + budgetCompactRows(p, hot) : "")
+    + (rest.length ? `<div class="bgh">${hot.length ? "其他類別" : "都在預算內"} ${rest.length}</div>` + budgetCompactRows(p, rest) : "");
+}
+function budgetCompactRows(p, list){
   return list.map(c => {
     const open = budOpen.has(c.id);
-    let main, bar = "", detail = [];
+    let main, bar = "", meta = "", detail = [];
     if(c.monthlyLimit){
       const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1;
       const cls = pct > 1 ? "over" : pct >= warnAt() ? "warn" : "";
       const tag = !c.warn ? "" : pct > 1 ? `<span class="tag over">超支</span>` : pct >= warnAt() ? `<span class="tag warn">快用完</span>` : "";
       main = `<span class="n">${esc(c.name)}${tag}</span><span class="v num">${moneyShort(b.used)}<small> / ${moneyShort(b.cap)}</small></span>`;
-      bar = `<span class="bar ${cls}"><i style="width:${Math.min(100,pct*100)}%"></i></span>`;
-      detail.push(`已用 ${Math.round(pct*100)}% · ${b.avail>=0 ? "還剩 "+moneyShort(b.avail) : "超出 "+moneyShort(-b.avail)}`);
+      bar = `<span class="bar ${cls}" role="img" aria-label="已用 ${Math.round(pct*100)}%"><i style="width:${Math.min(100,pct*100)}%"></i></span>`;
+      meta = `已用 ${Math.round(pct*100)}% · ${b.avail>=0 ? "還剩 NT$"+moneyShort(b.avail) : "超出 NT$"+moneyShort(-b.avail)}`;
       if(b.inst || b.occupied || b.received) detail.push([`實際 ${moneyShort(b.actual)}`, b.inst && `分期 ${moneyShort(b.inst)}`, b.occupied && `被占用 ${moneyShort(b.occupied)}`, b.received && `借入 ${moneyShort(b.received)}`].filter(Boolean).join(" · "));
       if(!c.warn) detail.push("這個類別不提醒");
     } else {
@@ -1293,7 +1382,7 @@ function budgetCompact(p){
     }
     if(c.yearlyLimit){ const yu = yearUsed(c, p.y); detail.push(`${p.y} 年 ${moneyShort(yu)} / ${moneyShort(c.yearlyLimit)}${yu > c.yearlyLimit ? "（超過年度上限）" : ""}`); }
     return `<button class="bc${open ? " open" : ""}" data-budx="${esc(c.id)}" aria-expanded="${open}">
-      <span class="dot sm ${catTint(c)}">${catMark(c)}</span>${main}${bar}
+      <span class="dot sm ${catTint(c)}">${catMark(c)}</span>${main}${bar}${meta ? `<span class="bm num">${meta}</span>` : ""}
       ${open && detail.length ? `<span class="bd num">${detail.map(d => `<span>${d}</span>`).join("")}</span>` : ""}</button>`;
   }).join("");
 }
@@ -1381,7 +1470,7 @@ function viewHome(){
       <div class="hrow"><span class="hlabel">${t.known ? "今天可以花" : "今天已花"}</span><span class="hperiod">${dateLabel}</span></div>
       ${big}
       <div class="hsub">${line}</div>${reserveNote}
-      ${t.hasBudget ? `<div class="hbar${t.usedPct > 1 ? " over" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(t.usedPct*100)}" aria-label="本期預算已用 ${Math.round(t.usedPct*100)}%"><i style="width:${Math.min(100, t.usedPct*100)}%"></i><span class="pace" style="left:${t.elapsed*100}%" title="今天在這一期的位置"></span></div>` : ""}
+      ${t.hasBudget ? `<div class="hbar${t.usedPct > 1 ? " over" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(t.usedPct*100)}" aria-label="本期預算已用 ${Math.round(t.usedPct*100)}%"><i style="width:${Math.min(100, t.usedPct*100)}%"></i><span class="pace" style="left:${t.elapsed*100}%" aria-hidden="true"></span></div><div class="hleg"><i></i>時間進度：照天數，今天應該用到這裡</div>` : ""}
       <div class="hstats">
         <div><span>${t.hasBudget ? "本期預算還剩" : "本期結餘"}</span><b class="num${over ? " neg" : ""}">${over ? "−" : ""}${moneyShort(Math.abs(t.left))}</b></div>
         <div><span>剩下</span><b class="num">${t.daysLeft} 天</b></div>
@@ -1400,7 +1489,7 @@ function viewHome(){
   const pendShown = pendOpen ? pend : pend.slice(0, 3);
   const n = pend.length + overs.length + hot.length + (bk ? 1 : 0);
   const budRow = c => { const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1; const isOver = b.avail < 0;
-    return `<button class="trow tap" data-act="bud-all"><span class="qic ${catTint(c)}">${catMark(c)}</span><div class="meta"><b>${esc(c.name)} <span class="tag ${isOver ? "over" : "warn"}">${isOver ? "超支" : "快用完"}</span></b><span class="num">已用 ${Math.round(pct*100)}% · ${isOver ? "超出 " + moneyShort(-b.avail) : "還剩 " + moneyShort(b.avail)}</span></div><span class="chev" aria-hidden="true">›</span></button>`; };
+    return `<button class="trow tap" data-act="bud-all"><span class="qic ${catTint(c)}">${catMark(c)}</span><div class="meta"><b>${esc(c.name)} <span class="tag ${isOver ? "over" : "warn"}">${isOver ? "超支" : "快用完"}</span></b><span class="num">已用 ${Math.round(pct*100)}% · ${isOver ? "超出 NT$" + moneyShort(-b.avail) : "還剩 NT$" + moneyShort(b.avail)}</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button>`; };
   const alert = n ? `<section class="hsec"><div class="hhead"><h2>需要注意 <span class="count">${n}</span></h2>${pend.length > 1 ? `<button class="link" data-act="rec-all">固定收支全部確認</button>` : ""}</div>
       <div class="hcard alertc">
       ${overs.map(s => `<div class="trow"><span class="qic warnic">${icon("alert")}</span><div class="meta"><b>${esc(s.title)}</b><span>${esc(catName(s.categoryId))}超出 <span class="num">${moneyShort(overOf(s))}</span>，還沒決定從哪裡補</span></div><button class="btn small" data-over="${s.kind}:${esc(s.id)}">處理</button></div>`).join("")}
@@ -1450,23 +1539,36 @@ function viewReport(){
   const Y = viewPeriod.y; const yw = yearWindow(Y);
   const refs = cats("expense").map(c => ({c, r: yearCatStats(c, Y)})).filter(o => o.r && o.r.spent > 0).sort((a,b)=>b.r.est-a.r.est);
   const refHtml = refs.length ? `<div class="tblwrap" style="padding:0 14px 14px"><table><thead><tr><th>類別</th>${yw.current ? "<th>今年已花</th><th>全年預估</th>" : "<th>全年實際</th>"}<th>年度上限</th></tr></thead><tbody>
-      ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.spent)}</td>${yw.current ? `<td>${moneyShort(o.r.est)}</td>` : ""}<td${o.c.yearlyLimit && o.r.est > o.c.yearlyLimit ? ' class="bad"' : ""}>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) : "—"}</td></tr>`).join("")}</tbody></table></div>`
+      ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.spent)}</td>${yw.current ? `<td>${moneyShort(o.r.est)}</td>` : ""}<td${o.c.yearlyLimit && o.r.est > o.c.yearlyLimit ? ' class="bad"' : ""}>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) + (o.r.est > o.c.yearlyLimit ? "（會超過）" : "") : "—"}</td></tr>`).join("")}</tbody></table></div>`
     : `<div class="empty">${Y} 年還沒有支出紀錄。</div>`;
   const yNote = !yw ? "" : yw.current ? `依 ${Y} 年已記錄 ${yw.n} 個月的平均推算全年${yw.n < 12 ? "，未滿 12 個月僅供參考" : ""}。` : `${Y} 年的全年實際花費。`;
   const seg = `<div class="seg rseg" role="tablist" aria-label="報表內容">
       <button role="tab" data-rseg="analysis" aria-pressed="${reportSeg==="analysis"}" aria-selected="${reportSeg==="analysis"}">收支分析</button>
       <button role="tab" data-rseg="budget" aria-pressed="${reportSeg==="budget"}" aria-selected="${reportSeg==="budget"}">預算進度</button></div>`;
+  // insight first: one sentence for the period, then what needs attention
+  const isCur = samePeriod(viewPeriod, curPeriod());
+  const inc = sumIncome(list);
+  const hotCats = budgetCats().filter(c => c.monthlyLimit && needsAttention(c, viewPeriod)).map(c => ({ c, b: budgetOf(c, viewPeriod) }))
+    .sort((a,b) => (b.b.used / (b.b.cap||1)) - (a.b.used / (a.b.cap||1)));
+  const topCat = rows[0];
+  const insight = `<div class="card insight">
+      <p class="lead">${viewPeriod.m} 月${isCur ? "目前" : ""}支出 <b class="num">NT$${moneyShort(out)}</b>${inc ? `，收入 <span class="num">NT$${moneyShort(inc)}</span>` : ""}</p>
+      ${topCat ? `<p class="sub">花最多的是${esc(catName(topCat[0]))} <span class="num">NT$${moneyShort(topCat[1])}</span>（${out > 0 ? Math.round(topCat[1]/out*100) : 0}%）${ns.total ? ` · 想要占 ${Math.round(ns.wantPct*100)}%` : ""}</p>` : ""}
+      ${hotCats.length ? `<ul>${hotCats.slice(0,3).map(({c,b}) => { const over = b.avail < 0; return `<li><button data-rseg="budget"><span>${esc(c.name)} <span class="st ${over ? "over" : "warn"}">${over ? "超支" : "快用完"}</span></span><span class="num small muted">${over ? "超出 NT$" + moneyShort(-b.avail) : "還剩 NT$" + moneyShort(b.avail)}</span></button></li>`; }).join("")}</ul>`
+        : budgetCats().length ? `<p class="sub">每個有預算的類別都還在範圍內。</p>` : ""}
+    </div>`;
   if(reportSeg === "budget"){
     const bc = budgetCats(); const hot = bc.filter(c => needsAttention(c, viewPeriod)).length;
-    return periodNav() + seg + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><span class="label">${bc.length} 個類別${hot ? ` · ${hot} 個需要注意` : ""}</span></div>
+    return periodNav() + insight + seg + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><span class="label">${bc.length} 個類別${hot ? ` · ${hot} 個需要注意` : ""}</span></div>
       <div class="card budc">${budgetCompact(viewPeriod)}</div><div class="budtail"><span class="small muted">點類別可以看細節。</span><button class="link" data-set="budget">調整預算 ›</button></div></div>`;
   }
-  return periodNav() + seg + `
+  return periodNav() + insight + seg + `
     <div class="section"><div class="section-head"><h2>${icon("report")}支出分類排行</h2><span class="label num">合計 ${money(out)}</span></div><div class="card">${rank}</div></div>
     <div class="section"><div class="section-head"><h2>必要・需要・想要</h2><span class="label">${ns.total ? `想要占 ${Math.round(ns.wantPct*100)}%` : ""}</span></div><div class="card">${nwHtml}</div></div>
     <div class="section"><div class="section-head"><h2>近 6 期收支</h2><span class="label">到 ${periodLabel(viewPeriod).title}</span></div>
       <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>
     <div class="section"><div class="section-head"><h2>${Y} 年度參考值</h2><span class="label">${yw ? `記錄了 ${yw.n} 個月` : ""}</span></div>
+      ${yw && yw.current && yw.n < 12 ? `<p class="ytrust">${icon("alert")}<span>目前只有 ${yw.n} 個月的紀錄，下面的全年數字是用平均推算的，月份越多越準。</span></p>` : ""}
       ${yearlySavings(Y)}
       <div class="card">${yNote ? `<p class="note" style="border-top:0;margin:0">${yNote}</p>` : ""}${refHtml}</div></div>`;
 }
@@ -2077,7 +2179,7 @@ function viewWish(){
   const md = s => { const d = parseYmd(s); return `${d.getMonth()+1}/${d.getDate()}`; };
   const cards = open.length ? open.map(({w, s, st}) => {
     const [cls, line] = wishBudgetLine(w);
-    const meta = [catName(w.categoryId), w.need==="need" ? "需要" : "想要", `放了 ${s.days} 天`, w.deadline ? `${md(w.deadline)} 前要買` : ""].filter(Boolean).join(" · ");
+    const meta = [catName(w.categoryId), w.need==="need" ? "需要" : "想要", `已等待 ${s.days} 天`, w.deadline ? `${md(w.deadline)} 前要買` : ""].filter(Boolean).join(" · ");
     return `<div class="card wish">
       <div class="w1"><div class="wmain"><span class="wst ${st[0]}">${st[1]}</span><b>${esc(w.name)}</b><span class="small muted">${esc(meta)}</span></div>
         <div class="num wprice">${w.price ? moneyShort(w.price) : "—"}</div></div>
@@ -2231,7 +2333,7 @@ function applyImport(pv){
 /* ---------- backup ---------- */
 function markBackup(){ state.settings.lastBackupAt = Date.now(); put.settings(); render(); }
 function openMore(){
-  const item = (k, sub) => `<button class="setrow" data-m="${k}"><div class="k"><b>${SET_PAGES[k]}</b><span>${sub}</span></div><span class="chev">›</span></button>`;
+  const item = (k, sub) => `<button class="setrow" data-m="${k}"><div class="k"><b>${SET_PAGES[k]}</b><span>${sub}</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button>`;
   openSheet(`<div class="hd"><h2>更多</h2><button class="btn ghost" data-x>關閉</button></div>
     <div class="card setlist menu">
       ${item("budget", "類別、每月上限、目標儲蓄")}
