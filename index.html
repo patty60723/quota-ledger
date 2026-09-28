@@ -983,6 +983,26 @@ header.top .srch + .more{margin-left:0}
 .gdcard p{margin:0;font-size:16px;line-height:1.75;color:var(--muted)}
 .gdfoot{flex-direction:row}
 .gdfoot .btn{flex:1;min-height:52px;border-radius:16px;font-size:16px}
+/* guide visuals: real components, frozen */
+.gdviz{pointer-events:none;user-select:none;display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-4);border-radius:var(--r-card);background:var(--sunk)}
+.gdviz .hcard,.gdviz .card{background:var(--surface)}
+.gdrow{display:flex !important;flex-direction:row !important;align-items:center;gap:var(--space-3) !important;padding:0 !important}
+.gdrow .qchip{min-width:0 !important;flex:0 1 auto}
+.gdcard{min-width:0}
+.gdviz .nwb{white-space:nowrap}
+@media (max-width:360px){ .gdrow .qchip:nth-child(2){display:none} .gdviz .nwrow > span{display:none} }
+.gdfab{margin-left:auto;flex-shrink:0;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--fab-bg);color:var(--fab-ink);box-shadow:var(--elev)}
+.gdfab .ic{width:24px;height:24px}
+.gdopts{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.gdopts span{font-size:12.5px;font-weight:600;padding:var(--space-1) var(--space-3);border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--ink)}
+.gdviz .wish{padding:var(--space-3) var(--space-4)}
+.gdamt{display:inline-flex;align-items:center;justify-content:flex-end;min-height:40px;width:84px}
+.gdpad{padding:var(--space-4);display:flex;flex-direction:column;gap:var(--space-3)}
+.gdcard .gdviz + h3{margin-top:var(--space-1)}
+.gdpath{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);padding-top:var(--space-1)}
+.gdpath .lbl{font-size:12px;color:var(--faint)}
+.gdpath .pth{font-size:13px;font-weight:600;padding:var(--space-1) var(--space-3);border-radius:999px;background:var(--accent-soft);color:var(--ink)}
+.gdcard{padding-top:var(--space-4);gap:var(--space-3)}
 .firstnote{display:flex;gap:var(--space-2);align-items:flex-start;margin:calc(var(--space-6) * -1 + var(--space-3)) 0 0;padding:var(--space-3) var(--space-4);border-radius:var(--r-ctl);background:var(--sunk);color:var(--muted);font-size:13px;line-height:1.6}
 .firstnote .ic{width:16px;height:16px;flex-shrink:0;margin-top:3px}
 .wipebk{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-radius:16px;background:var(--sunk)}
@@ -3131,17 +3151,32 @@ function openOnboarding(dry){
 // 使用說明: swipeable cards; also the last step of onboarding
 function openGuide(afterSetup, onDone){
   const local = !db;
+  // each card shows a small, non-interactive piece of the real UI (built from the app's own classes, so it follows theme & palette)
+  const ok = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>`;
+  const V = {
+    rec: `<div class="home gdrow"><button class="qchip"><span class="qic tint3">${icon("coffee")}</span><span class="qt"><b>早餐</b><span class="num">85</span></span></button><button class="qchip"><span class="qic tint8">${icon("bus")}</span><span class="qt"><b>捷運</b><span class="num">30</span></span></button><span class="gdfab">${icon("plus")}</span></div>`,
+    flex: `<div class="hcard alertc"><div class="trow"><span class="qic tint5">${icon("basket")}</span><div class="meta"><b class="nmrow"><span class="t">日常用品</span><span class="tag over">超支</span></b><span class="num">超出 NT$1,358</span></div><button class="btn small">處理</button></div></div>
+      <div class="gdopts"><span>跟其他類別借</span><span>跟下個月借</span><span>動用已節省結餘</span></div>`,
+    wish: `<div class="card wish"><div class="w0"><span class="wst ok">可以買</span><span class="num wprice">NT$1,290</span></div><div class="wmain"><b>藍牙耳機</b><span class="wmeta">娛樂 · 想要 · 已放 8 天</span></div><p class="wimpact">買了之後，娛樂本期可用 <span class="num">NT$3,000</span> → <b class="num">NT$1,710</b></p></div>`,
+    fixed: `<div class="hcard"><div class="trow"><span class="qic tint2">${icon("coin")}</span><div class="meta"><b>薪資</b><span>10/5 待確認</span></div><span class="amtin num gdamt">40,000</span><span class="okbtn">${ok}</span></div>
+      <div class="trow"><span class="qic tint4">${icon("phone")}</span><div class="meta"><b>新手機</b><span>10/1 · 分期 2/12</span></div><div class="upr"><b class="num">−2,075</b><small>3 天後</small></div></div></div>`,
+    nw: `<div class="card gdpad"><div class="nwrow"><span>這筆是</span><div class="nwseg"><span class="nwb must">必要</span><span class="nwb need" aria-checked="true">需要</span><span class="nwb want">想要</span></div></div>
+      <div class="nwbar"><i class="must" style="width:46%"></i><i class="need" style="width:32%"></i><i class="want" style="width:22%"></i></div></div>`,
+    data: `<div class="card setlist"><div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原</span></div><span class="btn small">匯出</span></div></div>`
+  };
   const cards = [
-    ["plus", "tint3", "記一筆，也能一點就記", "右下角「＋」記帳。常記的東西按「存成常用」，之後在首頁「快速記帳」一點就記好；同一筆記了 3 次，App 也會主動問你要不要存。"],
-    ["jar", "tint1", "預算有彈性，超支也不慌", "某一類超支時，可以跟其他類別借、跟下個月借，或動用「已節省結餘」。每一期沒用完的預算，會自動存進已節省結餘。"],
-    ["wish", "tint7", "想買的，先放 7 天", "把想買的東西加到「想買」。App 會告訴你現在可以買、再等等，還是會影響本期預算；決定買了，按「買了」就直接記帳。"],
-    ["repeat", "tint8", "固定收支與分期", "房租、電信、薪資這類每月固定的，到右上角齒輪 →「固定收支與分期」新增，到期會在首頁提醒你確認。分期則是在記一筆時打開「分期付款」，會自動占用之後每一期的額度。「今天可以花」會先扣掉這期還沒付的。"],
-    ["heart", "tint5", "必要、需要、想要", "每筆支出可以標記是必要、需要還是想要。「看懂」會算出想要占多少，並用必要支出推算緊急預備金該存多少。"],
-    ["shield", "tint6", local ? "資料只存在這台手機" : "記得偶爾備份", local ? "沒有雲端帳號，換手機或清除瀏覽器資料，資料就會不見。記得定期到右上角齒輪 →「資料與備份」匯出，App 每兩週會提醒一次。剛剛設定的每一項，也都能在齒輪裡改。" : "資料會在這個頁面同步，還是建議偶爾到右上角齒輪 →「資料與備份」匯出一份。剛剛設定的每一項，也都能在齒輪裡改。"]
+    { v: V.rec, h: "記一筆，也能一點就記", p: "常記的東西存成常用，之後一點就記好；同一筆記了 3 次，App 也會主動問你要不要存。", where: ["右下角 ＋", "首頁 → 快速記帳"] },
+    { v: V.flex, h: "預算有彈性，超支也不慌", p: "某一類超支時，可以跟其他類別借、跟下個月借，或動用「已節省結餘」。每一期沒用完的預算，會自動存進已節省結餘。", where: ["首頁 → 需要注意", "看懂 → 預算進度"] },
+    { v: V.wish, h: "想買的，先放 7 天", p: "想買的東西先放著，App 會告訴你現在可以買、再等等，還是會影響本期預算；決定買了，按「買了」就直接記帳。", where: ["下方「想買」分頁"] },
+    { v: V.fixed, h: "固定收支與分期", p: "房租、電信、薪資這類每月固定的，到期會提醒你確認；分期付款會自動占用之後每一期的額度。「今天可以花」會先扣掉這期還沒付的。", where: ["齒輪 → 固定收支與分期", "記一筆 → 分期付款"] },
+    { v: V.nw, h: "必要、需要、想要", p: "每筆支出可以標記是必要、需要還是想要。「看懂」會算出想要占多少，並用必要支出推算緊急預備金該存多少。", where: ["記一筆 → 這筆是", "看懂 → 收支分析"] },
+    { v: V.data, h: local ? "資料只存在這台手機" : "記得偶爾備份", p: local ? "沒有雲端帳號，換手機或清除瀏覽器資料，資料就會不見。記得定期匯出備份，App 每兩週會提醒一次。剛剛設定的每一項，也都能在齒輪裡改。" : "資料會在這個頁面同步，還是建議偶爾匯出一份備份。剛剛設定的每一項，也都能在齒輪裡改。", where: ["齒輪 → 資料與備份"] }
   ];
   const el = obShell(`<div class="obtop"><span></span><div class="obdots" id="gd-dots">${cards.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div><button class="link" data-gd="done">${afterSetup ? "略過" : "關閉"}</button></div>
     <h2 class="obh">${afterSetup ? "設定好了，你可以這樣用" : "使用說明"}</h2>
-    <div class="gdcards" id="gd-cards">${cards.map(([ic, tint, h, p], i) => `<section class="gdcard" aria-label="${i+1} / ${cards.length}"><span class="qic gdic ${tint}">${icon(ic)}</span><h3>${h}</h3><p>${p}</p></section>`).join("")}</div>
+    <div class="gdcards" id="gd-cards">${cards.map((c, i) => `<section class="gdcard" aria-label="${i+1} / ${cards.length}：${c.h}">
+      <div class="gdviz" aria-hidden="true">${c.v}</div><h3>${c.h}</h3><p>${c.p}</p>
+      <div class="gdpath"><span class="lbl">在哪裡</span>${c.where.map(w => `<span class="pth">${w}</span>`).join("")}</div></section>`).join("")}</div>
     <div class="obfoot gdfoot"><button class="btn" data-gd="prev">上一張</button><button class="btn primary" data-gd="next">下一張</button></div>`);
   const box = $("#gd-cards", el); let at = 0;
   const sync = () => { at = Math.round(box.scrollLeft / box.clientWidth);
