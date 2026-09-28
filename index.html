@@ -1015,6 +1015,19 @@ header.top .srch + .more{margin-left:0}
 /* inline link inside a sentence (e.g. 預估月收入 → 固定收支) */
 .inlink{display:inline-flex;align-items:center;gap:1px;padding:0;margin:0;border:0;background:none;font:inherit;color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;cursor:pointer}
 .inlink .ic{width:14px;height:14px}
+/* 這期發現 */
+.insrow{display:flex;gap:var(--space-3);overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-inline:calc(var(--space-5) * -1);padding:2px var(--space-5) var(--space-1);scroll-padding-inline:var(--space-5)}
+.insrow::-webkit-scrollbar{display:none}
+.ins{flex:0 0 min(78%,300px);scroll-snap-align:start;display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-3);padding:var(--space-4);border:1px solid var(--line);border-radius:var(--r-card);background:var(--surface);text-align:left;color:var(--ink);font:inherit}
+.ins:only-child{flex-basis:100%}
+.insic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--sunk);color:var(--muted)}
+.insic .ic{width:19px;height:19px}
+.ins.warn .insic{background:var(--warn-soft);color:var(--warn)}
+.ins.good .insic{background:color-mix(in srgb,var(--nw-need) 16%,transparent);color:var(--nw-need)}
+.inst{display:flex;flex-direction:column;gap:var(--space-1)}
+.inst b{font-size:16px;font-weight:700;line-height:1.4}
+.inst > span{font-size:13px;line-height:1.6;color:var(--muted)}
+.inst > span b{font-size:inherit;color:var(--ink);font-weight:600}
 .cd .ci,.calleg .ci{width:5px;height:5px;border-radius:50%;background:var(--income);display:inline-block}
 .cd .ci{position:absolute;top:6px;right:6px}
 .cd:active{transform:none}
@@ -1895,7 +1908,10 @@ function viewHome(){
   // once earlier spending this period has been back-filled, the numbers are right and the note goes away
   const backfilled = !demoStart && so && txIn(p).some(x => !x.virtual && x.date < so);
   const firstNote = (t.hasBudget || demoStart) && so && so > ppa && so <= ppb && !backfilled ? `<p class="firstnote">${icon("info")}<span>這是你的第一期，從 ${md(so)} 才開始記，之前的花費沒算進來，所以每天能花的會偏高。想現在就準確，可以把這期之前的花費補記進來；不補也沒關係，下一期（${md(ymd(new Date(parseYmd(ppb).getTime() + 864e5)))} 起）就會自動恢復正常。</span></p>` : "";
-  return `<div class="home">${hero}${firstNote}${quick}${alert}${next}${rec}</div>`;
+  const ins = insights(); insActs = ins.map(x => x.act);
+  const found = ins.length ? `<section class="hsec"><div class="hhead"><h2>這期發現</h2></div>
+      <div class="insrow" role="list">${ins.map((x, i) => `<button class="ins ${x.tone}" role="listitem" data-ins="${i}"><span class="insic">${icon(x.icon)}</span><span class="inst"><b>${x.title}</b><span>${x.sub}</span></span></button>`).join("")}</div></section>` : "";
+  return `<div class="home">${hero}${firstNote}${quick}${alert}${found}${next}${rec}</div>`;
 }
 
 // 明細 can show the period as a list or as a month calendar (tap a day to see its records)
@@ -2016,6 +2032,62 @@ function donut(rows, out){
   return `<div class="donut"><svg viewBox="0 0 200 200" role="img" aria-label="支出分類圓餅圖，合計 ${out} 元">${arcs}
       <text x="100" y="94" text-anchor="middle" class="dt">合計</text><text x="100" y="118" text-anchor="middle" class="dv num">${moneyShort(out)}</text></svg>
     <div class="dleg">${leg}</div></div>`;
+}
+/* ---------- 這期發現: short findings about the current period, compared with the same point of the last one ---------- */
+let insActs = [];
+function insights(){
+  const p = curPeriod(); const [pa, pb] = periodRange(p); const today = todayStr();
+  const el = dayDiff(pa, today) + 1, total = dayDiff(pa, pb) + 1;
+  const cur = txIn(p).filter(t => t.date <= today);
+  const pp = shift(p, -1); const [qa] = periodRange(pp);
+  const cut = ymd(new Date(parseYmd(qa).getFullYear(), parseYmd(qa).getMonth(), parseYmd(qa).getDate() + el - 1));
+  const prev = txIn(pp).filter(t => t.date <= cut);
+  const hasPrev = realTx().some(t => t.date < pa);
+  const spend = (l, id) => l.filter(t => !id || t.categoryId === id).reduce((a, t) => a + outAmt(t), 0);
+  const out = [];
+  // 1. a category heading over its limit at this pace (fixed items and installments counted once, the rest projected)
+  if(el >= 5 && el < total) cats("expense").filter(c => c.monthlyLimit && c.warn).forEach(c => {
+    const b = budgetOf(c, p); if(b.avail < 0 || !b.cap) return;
+    const mine = cur.filter(t => t.categoryId === c.id && !t.virtual);
+    const fixed = mine.filter(t => t.recurringId).reduce((a, t) => a + outAmt(t), 0), vary = mine.filter(t => !t.recurringId).reduce((a, t) => a + outAmt(t), 0);
+    const proj = Math.round(b.inst + b.occupied + fixed + vary / el * total);
+    if(proj > b.cap * 1.05 && proj - b.cap >= 300)
+      out.push({ pri: 90 + Math.min(9, (proj - b.cap) / b.cap * 20), tone: "warn", icon: catIconFor(c) || "alert", title: `${esc(c.name)}可能會超支`,
+        sub: `照目前的速度，這期會用到 <b class="num">NT$${moneyShort(proj)}</b>，比上限多約 NT$${moneyShort(proj - b.cap)}`, act: { bud: 1 } });
+  });
+  if(hasPrev && el >= 3){
+    // 2. the category that grew the most against the same point last period
+    const grow = cats("expense").map(c => ({ c, a: spend(cur, c.id), b: spend(prev, c.id) })).filter(x => x.b > 0 && x.a - x.b >= 800 && x.a / x.b >= 1.5).sort((x, y) => (y.a - y.b) - (x.a - x.b))[0];
+    if(grow) out.push({ pri: 70, tone: "warn", icon: catIconFor(grow.c) || "up", title: `${esc(grow.c.name)}花得比上期快`,
+      sub: `到今天花了 <b class="num">NT$${moneyShort(grow.a)}</b>，上期同一時間是 NT$${moneyShort(grow.b)}（+${Math.round((grow.a / grow.b - 1) * 100)}%）`, act: { cat: grow.c.id } });
+    // 3. overall, against the same point last period
+    const A = spend(cur), B = spend(prev);
+    if(B > 0 && A - B <= -500) out.push({ pri: 60, tone: "good", icon: "down", title: "比上期同期少花了", sub: `到今天共花 NT$${moneyShort(A)}，比上期同一時間少 <b class="num">NT$${moneyShort(B - A)}</b>`, act: { report: 1 } });
+    else if(B > 0 && A - B >= 1000) out.push({ pri: 65, tone: "warn", icon: "up", title: "比上期同期多花了", sub: `到今天共花 NT$${moneyShort(A)}，比上期同一時間多 <b class="num">NT$${moneyShort(A - B)}</b>（+${Math.round((A / B - 1) * 100)}%）`, act: { report: 1 } });
+    // 4. more of the spending is tagged 想要 than last period
+    const nA = nwSplit(cur), nB = nwSplit(prev);
+    if(nA.total && nB.total && nA.want >= 1000 && nA.wantPct - nB.wantPct >= 0.1) out.push({ pri: 55, tone: "warn", icon: "heart", title: "「想要」的花費變多了",
+      sub: `這期占 <b class="num">${Math.round(nA.wantPct * 100)}%</b>，上期同一時間是 ${Math.round(nB.wantPct * 100)}%`, act: { report: 1 } });
+  }
+  // 5. something bought again and again this period (必要 items like meals are routine, so they don't count)
+  const byTitle = {}; cur.filter(t => t.type === "expense" && !t.virtual && !t.recurringId && nwOf(t) !== "must" && (t.title || "").trim()).forEach(t => { const k = t.title.trim(); (byTitle[k] ||= []).push(t); });
+  const rep = Object.entries(byTitle).filter(([, l]) => l.length >= 4).sort((x, y) => spend(y[1]) - spend(x[1]))[0];
+  if(rep) out.push({ pri: 50, tone: "info", icon: "repeat", title: `這期買了 ${rep[1].length} 次「${esc(rep[0])}」`, sub: `共 <b class="num">NT$${moneyShort(spend(rep[1]))}</b>，平均一次 NT$${moneyShort(spend(rep[1]) / rep[1].length)}`, act: { search: rep[0] } });
+  // 6. days without spending so far (not counting today)
+  if(el >= 4){ const spent = new Set(cur.filter(t => t.type === "expense" && !t.virtual && !t.recurringId).map(t => t.date)); let free = 0;
+    for(let d = parseYmd(pa); ymd(d) < today; d.setDate(d.getDate() + 1)) if(!spent.has(ymd(d))) free++;
+    if(free >= 3) out.push({ pri: 40, tone: "good", icon: "star", title: `這期有 ${free} 天沒有花錢`, sub: `不算固定支出。過了 ${el - 1} 天，每 ${Math.max(1, Math.round((el - 1) / free))} 天就有 1 天沒花`, act: { list: 1 } }); }
+  return out.sort((a, b) => b.pri - a.pri).slice(0, 4);
+}
+function runInsight(a){
+  if(!a) return;
+  if(a.bud){ tab = "report"; reportSeg = "budget"; viewPeriod = curPeriod(); }
+  else if(a.report){ tab = "report"; reportSeg = "analysis"; viewPeriod = curPeriod(); }
+  else if(a.list){ tab = "list"; viewPeriod = curPeriod(); }
+  else if(a.cat){ openCatDetail(a.cat, curPeriod()); return; }
+  else if(a.search){ lastQuery = a.search; openSearch(); return; }
+  try{ localStorage.setItem("ledger.tab", tab); }catch(err){}
+  render(); window.scrollTo(0,0);
 }
 // yearly view of savings: the monthly target ×12, and the pool's pace from closed periods
 function yearlySavings(Y, note){
@@ -2963,6 +3035,8 @@ document.addEventListener("click", e => {
   if(cdy){ calDay = cdy.dataset.calday; render(); return; }
   const rs = e.target.closest("[data-rseg]");
   if(rs){ reportSeg = rs.dataset.rseg; render(); return; }
+  const ib = e.target.closest("[data-ins]");
+  if(ib && !ib.closest(".sheet")){ runInsight(insActs[+ib.dataset.ins]); return; }
   const oc = e.target.closest("[data-overcat]");
   if(oc && !oc.closest(".sheet")){ const c = state.categories[oc.dataset.overcat]; const s = c && overSubject(c, oc.dataset.p ? fromKey(oc.dataset.p) : viewPeriod); if(s) openOverspend(s, true); return; }
   const bx = e.target.closest("[data-budx]");
