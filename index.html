@@ -910,6 +910,8 @@ html{-webkit-tap-highlight-color:transparent}
 .cd.today .dn{color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:3px}
 .cd.sel{box-shadow:inset 0 0 0 2px var(--ink)}
 .cd.future .dn{color:var(--faint)}
+/* settings selects keep their full width so the value isn't clipped (e.g. 警戒線 80%) */
+.setrow > select{flex-shrink:0}
 .cd .ci,.calleg .ci{width:5px;height:5px;border-radius:50%;background:var(--income);display:inline-block}
 .cd .ci{position:absolute;top:6px;right:6px}
 .cd:active{transform:none}
@@ -1812,8 +1814,7 @@ function calendarView(list){
   for(let d = parseYmd(a); ymd(d) <= b; d.setDate(d.getDate() + 1)){
     const k = ymd(d), out = outOf(k), inc = sumIncome(byDay[k] || []);
     const lvl = out > 0 ? Math.min(4, Math.ceil(out / max * 4)) : 0;
-    // day 1 of a month (or the first cell) shows the month too, since a period can start mid-month
-    const label = d.getDate() === 1 || k === a ? `${d.getMonth()+1}/${d.getDate()}` : d.getDate();
+    const label = d.getDate();
     cells += `<button class="cd l${lvl}${k === today ? " today" : k > today ? " future" : ""}${k === calDay ? " sel" : ""}" data-calday="${k}" aria-pressed="${k === calDay}" aria-label="${d.getMonth()+1} 月 ${d.getDate()} 日${out ? `，支出 ${out} 元` : ""}${inc ? `，收入 ${inc} 元` : ""}">
       <span class="dn num">${label}</span>${out ? `<span class="da num">${short(out)}</span>` : ""}${inc ? `<i class="ci" aria-hidden="true"></i>` : ""}</button>`;
   }
@@ -2026,9 +2027,10 @@ function viewSettings(){
     fav: `<div class="section" id="fav-section"><div class="section-head"><h2>項目</h2><button class="btn small" data-act="fav-new">新增</button></div><div class="card setlist">${favHtml}
       <div class="note">排序：${s.favManual ? `手動 <button class="btn ghost small" data-act="fav-auto">改回依使用次數</button>` : "依使用次數（按箭頭可手動排）"}。首頁「快速記帳」依這個順序排列，可左右滑。</div></div></div>
 `,
-    prefs: `<div class="section"><h2>預算週期</h2><div class="card setlist">
+    prefs: `<div class="section"><h2>日期與週期</h2><div class="card setlist">
       <div class="setrow"><div class="k"><b>月預算從哪天開始</b><span>例如設成發薪日；當月沒有這天就用月底</span></div><select id="set-cycle" aria-label="月預算起始日">${dayOpts}</select></div>
       <div class="setrow"><div class="k"><b>警戒線</b><span>用到這個比例就標「快用完」、記帳時提醒，並列在首頁</span></div><select id="set-warn" aria-label="警戒線">${[50,55,60,65,70,75,80,85,90,95].map(v => `<option value="${v}" ${(s.warnPct||80)===v?"selected":""}>${v}%</option>`).join("")}</select></div>
+      <div class="setrow"><div class="k"><b>一週從哪天開始</b><span>明細的月曆照這個排</span></div><select id="set-week" aria-label="一週從哪天開始">${[[1,"星期一"],[0,"星期日"]].map(([v,l]) => `<option value="${v}" ${(s.weekStart ?? 1)===v?"selected":""}>${l}</option>`).join("")}</select></div>
     </div></div>
     <div class="section"><h2>外觀</h2><div class="card setlist">
       <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>主題</b><span>跟隨手機時，會照手機的深色模式自動切換</span></div>
@@ -2696,7 +2698,7 @@ function openMore(){
       ${item("budget", "類別與每月上限、目標儲蓄、已節省結餘")}
       ${item("fixed", "每月固定的收入、支出，以及分期")}
       ${item("fav", "快速記帳的項目和排序")}
-      ${item("prefs", "預算週期、警戒線、主題、配色")}
+      ${item("prefs", "預算週期、一週起始日、警戒線、主題、配色")}
       ${item("data", `匯出、還原、匯入 · ${backupText()}`)}
     </div>
     ${canInstall ? `<div class="card setlist menu"><button class="setrow" data-install><div class="k"><b>安裝到主畫面</b><span>像一般 App 一樣從桌面打開，離線也能用</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button></div>` : ""}`, sheet => {
