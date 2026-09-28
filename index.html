@@ -1890,8 +1890,10 @@ function viewHome(){
   const rec = `<section class="hsec"><div class="hhead"><h2>最近</h2><button class="link" data-tab="list">看全部${icon("chev","sm")}</button></div>
       <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到右上角齒輪 →「資料與備份」匯入。</div>`}</div></section>`;
   // a new user who starts mid-period: the whole period's budget is spread over the days left, so explain why it looks high
-  const so = state.settings.startedOn;
-  const firstNote = t.hasBudget && so && so > ppa && so <= ppb ? `<p class="firstnote">${icon("info")}<span>這是你的第一期，從 ${md(so)} 才開始記，之前的花費沒算進來，所以每天能花的會偏高。下一期（${md(ymd(new Date(parseYmd(ppb).getTime() + 864e5)))} 起）就會準確。</span></p>` : "";
+  const so = demoStart || state.settings.startedOn;
+  // once earlier spending this period has been back-filled, the numbers are right and the note goes away
+  const backfilled = !demoStart && so && txIn(p).some(x => !x.virtual && x.date < so);
+  const firstNote = (t.hasBudget || demoStart) && so && so > ppa && so <= ppb && !backfilled ? `<p class="firstnote">${icon("info")}<span>這是你的第一期，從 ${md(so)} 才開始記，之前的花費沒算進來，所以每天能花的會偏高。把這期之前的花費補記進來，數字就會正常；下一期（${md(ymd(new Date(parseYmd(ppb).getTime() + 864e5)))} 起）也會自動準確。</span></p>` : "";
   return `<div class="home">${hero}${firstNote}${quick}${alert}${next}${rec}</div>`;
 }
 
@@ -3047,6 +3049,7 @@ $("#fab").addEventListener("click", () => openEntry(null));
 const OB_PICKED = ["一般用餐","飲料點心","交通","日常用品","服飾","娛樂","醫療與健康","手機網路","其他支出"];
 // rough monthly shares used by 「先填總額」 to split a total across the picked categories
 const OB_WEIGHT = { "一般用餐":30,"大餐聚餐":8,"飲料點心":5,"交通":10,"日常用品":10,"服飾":6,"娛樂":8,"運動":5,"醫療與健康":5,"水電瓦斯":5,"手機網路":3,"房租房貸":30,"保險":5,"訂閱":2,"寵物":5,"其他支出":5 };
+let demoStart = null;
 // fresh: nothing was stored yet when the app loaded (checked before the first automatic settings save)
 function maybeOnboard(fresh){
   if(state.settings.onboarded || !fresh) return;
@@ -3127,7 +3130,8 @@ function openOnboarding(dry){
   };
   let skipped = false;
   const finish = () => {
-    if(dry){ openGuide(true, () => toast("預覽模式：剛剛的設定沒有儲存")); return; }
+    // dry run (preview only): nothing is saved; the home page shows the first-period note as a demo until reload
+    if(dry){ openGuide(true, () => { demoStart = todayStr() > periodRange(curPeriod())[0] ? todayStr() : null; tab = "home"; render(); window.scrollTo(0,0); toast("預覽模式：設定沒有儲存，首頁的第一期提示只是示範"); }); return; }
     if(!skipped) apply();
     state.settings.onboarded = true; state.settings.startedOn = todayStr(); put.settings();
     tab = "home"; try{ localStorage.setItem("ledger.tab", tab); }catch(e){}
