@@ -1893,7 +1893,7 @@ function viewHome(){
   const so = demoStart || state.settings.startedOn;
   // once earlier spending this period has been back-filled, the numbers are right and the note goes away
   const backfilled = !demoStart && so && txIn(p).some(x => !x.virtual && x.date < so);
-  const firstNote = (t.hasBudget || demoStart) && so && so > ppa && so <= ppb && !backfilled ? `<p class="firstnote">${icon("info")}<span>這是你的第一期，從 ${md(so)} 才開始記，之前的花費沒算進來，所以每天能花的會偏高。把這期之前的花費補記進來，數字就會正常；下一期（${md(ymd(new Date(parseYmd(ppb).getTime() + 864e5)))} 起）也會自動準確。</span></p>` : "";
+  const firstNote = (t.hasBudget || demoStart) && so && so > ppa && so <= ppb && !backfilled ? `<p class="firstnote">${icon("info")}<span>這是你的第一期，從 ${md(so)} 才開始記，之前的花費沒算進來，所以每天能花的會偏高。想現在就準確，可以把這期之前的花費補記進來；不補也沒關係，下一期（${md(ymd(new Date(parseYmd(ppb).getTime() + 864e5)))} 起）就會自動恢復正常。</span></p>` : "";
   return `<div class="home">${hero}${firstNote}${quick}${alert}${next}${rec}</div>`;
 }
 
