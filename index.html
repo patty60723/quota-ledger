@@ -1535,7 +1535,7 @@ function budgetRows(p, list){
     if(c.monthlyLimit){
       const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1;
       const cls = pct > 1 ? "over" : pct >= warnAt() ? "warn" : "";
-      const tag = !c.warn ? `<span class="tag">不提醒</span>` : pct > 1 ? `<span class="tag over">超支</span>` : pct >= warnAt() ? `<span class="tag warn">快用完</span>` : "";
+      const tag = !c.warn ? `<span class="tag">不提醒</span>` : pct > 1 ? `<span class="tag over">超支</span>` : pct >= warnAt() ? `<span class="tag warn">${b.avail === 0 ? "已用完" : "快用完"}</span>` : "";
       const parts = [];
       if(b.inst || b.occupied || b.received){
         parts.push(`實際 ${moneyShort(b.actual)}`);
@@ -1576,7 +1576,7 @@ function budgetCompactRows(p, list){
     if(c.monthlyLimit){
       const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1;
       const cls = pct > 1 ? "over" : pct >= warnAt() ? "warn" : "";
-      const tag = !c.warn ? "" : pct > 1 ? `<span class="tag over">超支</span>` : pct >= warnAt() ? `<span class="tag warn">快用完</span>` : "";
+      const tag = !c.warn ? "" : pct > 1 ? `<span class="tag over">超支</span>` : pct >= warnAt() ? `<span class="tag warn">${b.avail === 0 ? "已用完" : "快用完"}</span>` : "";
       main = `<span class="n"><span class="t">${esc(c.name)}</span>${tag}</span><span class="v num">${moneyShort(b.used)}<small> / ${moneyShort(b.cap)}</small></span>`;
       bar = `<span class="bar ${cls}" role="img" aria-label="已用 ${Math.round(pct*100)}%"><i style="width:${Math.min(100,pct*100)}%"></i></span>`;
       meta = `已用 ${Math.round(pct*100)}% · ${b.avail>=0 ? "還剩 NT$"+moneyShort(b.avail) : "超出 NT$"+moneyShort(-b.avail)}`;
@@ -1704,7 +1704,7 @@ function viewHome(){
   const pendShown = pendOpen ? pend : pend.slice(0, 3);
   const n = pend.length + overs.length + hot.length + (bk ? 1 : 0);
   const budRow = c => { const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1; const isOver = b.avail < 0;
-    return `<button class="trow tap" data-act="bud-all"><span class="qic ${catTint(c)}">${catMark(c)}</span><div class="meta"><b class="nmrow"><span class="t">${esc(c.name)}</span><span class="tag ${isOver ? "over" : "warn"}">${isOver ? "超支" : "快用完"}</span></b><span class="num">已用 ${Math.round(pct*100)}% · ${isOver ? "超出 NT$" + moneyShort(-b.avail) : "還剩 NT$" + moneyShort(b.avail)}</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button>`; };
+    return `<button class="trow tap" data-act="bud-all"><span class="qic ${catTint(c)}">${catMark(c)}</span><div class="meta"><b class="nmrow"><span class="t">${esc(c.name)}</span><span class="tag ${isOver ? "over" : "warn"}">${isOver ? "超支" : b.avail === 0 ? "已用完" : "快用完"}</span></b><span class="num">已用 ${Math.round(pct*100)}% · ${isOver ? "超出 NT$" + moneyShort(-b.avail) : "還剩 NT$" + moneyShort(b.avail)}</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button>`; };
   const alert = n ? `<section class="hsec"><div class="hhead"><h2>需要注意 <span class="count">${n}</span></h2>${pend.length > 1 ? `<button class="link" data-act="rec-all">固定收支全部確認</button>` : ""}</div>
       <div class="hcard card--alert alertc">
       ${overs.map(s => `<div class="trow"><span class="qic warnic">${icon("alert")}</span><div class="meta"><b>${esc(s.title)}</b><span>${esc(catName(s.categoryId))}超出 <span class="num">${moneyShort(overOf(s))}</span>，還沒決定從哪裡補</span></div><button class="btn small" data-over="${s.kind}:${esc(s.id)}">處理</button></div>`).join("")}
@@ -1771,7 +1771,7 @@ function viewReport(){
       ${inc ? `<p class="inc">收入 <span class="num">NT$${moneyShort(inc)}</span></p>` : ""}
       ${topCat ? `<p class="sub">花最多的是${esc(catName(topCat[0]))} <span class="num">NT$${moneyShort(topCat[1])}</span>（${out > 0 ? Math.round(topCat[1]/out*100) : 0}%）</p>` : ""}
       ${ns.total && ns.want ? `<p class="sub">整體支出中，標成「想要」的有 <span class="num">NT$${moneyShort(ns.want)}</span>，占 ${Math.round(ns.wantPct*100)}%</p>` : ""}
-      ${hotCats.length ? `<ul>${hotCats.slice(0,3).map(({c,b}) => { const over = b.avail < 0; return `<li><button data-rseg="budget"><span>${esc(c.name)} <span class="st ${over ? "over" : "warn"}">${over ? "超支" : "快用完"}</span></span><span class="num small muted">${over ? "超出 NT$" + moneyShort(-b.avail) : "還剩 NT$" + moneyShort(b.avail)}</span></button></li>`; }).join("")}</ul>`
+      ${hotCats.length ? `<ul>${hotCats.slice(0,3).map(({c,b}) => { const over = b.avail < 0; return `<li><button data-rseg="budget"><span>${esc(c.name)} <span class="st ${over ? "over" : "warn"}">${over ? "超支" : b.avail === 0 ? "已用完" : "快用完"}</span></span><span class="num small muted">${over ? "超出 NT$" + moneyShort(-b.avail) : "還剩 NT$" + moneyShort(b.avail)}</span></button></li>`; }).join("")}</ul>`
         : budgetCats().length ? `<p class="sub">每個有預算的類別都還在範圍內。</p>` : ""}
     </div>`;
   if(reportSeg === "budget"){
