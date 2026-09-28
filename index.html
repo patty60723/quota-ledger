@@ -884,7 +884,7 @@ html{-webkit-tap-highlight-color:transparent}
 .quickrow::-webkit-scrollbar,.favbar::-webkit-scrollbar,.nwfilter::-webkit-scrollbar{display:none}
 .on-settings .fab{display:none}
 .wdue.soon{color:var(--warn);font-weight:600}
-.bcfix{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:0 var(--space-4) var(--space-3) calc(var(--space-4) + 24px + var(--space-3));font-size:13px;color:var(--stamp)}
+.bcfix{display:flex;align-items:center;justify-content:flex-start;gap:var(--space-3);padding:0 var(--space-4) var(--space-3) calc(var(--space-4) + 24px + var(--space-3));font-size:13px;color:var(--stamp)}
 .bcfix b{font-weight:600}
 .bcfix .btn{flex-shrink:0}
 /* ---------- shared info popover ---------- */
@@ -1592,7 +1592,7 @@ function budgetCompactRows(p, list){
       meta = `已用 ${Math.round(pct*100)}% · ${b.avail>=0 ? "還剩 NT$"+moneyShort(b.avail) : "超出 NT$"+moneyShort(-b.avail)}`;
       if(b.inst || b.occupied || b.received) detail.push([`實際 ${moneyShort(b.actual)}`, b.inst && `分期 ${moneyShort(b.inst)}`, b.occupied && `被占用 ${moneyShort(b.occupied)}`, b.received && `借入 ${moneyShort(b.received)}`].filter(Boolean).join(" · "));
       if(!c.warn) detail.push("這個類別不提醒");
-      if(b.avail < 0 && overSubject(c, p)) fix = `<div class="bcfix"><span>還沒決定從哪裡補</span><button class="btn small" data-overcat="${esc(c.id)}">處理超支</button></div>`;
+      if(b.avail < 0 && overSubject(c, p)) fix = `<div class="bcfix"><button class="btn small" data-overcat="${esc(c.id)}">處理超支</button></div>`;
     } else {
       main = `<span class="n">${esc(c.name)}</span><span class="v small muted">只設每年預算</span>`;
     }
