@@ -990,6 +990,9 @@ header.top .srch + .more{margin-left:0}
 .wipebk .k span{font-size:13px;color:var(--muted);line-height:1.5}
 .wipebk .btn{flex-shrink:0}
 .btn.danger:disabled{opacity:.4}
+/* inline link inside a sentence (e.g. 預估月收入 → 固定收支) */
+.inlink{display:inline-flex;align-items:center;gap:1px;padding:0;margin:0;border:0;background:none;font:inherit;color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;cursor:pointer}
+.inlink .ic{width:14px;height:14px}
 .cd .ci,.calleg .ci{width:5px;height:5px;border-radius:50%;background:var(--income);display:inline-block}
 .cd .ci{position:absolute;top:6px;right:6px}
 .cd:active{transform:none}
@@ -1406,12 +1409,13 @@ function budgetSummary(){
     <div class="bs1"><span>可分配預算</span><b class="num">NT$ ${moneyShort(room)}</b></div>
     <div class="bs2"><span>已分配<b class="num">${moneyShort(total)}</b></span><span>${room - total >= 0 ? `未分配<b class="num">${moneyShort(room - total)}</b>` : `<span class="bad">超出<b class="num">${moneyShort(total - room)}</b></span>`}</span></div>
     <div class="bar ${pct > 1 ? "over" : pct >= .95 ? "warn" : ""}" role="img" aria-label="已分配 ${Math.round(pct*100)}%"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
-    <p>預估月收入 ${moneyShort(inc.amount)}（${inc.source}）${state.settings.savingsTarget ? ` − 目標儲蓄 ${moneyShort(state.settings.savingsTarget)}` : ""} · ${list.length} 個類別有設上限</p>
+    <p><button class="inlink" data-set="fixed" data-fseg-go="rec">預估月收入 ${moneyShort(inc.amount)}（${inc.source}）${icon("chev","sm")}</button>${state.settings.savingsTarget ? ` − 目標儲蓄 ${moneyShort(state.settings.savingsTarget)}` : ""} · ${list.length} 個類別有設上限</p>
+    ${inc.source === "上一期收入" ? `<p>收入不固定，所以先用上一期實際記到的收入估算。想用固定的數字，可以在固定收支加一筆收入。</p>` : ""}
   </div>`;
   return `<div class="budsum">
     <div class="bs1"><span>每月預算合計</span><b class="num">NT$ ${moneyShort(total)}</b><small>${list.length} 個類別有設上限</small></div>
     ${room > 0 ? `<div class="bar ${pct > 1 ? "over" : pct >= .95 ? "warn" : ""}"><i style="width:${Math.min(100, pct * 100)}%"></i></div>` : ""}
-    <p>${allocationLine(total) || "設好固定收入（例如薪資）後，這裡會算出還有多少沒分配。"}</p>
+    <p>${allocationLine(total) || `設好<button class="inlink" data-set="fixed" data-fseg-go="rec">固定收入（例如薪資）${icon("chev","sm")}</button>後，這裡會算出還有多少沒分配。收入不固定的話，記滿一期收入後也會自動估算。`}</p>
   </div>`;
 }
 /* ---------- period closing: unused budget moves into savings ---------- */
@@ -2949,7 +2953,7 @@ document.addEventListener("click", e => {
   if(el.dataset.wishedit){ const w = state.wishes[el.dataset.wishedit]; w && openWish(w); return; }
   if(el.dataset.wishbuy){ const w = state.wishes[el.dataset.wishbuy]; w && buyWish(w); return; }
   if(el.dataset.pool){ const c = state.categories[el.dataset.pool]; if(c){ put.cat({...c, toPool: !toPool(c)}); render(); } return; }
-  if(el.dataset.set){ budSeg = el.dataset.bsegGo || "cat"; goSet(el.dataset.set); return; }
+  if(el.dataset.set){ budSeg = el.dataset.bsegGo || "cat"; if(el.dataset.fsegGo) fixSeg = el.dataset.fsegGo; goSet(el.dataset.set); return; }
   if(el.dataset.tab){ tab = el.dataset.tab; if(tab==="report") reportSeg = "analysis"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); return; }
   if(el.dataset.edit){ const t = findTx(el.dataset.edit); t && openEntry(t); return; }
   if(el.dataset.inst){ const i = state.installments[el.dataset.inst]; i && openInstallment(i); return; }
@@ -3060,7 +3064,8 @@ function openOnboarding(dry){
       el = obShell(`${top(1)}<h2 class="obh">收入與週期</h2><p class="obp">知道每月收入，才能算出可以分配多少預算。沒有固定收入可以直接下一步。</p>
         <div class="fields"><label class="full">每月大約收入（NT$）<input class="inp num" id="ob-inc" inputmode="numeric" placeholder="例如 40000" value="${ob.income ?? ""}"></label>
         <label class="full">幾號發薪<select id="ob-pay">${Array.from({length:31}, (_,i) => `<option value="${i+1}" ${ob.payday === i+1 ? "selected" : ""}>每月 ${i+1} 日</option>`).join("")}</select></label></div>
-        <p class="small muted obnote">月預算會從發薪日開始算。發薪日不固定就選 1 日。</p>${foot("下一步")}`);
+        <p class="small muted obnote">月預算會從發薪日開始算。發薪日不固定就選 1 日。</p>
+        <p class="small muted obnote">收入不固定？填一個保守的月平均（例如最近幾個月裡最少的那個月），或先留空，App 會改用上一期實際記到的收入估算。</p>${foot("下一步")}`);
       $("#ob-inc", el).addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g, ""); ob.income = intOf(e.target.value); });
       $("#ob-pay", el).addEventListener("change", e => { ob.payday = +e.target.value; });
     } else if(ob.step === 2){
