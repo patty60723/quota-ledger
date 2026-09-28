@@ -1001,6 +1001,7 @@ header.top .srch + .more{margin-left:0}
 .gdcard .gdviz + h3{margin-top:var(--space-1)}
 .gdpath{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);padding-top:var(--space-1)}
 .gdpath .lbl{font-size:12px;color:var(--faint)}
+.gdpath .pth .ic{width:14px;height:14px;margin-right:2px;vertical-align:-2px}
 .gdpath .pth{font-size:13px;font-weight:600;padding:var(--space-1) var(--space-3);border-radius:999px;background:var(--accent-soft);color:var(--ink)}
 .gdcard{padding-top:var(--space-4);gap:var(--space-3)}
 .firstnote{display:flex;gap:var(--space-2);align-items:flex-start;margin:calc(var(--space-6) * -1 + var(--space-3)) 0 0;padding:var(--space-3) var(--space-4);border-radius:var(--r-ctl);background:var(--sunk);color:var(--muted);font-size:13px;line-height:1.6}
@@ -3165,18 +3166,18 @@ function openGuide(afterSetup, onDone){
     data: `<div class="card setlist"><div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原</span></div><span class="btn small">匯出</span></div></div>`
   };
   const cards = [
-    { v: V.rec, h: "記一筆，也能一點就記", p: "常記的東西存成常用，之後一點就記好；同一筆記了 3 次，App 也會主動問你要不要存。", where: ["右下角 ＋", "首頁 → 快速記帳"] },
+    { v: V.rec, h: "記一筆，也能一點就記", p: "常記的東西存成常用，之後一點就記好；同一筆記了 3 次，App 也會主動問你要不要存。", where: ["{plus}記一筆", "首頁 → 快速記帳"] },
     { v: V.flex, h: "預算有彈性，超支也不慌", p: "某一類超支時，可以跟其他類別借、跟下個月借，或動用「已節省結餘」。每一期沒用完的預算，會自動存進已節省結餘。", where: ["首頁 → 需要注意", "看懂 → 預算進度"] },
     { v: V.wish, h: "想買的，先放 7 天", p: "想買的東西先放著，App 會告訴你現在可以買、再等等，還是會影響本期預算；決定買了，按「買了」就直接記帳。", where: ["下方「想買」分頁"] },
-    { v: V.fixed, h: "固定收支與分期", p: "房租、電信、薪資這類每月固定的，到期會提醒你確認；分期付款會自動占用之後每一期的額度。「今天可以花」會先扣掉這期還沒付的。", where: ["齒輪 → 固定收支與分期", "記一筆 → 分期付款"] },
-    { v: V.nw, h: "必要、需要、想要", p: "每筆支出可以標記是必要、需要還是想要。「看懂」會算出想要占多少，並用必要支出推算緊急預備金該存多少。", where: ["記一筆 → 這筆是", "看懂 → 收支分析"] },
-    { v: V.data, h: local ? "資料只存在這台手機" : "記得偶爾備份", p: local ? "沒有雲端帳號，換手機或清除瀏覽器資料，資料就會不見。記得定期匯出備份，App 每兩週會提醒一次。剛剛設定的每一項，也都能在齒輪裡改。" : "資料會在這個頁面同步，還是建議偶爾匯出一份備份。剛剛設定的每一項，也都能在齒輪裡改。", where: ["齒輪 → 資料與備份"] }
+    { v: V.fixed, h: "固定收支與分期", p: "房租、電信、薪資這類每月固定的，到期會提醒你確認；分期付款會自動占用之後每一期的額度。「今天可以花」會先扣掉這期還沒付的。", where: ["{gear}設定 → 固定收支與分期", "{plus}記一筆 → 分期付款"] },
+    { v: V.nw, h: "必要、需要、想要", p: "每筆支出可以標記是必要、需要還是想要。「看懂」會算出想要占多少，並用必要支出推算緊急預備金該存多少。", where: ["{plus}記一筆 → 這筆是", "看懂 → 收支分析"] },
+    { v: V.data, h: local ? "資料只存在這台手機" : "記得偶爾備份", p: local ? "沒有雲端帳號，換手機或清除瀏覽器資料，資料就會不見。記得定期匯出備份，App 每兩週會提醒一次。剛剛設定的每一項，也都能在右上角的「設定」裡改。" : "資料會在這個頁面同步，還是建議偶爾匯出一份備份。剛剛設定的每一項，也都能在右上角的「設定」裡改。", where: ["{gear}設定 → 資料與備份"] }
   ];
   const el = obShell(`<div class="obtop"><span></span><div class="obdots" id="gd-dots">${cards.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div><button class="link" data-gd="done">${afterSetup ? "略過" : "關閉"}</button></div>
     <h2 class="obh">${afterSetup ? "設定好了，你可以這樣用" : "使用說明"}</h2>
     <div class="gdcards" id="gd-cards">${cards.map((c, i) => `<section class="gdcard" aria-label="${i+1} / ${cards.length}：${c.h}">
       <div class="gdviz" aria-hidden="true">${c.v}</div><h3>${c.h}</h3><p>${c.p}</p>
-      <div class="gdpath"><span class="lbl">在哪裡</span>${c.where.map(w => `<span class="pth">${w}</span>`).join("")}</div></section>`).join("")}</div>
+      <div class="gdpath"><span class="lbl">在哪裡</span>${c.where.map(w => `<span class="pth">${w.replace("{plus}", icon("plus")).replace("{gear}", icon("gear"))}</span>`).join("")}</div></section>`).join("")}</div>
     <div class="obfoot gdfoot"><button class="btn" data-gd="prev">上一張</button><button class="btn primary" data-gd="next">下一張</button></div>`);
   const box = $("#gd-cards", el); let at = 0;
   const sync = () => { at = Math.round(box.scrollLeft / box.clientWidth);
