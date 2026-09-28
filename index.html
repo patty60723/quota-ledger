@@ -912,7 +912,7 @@ html{-webkit-tap-highlight-color:transparent}
 .cd.future .dn{color:var(--faint)}
 /* settings selects keep their full width so the value isn't clipped (e.g. 警戒線 80%) */
 .setrow > select{flex-shrink:0}
-/* header search button sits left of ⋯ */
+/* header search button sits left of the gear */
 header.top .srch{margin-left:auto}
 header.top .srch + .more{margin-left:0}
 /* search sheet */
@@ -1066,6 +1066,7 @@ const ICON = {
   chevl: '<path d="m15 18-6-6 6-6"/>',
   up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
   down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+  gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
   search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
   info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r="1"/>',
   archery: '<circle cx="11" cy="13" r="7"/><circle cx="11" cy="13" r="3"/><path d="m11 13 9-9M16 4h4v4"/>'
@@ -1496,7 +1497,7 @@ function checkOverspend(s){
 const TABS = [["home","home","今天"],["list","list","明細"],["wish","wish","想買"],["report","report","看懂"]];
 let tab = "home";
 let prevTab = "home", setPage = "prefs", fixSeg = "rec", budSeg = "cat";
-const SET_PAGES = { budget: "預算與儲蓄", fixed: "固定收支與分期", fav: "常用項目", prefs: "設定", data: "資料與備份" };
+const SET_PAGES = { budget: "預算與儲蓄", fixed: "固定收支與分期", fav: "常用項目", prefs: "一般", data: "資料與備份" };
 try{ const sp = localStorage.getItem("ledger.setpage"); if(SET_PAGES[sp]) setPage = sp; }catch(e){}
 // settings pages live behind the top-right menu; they open on top of whatever tab was showing
 function goSet(page){
@@ -1552,7 +1553,7 @@ function render(){
   const sync = `<div class="sync" id="sync" ${db && !syncOn ? "" : "hidden"}><i></i><span>同步中斷，先存在這個瀏覽器</span></div>`;
   const head = tab === "settings"
     ? `<header class="top sub"><button class="backbtn" data-act="back" aria-label="返回">${icon("chevl")}返回</button><div class="ttl">${SET_PAGES[setPage] || "設定"}</div>${sync}</header>`
-    : `<header class="top"><div class="brand"><img class="wm wm-light" src="icons/wordmark.png" alt="慢慢花手帳" width="172" height="38"><img class="wm wm-dark" src="icons/wordmark-dark.png" alt="慢慢花手帳" width="172" height="38"></div>${sync}<button class="iconbtn more srch" data-act="search" aria-label="搜尋紀錄">${icon("search")}</button><button class="iconbtn more" data-act="more" aria-label="更多：設定與備份">${icon("more")}</button></header>`;
+    : `<header class="top"><div class="brand"><img class="wm wm-light" src="icons/wordmark.png" alt="慢慢花手帳" width="172" height="38"><img class="wm wm-dark" src="icons/wordmark-dark.png" alt="慢慢花手帳" width="172" height="38"></div>${sync}<button class="iconbtn more srch" data-act="search" aria-label="搜尋紀錄">${icon("search")}</button><button class="iconbtn more" data-act="more" aria-label="設定">${icon("gear")}</button></header>`;
   const body = tab==="home" ? viewHome() : tab==="list" ? viewList() : tab==="wish" ? viewWish() : tab==="report" ? viewReport() : viewSettings();
   // animate when the screen changes (tab, period, report view); expanding a row, saving or syncing redraws quietly
   const viewKey = [tab, pkey(viewPeriod), reportSeg, tab === "settings" ? setPage : ""].join("|");
@@ -1606,7 +1607,7 @@ function needsAttention(c, p){
 }
 function budgetRows(p, list){
   list = list || budgetCats();
-  if(!list.length) return `<div class="empty">還沒有設定預算。到右上角 ⋯ →「預算與儲蓄」幫想控制的類別設上限。</div>`;
+  if(!list.length) return `<div class="empty">還沒有設定預算。到右上角齒輪 →「預算與儲蓄」幫想控制的類別設上限。</div>`;
   return list.map(c => {
     let html = `<div class="bud">`;
     if(c.monthlyLimit){
@@ -1644,7 +1645,7 @@ const byUrgency = p => (a, b) => {
 };
 function budgetCompact(p){
   const all = budgetCats();
-  if(!all.length) return `<div class="empty">還沒有設定預算。到右上角 ⋯ →「預算與儲蓄」幫想控制的類別設上限。</div>`;
+  if(!all.length) return `<div class="empty">還沒有設定預算。到右上角齒輪 →「預算與儲蓄」幫想控制的類別設上限。</div>`;
   const use = c => c.monthlyLimit ? (b => b.cap ? b.used / b.cap : 1)(budgetOf(c, p)) : -1;
   const isOver = c => c.monthlyLimit && budgetOf(c, p).avail < 0;
   const over = all.filter(isOver).sort((a,b) => use(b) - use(a));
@@ -1815,7 +1816,7 @@ function viewHome(){
       <div class="hcard">${up.map(u => { const dd = dayDiff(todayStr(), u.date); return `<div class="trow"><span class="qic ${catTint(u.cat)}">${u.wish ? icon("wish") : catMark(u.cat, u.title)}</span><div class="meta"><b>${esc(u.title)}</b><span>${md(u.date)} · ${u.sub}</span></div><div class="upr"><b class="num${u.income ? " inc" : ""}">${u.amount ? (u.income ? "+" : "−") + moneyShort(u.amount) : ""}</b><small>${dd === 1 ? "明天" : `${dd} 天後`}</small></div></div>`; }).join("")}</div></section>` : "";
   const recent = realTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,5);
   const rec = `<section class="hsec"><div class="hhead"><h2>最近</h2><button class="link" data-tab="list">看全部${icon("chev","sm")}</button></div>
-      <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到右上角 ⋯ →「資料與備份」匯入。</div>`}</div></section>`;
+      <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到右上角齒輪 →「資料與備份」匯入。</div>`}</div></section>`;
   return `<div class="home">${hero}${quick}${alert}${next}${rec}</div>`;
 }
 
@@ -2750,12 +2751,12 @@ async function doInstall(){
 function openMore(){
   const item = (k, sub) => `<button class="setrow" data-m="${k}"><div class="k"><b>${SET_PAGES[k]}</b><span>${sub}</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button>`;
   const canInstall = !!installEvt && !window.claude && !isStandalone();
-  openSheet(`<div class="hd"><h2>更多</h2><button class="btn ghost" data-x>關閉</button></div>
+  openSheet(`<div class="hd"><h2>設定</h2><button class="btn ghost" data-x>關閉</button></div>
     <div class="card setlist menu">
       ${item("budget", "類別與每月上限、目標儲蓄、已節省結餘")}
       ${item("fixed", "每月固定的收入、支出，以及分期")}
       ${item("fav", "快速記帳的項目和排序")}
-      ${item("prefs", "預算週期、一週起始日、警戒線、明細預設、主題、配色")}
+      ${item("prefs", "週期、警戒線、明細預設、主題配色")}
       ${item("data", `匯出、還原、匯入 · ${backupText()}`)}
     </div>
     ${canInstall ? `<div class="card setlist menu"><button class="setrow" data-install><div class="k"><b>安裝到主畫面</b><span>像一般 App 一樣從桌面打開，離線也能用</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button></div>` : ""}`, sheet => {
