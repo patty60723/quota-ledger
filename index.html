@@ -2097,15 +2097,6 @@ function insights(){
   if(el >= 4){ const spent = new Set(cur.filter(t => t.type === "expense" && !t.virtual && !isFixed(t)).map(t => t.date)); let free = 0;
     for(let d = parseYmd(pa); ymd(d) < today; d.setDate(d.getDate() + 1)) if(!spent.has(ymd(d))) free++;
     if(free >= 3) out.push({ key: "free", pri: 40, tone: "good", icon: "star", title: `這期有 ${free} 天沒有花錢`, sub: `不算固定支出。過了 ${el - 1} 天，每 ${Math.max(1, Math.round((el - 1) / free))} 天就有 1 天沒花`, act: { list: 1 } }); }
-  // 7. a category without a budget that is taking a real share of the spending
-  const allOut = spend(cur);
-  const nob = cats("expense").filter(c => !c.monthlyLimit).map(c => ({ c, a: spend(cur, c.id) })).filter(x => x.a >= 3000 && allOut && x.a / allOut >= 0.08).sort((x, y) => y.a - x.a)[0];
-  if(nob) out.push({ key: "nobud:" + nob.c.id, pri: 45, tone: "info", icon: catIconFor(nob.c) || "coin", title: `${esc(nob.c.name)}還沒有設預算`,
-    sub: `這期已經花了 <b class="num">NT$${moneyShort(nob.a)}</b>（占 ${Math.round(nob.a / allOut * 100)}%）。設個上限，「今天可以花」才會把它算進去`, act: { set: "budget" } });
-  // 8. card spending this period, for people who note 信用卡 on their records
-  const card = cur.filter(t => t.type === "expense" && !t.virtual && /信用卡/.test(t.note || ""));
-  if(card.length >= 3) out.push({ key: "card", pri: 35, tone: "info", icon: "receipt", title: `這期信用卡刷了 NT$${moneyShort(spend(card))}`,
-    sub: `共 ${card.length} 筆，繳卡費時記得留這筆錢`, act: { search: "信用卡" } });
   // 9. near the end of the period: how much should roll into 已節省結餘
   if(el >= total - 7 && el < total){ const save = cats("expense").filter(toPool).reduce((a, c) => { const b = budgetOf(c, p); return a + Math.max(0, b.cap - Math.max(b.used, projOf(c, b))); }, 0);
     if(save >= 500) out.push({ key: "save", pri: 58, tone: "good", icon: "jar", title: `這期可望存下 NT$${moneyShort(save)}`, sub: `照目前的速度，這期結束時會轉入已節省結餘`, act: { bud: 1 } }); }
