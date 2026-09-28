@@ -883,6 +883,7 @@ html{-webkit-tap-highlight-color:transparent}
 .quickrow,.favbar,.nwfilter{scrollbar-width:none}
 .quickrow::-webkit-scrollbar,.favbar::-webkit-scrollbar,.nwfilter::-webkit-scrollbar{display:none}
 .on-settings .fab{display:none}
+.wdue.soon{color:var(--warn);font-weight:600}
 /* ---------- shared info popover ---------- */
 .infobtn{display:inline-grid;place-items:center;width:28px;height:28px;margin:-8px 0 -8px 2px;padding:0;border:0;background:none;color:inherit;opacity:.6;vertical-align:middle;position:relative;cursor:pointer}
 .infobtn::after{content:"";position:absolute;inset:-8px}
@@ -2403,7 +2404,11 @@ function viewWish(){
   const open = Object.values(state.wishes).filter(w => !w.purchasedOn).map(w => { const s = wishScore(w); return { w, s, st: wishStatus(w, s) }; })
     .sort((a,b) => RANK[a.st[0]] - RANK[b.st[0]] || b.s.total - a.s.total);
   const bought = Object.values(state.wishes).filter(w => w.purchasedOn).sort((a,b) => b.purchasedOn.localeCompare(a.purchasedOn));
-  const md = s => { const d = parseYmd(s); return `${d.getMonth()+1}/${d.getDate()}`; };
+  // dates outside this year carry the year, so "6/30" can't be mistaken for this June
+  const md = s => { const d = parseYmd(s); const y = d.getFullYear() !== new Date().getFullYear() ? `${d.getFullYear()}/` : ""; return `${y}${d.getMonth()+1}/${d.getDate()}`; };
+  const due = s => { const d = dayDiff(todayStr(), s);
+    const rel = d < 0 ? `已經過了 ${-d} 天` : d === 0 ? "就是今天" : d <= 45 ? `還有 ${d} 天` : `約 ${Math.round(d / 30.4)} 個月後`;
+    return `<span class="wmeta wdue${d <= 7 ? " soon" : ""}">最晚 <span class="num">${md(s)}</span> 前買 · ${rel}</span>`; };
   const cards = open.length ? open.map(({w, s, st}) => {
     const [cls, line] = wishBudgetLine(w);
     const meta = [catName(w.categoryId), w.need==="need" ? "需要" : "想要"].join(" · ");
@@ -2411,7 +2416,7 @@ function viewWish(){
     const impact = w.price && avail !== null ? `<p class="wimpact">買了之後，${esc(c.name)}本期可用 <span class="num">NT$${moneyShort(avail)}</span> → <b class="num${avail - w.price < 0 ? " bad" : ""}">${avail - w.price < 0 ? "−" : ""}NT$${moneyShort(Math.abs(avail - w.price))}</b></p>` : "";
     return `<div class="card wish">
       <div class="w0"><span class="wst ${st[0]}">${st[1]}</span><span class="num wprice${w.price ? "" : " none"}">${w.price ? "NT$" + moneyShort(w.price) : "未填價格"}</span></div>
-      <div class="wmain"><b>${esc(w.name)}</b><span class="wmeta">${esc(meta)}</span><span class="wmeta">已放 ${s.days} 天${w.deadline ? ` · ${md(w.deadline)} 前要買` : ""}</span></div>
+      <div class="wmain"><b>${esc(w.name)}</b><span class="wmeta">${esc(meta)}</span><span class="wmeta">已放 ${s.days} 天</span>${w.deadline ? due(w.deadline) : ""}</div>
       ${impact}
       <details class="why"><summary>為什麼？${icon("chev","sm")}</summary>
         <p>${st[2]}。</p>
