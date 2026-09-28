@@ -887,6 +887,11 @@ html{-webkit-tap-highlight-color:transparent}
 .bcfix{display:flex;align-items:center;justify-content:flex-start;gap:var(--space-3);padding:0 var(--space-4) var(--space-3) calc(var(--space-4) + 24px + var(--space-3));font-size:13px;color:var(--stamp)}
 .bcfix b{font-weight:600}
 .bcfix .btn{flex-shrink:0}
+/* overspend sheet: the lender picker takes the row, its button lines up with the other options' buttons */
+.opt .optrow{flex:1 1 100%;flex-wrap:nowrap;min-width:0}
+.opt .optrow select{flex:1 1 0;width:0;min-width:0;text-overflow:ellipsis}
+.opt > .btn{margin-left:auto}
+.opt .optrow .btn{flex-shrink:0}
 /* ---------- shared info popover ---------- */
 .infobtn{display:inline-grid;place-items:center;width:28px;height:28px;margin:-8px 0 -8px 2px;padding:0;border:0;background:none;color:inherit;opacity:.6;vertical-align:middle;position:relative;cursor:pointer}
 .infobtn::after{content:"";position:absolute;inset:-8px}
@@ -1392,7 +1397,7 @@ function openOverspend(s, byCategory){
       <div class="opt"><div class="k"><b>跟下個月借</b><span>${esc(c.name)}在 ${next.m} 月期${nb.avail - over >= 0 ? `會剩 ${moneyShort(nb.avail - over)}` : `會超出 ${moneyShort(over - nb.avail)}`}</span></div><button class="btn" data-o="next">借下個月</button></div>
       <div class="opt"><div class="k"><b>動用已節省結餘</b><span>目前結餘 ${moneyShort(pool)}${pool>=over?`，動用後剩 ${moneyShort(pool-over)}`:"，不夠補這筆"}</span></div><button class="btn" data-o="pool" ${pool>=over?"":"disabled"}>動用結餘</button></div>
     </div>
-    <p class="small muted" style="margin:0">先不決定的話，這筆會留在首頁「待處理的超支」。</p>`, sheet => {
+    <p class="small muted" style="margin:0">先不決定的話，之後可以在首頁「需要注意」或「看懂 → 預算進度」處理。</p>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", () => { closeSheet(); render(); });
     sheet.querySelectorAll("[data-o]").forEach(b => b.addEventListener("click", () => {
       const ch = b.dataset.o; const fromId = ch==="cat" ? $("#o-cat", sheet).value : null;
