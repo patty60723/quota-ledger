@@ -983,6 +983,13 @@ header.top .srch + .more{margin-left:0}
 .gdcard p{margin:0;font-size:16px;line-height:1.75;color:var(--muted)}
 .gdfoot{flex-direction:row}
 .gdfoot .btn{flex:1;min-height:52px;border-radius:16px;font-size:16px}
+.firstnote{display:flex;gap:var(--space-2);align-items:flex-start;margin:calc(var(--space-6) * -1 + var(--space-3)) 0 0;padding:var(--space-3) var(--space-4);border-radius:var(--r-ctl);background:var(--sunk);color:var(--muted);font-size:13px;line-height:1.6}
+.firstnote .ic{width:16px;height:16px;flex-shrink:0;margin-top:3px}
+.wipebk{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-radius:16px;background:var(--sunk)}
+.wipebk .k{display:flex;flex-direction:column;gap:2px;min-width:0}
+.wipebk .k span{font-size:13px;color:var(--muted);line-height:1.5}
+.wipebk .btn{flex-shrink:0}
+.btn.danger:disabled{opacity:.4}
 .cd .ci,.calleg .ci{width:5px;height:5px;border-radius:50%;background:var(--income);display:inline-block}
 .cd .ci{position:absolute;top:6px;right:6px}
 .cd:active{transform:none}
@@ -1857,7 +1864,10 @@ function viewHome(){
   const recent = realTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,5);
   const rec = `<section class="hsec"><div class="hhead"><h2>最近</h2><button class="link" data-tab="list">看全部${icon("chev","sm")}</button></div>
       <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到右上角齒輪 →「資料與備份」匯入。</div>`}</div></section>`;
-  return `<div class="home">${hero}${quick}${alert}${next}${rec}</div>`;
+  // a new user who starts mid-period: the whole period's budget is spread over the days left, so explain why it looks high
+  const so = state.settings.startedOn;
+  const firstNote = t.hasBudget && so && so > ppa && so <= ppb ? `<p class="firstnote">${icon("info")}<span>這是你的第一期，從 ${md(so)} 才開始記，之前的花費沒算進來，所以每天能花的會偏高。下一期（${md(ymd(new Date(parseYmd(ppb).getTime() + 864e5)))} 起）就會準確。</span></p>` : "";
+  return `<div class="home">${hero}${firstNote}${quick}${alert}${next}${rec}</div>`;
 }
 
 // 明細 can show the period as a list or as a month calendar (tap a day to see its records)
@@ -2147,6 +2157,7 @@ function viewSettings(){
       <div class="setrow"><div class="k"><b>從備份還原</b><span>會取代目前所有資料</span></div><label class="btn small" for="f-json">選擇檔案</label><input type="file" id="f-json" accept=".json,application/json" hidden></div>
       <div class="setrow"><div class="k"><b>貼上備份內容還原</b><span>選不了檔案時用：打開備份檔，全選複製後貼上</span></div><button class="btn small" data-act="paste-restore">貼上</button></div>
       <div id="exportBox"></div>
+      <div class="setrow"><div class="k"><b class="bad">清除所有資料</b><span>刪除這裡的全部紀錄和設定，重新開始</span></div><button class="btn small danger" data-act="wipe">清除</button></div>
     </div></div>`
   };
   return pages[setPage] || pages.prefs;
@@ -2834,6 +2845,33 @@ function openSearch(){
     draw(box, inp.value.trim()); setTimeout(() => inp.focus(), 50);
   });
 }
+// wiping everything: the button only unlocks after typing the phrase, and the sheet points to a backup first
+const WIPE_PHRASE = "清除所有資料";
+function openWipe(){
+  const n = { tx: realTx().length, cat: Object.keys(state.categories).length, rec: Object.keys(state.recurring).length, inst: Object.keys(state.installments).length, wish: Object.keys(state.wishes).length };
+  openSheet(`<div class="hd"><h2>清除所有資料</h2><button class="btn ghost" data-x>取消</button></div>
+    <div class="hint over">清除後<b>無法復原</b>。這裡的 <b class="num">${n.tx}</b> 筆紀錄、<b class="num">${n.cat}</b> 個類別與預算、<b class="num">${n.rec}</b> 筆固定收支、<b class="num">${n.inst}</b> 筆分期、<b class="num">${n.wish}</b> 個想買的東西和所有設定都會刪除。</div>
+    <div class="wipebk"><div class="k"><b>先確認有備份</b><span>${backupText()}。備份檔請存到這台裝置以外的地方，例如雲端硬碟，或寄給自己。</span></div><button class="btn small" data-bk>匯出備份</button></div>
+    <label class="field">請輸入「${WIPE_PHRASE}」確認<input class="inp" id="wipe-in" autocomplete="off" placeholder="${WIPE_PHRASE}"></label>
+    <div class="rowbtns"><button class="btn danger" data-go disabled>清除所有資料</button></div>`, sheet => {
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    $("[data-bk]", sheet).addEventListener("click", () => { doExport(); });
+    const inp = $("#wipe-in", sheet), go = $("[data-go]", sheet);
+    inp.addEventListener("input", () => { go.disabled = inp.value.trim() !== WIPE_PHRASE; });
+    go.addEventListener("click", async () => { if(inp.value.trim() !== WIPE_PHRASE) return; go.disabled = true; go.textContent = "清除中…"; await wipeAll(); });
+  });
+}
+async function wipeAll(){
+  if(db){
+    COLS.forEach(n => Object.keys(state[n] || {}).forEach(id => write(n+"/"+id, null)));
+    Object.keys(state.months).forEach(ym => write("months/"+ym, null));
+    write("meta/settings", null);
+    await Promise.all([...chains.values()].map(p => p.catch(() => {})));
+  }
+  // write() also saves locally, so the local copy is removed last; the reload then starts like a first visit
+  try{ [LS_KEY, "ledger.tab", "ledger.setpage", "ledger.rankview"].forEach(k => localStorage.removeItem(k)); }catch(e){}
+  location.reload();
+}
 function backupJson(){ return JSON.stringify({ app: "額度帳本", version: 2, exportedAt: new Date().toISOString(), data: state }, null, 1); }
 async function doExport(){
   const name = `額度帳本備份-${todayStr()}.json`; const data = backupJson();
@@ -2948,6 +2986,7 @@ document.addEventListener("click", e => {
   else if(a==="more") openMore();
   else if(a==="search") openSearch();
   else if(a==="guide") openGuide();
+  else if(a==="wipe") openWipe();
   else if(a==="ob-dry") openOnboarding(true);
   else if(a==="info") togglePop(el.dataset.pop, el);
   else if(a==="imp-cancel"){ importPreview = null; render(); }
@@ -3064,7 +3103,7 @@ function openOnboarding(dry){
   const finish = () => {
     if(dry){ openGuide(true, () => toast("預覽模式：剛剛的設定沒有儲存")); return; }
     if(!skipped) apply();
-    state.settings.onboarded = true; put.settings();
+    state.settings.onboarded = true; state.settings.startedOn = todayStr(); put.settings();
     tab = "home"; try{ localStorage.setItem("ledger.tab", tab); }catch(e){}
     render(); openGuide(true);
   };
