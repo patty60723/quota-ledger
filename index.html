@@ -892,6 +892,29 @@ html{-webkit-tap-highlight-color:transparent}
 .tag.full{background:transparent;color:var(--stamp);box-shadow:inset 0 0 0 1px var(--stamp);font-weight:600}
 .st.full{color:var(--stamp);font-weight:600}
 .bar.full > i{background:var(--stamp)}
+/* 明細 calendar */
+.lseg{margin-top:var(--space-4)}
+.lseg + .card.cal{margin-top:var(--space-4)}
+.cal{padding:var(--space-3) var(--space-2) var(--space-3)}
+.calh,.calg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:var(--space-1)}
+.calh span{text-align:center;font-size:12px;color:var(--muted);padding-bottom:var(--space-1)}
+.cd{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;min-height:52px;padding:var(--space-2) 0 var(--space-1);border:0;border-radius:10px;background:transparent;color:var(--ink);font:inherit;min-width:0}
+.cd.pad{visibility:hidden}
+.cd .dn{font-size:13px;font-weight:500;line-height:1.2}
+.cd .da{font-size:10.5px;line-height:1.2;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cd.l1{background:color-mix(in srgb,var(--fab-bg) 14%,transparent)}
+.cd.l2{background:color-mix(in srgb,var(--fab-bg) 28%,transparent)}
+.cd.l3{background:color-mix(in srgb,var(--fab-bg) 44%,transparent)}
+.cd.l4{background:color-mix(in srgb,var(--fab-bg) 62%,transparent)}
+.cd.l3 .da,.cd.l4 .da{color:var(--ink)}
+.cd.today .dn{color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.cd.sel{box-shadow:inset 0 0 0 2px var(--ink)}
+.cd.future .dn{color:var(--faint)}
+.cd .ci,.calleg .ci{width:5px;height:5px;border-radius:50%;background:var(--income);display:inline-block}
+.cd .ci{position:absolute;top:6px;right:6px}
+.cd:active{transform:none}
+.calleg{display:flex;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;padding:var(--space-3) var(--space-2) 0;font-size:12px;color:var(--muted)}
+.calleg span{display:inline-flex;align-items:center;gap:var(--space-1)}
 /* overspend sheet: the lender picker takes the row, its button lines up with the other options' buttons */
 .opt .optrow{flex:1 1 100%;flex-wrap:nowrap;min-width:0}
 .opt .optrow select{flex:1 1 0;width:0;min-width:0;text-overflow:ellipsis}
@@ -1762,10 +1785,43 @@ function viewHome(){
   return `<div class="home">${hero}${quick}${alert}${next}${rec}</div>`;
 }
 
+// 明細 can show the period as a list or as a month calendar (tap a day to see its records)
+let listMode = "list", calDay = null;
+try{ if(localStorage.getItem("ledger.listmode") === "cal") listMode = "cal"; }catch(e){}
 function viewList(){
   const list = txIn(viewPeriod);
-  return periodNav() + `<div class="weekline"><span>支出 <b class="num">${money(sumOut(list))}</b></span><span>收入 <b class="num">${money(sumIncome(list))}</b></span></div>
-    <div class="section"><div class="card txlist">${txRows(list,true)}</div></div>`;
+  const seg = `<div class="seg lseg" role="tablist" aria-label="明細顯示方式">
+      <button role="tab" data-lseg="list" aria-pressed="${listMode==="list"}" aria-selected="${listMode==="list"}">列表</button>
+      <button role="tab" data-lseg="cal" aria-pressed="${listMode==="cal"}" aria-selected="${listMode==="cal"}">月曆</button></div>`;
+  const head = periodNav() + `<div class="weekline"><span>支出 <b class="num">${money(sumOut(list))}</b></span><span>收入 <b class="num">${money(sumIncome(list))}</b></span></div>` + seg;
+  if(listMode !== "cal") return head + `<div class="section"><div class="card txlist">${txRows(list,true)}</div></div>`;
+  return head + calendarView(list);
+}
+function calendarView(list){
+  const [a, b] = periodRange(viewPeriod); const today = todayStr();
+  const byDay = {}; list.forEach(t => { (byDay[t.date] ||= []).push(t); });
+  // selected day: keep it if it's in this period, else today (when inside), else the latest day with records, else the first day
+  if(!calDay || calDay < a || calDay > b) calDay = today >= a && today <= b ? today : (Object.keys(byDay).sort().pop() || a);
+  const outOf = d => sumOut(byDay[d] || []);
+  const max = Math.max(1, ...Object.keys(byDay).map(outOf));
+  const ws = state.settings.weekStart ?? 1;
+  const heads = Array.from({length:7}, (_, i) => `<span>${WEEK[(ws + i) % 7]}</span>`).join("");
+  const first = parseYmd(a); const lead = (first.getDay() - ws + 7) % 7;
+  const short = v => v >= 10000 ? (v / 10000).toLocaleString("zh-TW", { maximumFractionDigits: 1 }) + "萬" : moneyShort(v);
+  let cells = Array.from({length: lead}, () => `<span class="cd pad" aria-hidden="true"></span>`).join("");
+  for(let d = parseYmd(a); ymd(d) <= b; d.setDate(d.getDate() + 1)){
+    const k = ymd(d), out = outOf(k), inc = sumIncome(byDay[k] || []);
+    const lvl = out > 0 ? Math.min(4, Math.ceil(out / max * 4)) : 0;
+    // day 1 of a month (or the first cell) shows the month too, since a period can start mid-month
+    const label = d.getDate() === 1 || k === a ? `${d.getMonth()+1}/${d.getDate()}` : d.getDate();
+    cells += `<button class="cd l${lvl}${k === today ? " today" : k > today ? " future" : ""}${k === calDay ? " sel" : ""}" data-calday="${k}" aria-pressed="${k === calDay}" aria-label="${d.getMonth()+1} 月 ${d.getDate()} 日${out ? `，支出 ${out} 元` : ""}${inc ? `，收入 ${inc} 元` : ""}">
+      <span class="dn num">${label}</span>${out ? `<span class="da num">${short(out)}</span>` : ""}${inc ? `<i class="ci" aria-hidden="true"></i>` : ""}</button>`;
+  }
+  const dayList = byDay[calDay] || []; const sd = parseYmd(calDay);
+  const dayHead = `${sd.getMonth()+1} 月 ${sd.getDate()} 日（${WEEK[sd.getDay()]}）`;
+  return `<div class="card cal"><div class="calh" aria-hidden="true">${heads}</div><div class="calg">${cells}</div>
+      <div class="calleg"><span><i class="ci"></i>有收入</span><span>顏色越深，當天花越多</span></div></div>
+    <div class="section"><div class="card txlist">${dayList.length ? txRows(dayList, true) : `<div class="daygrp"><span>${dayHead}</span></div><div class="empty">這天沒有紀錄。</div>`}</div></div>`;
 }
 
 function viewReport(){
@@ -2702,6 +2758,10 @@ document.addEventListener("click", e => {
   if(bs){ budSeg = bs.dataset.bseg; render(); return; }
   const fs = e.target.closest("[data-fseg]");
   if(fs){ fixSeg = fs.dataset.fseg; render(); return; }
+  const ls = e.target.closest("[data-lseg]");
+  if(ls){ listMode = ls.dataset.lseg; try{ localStorage.setItem("ledger.listmode", listMode); }catch(err){} render(); return; }
+  const cdy = e.target.closest("[data-calday]");
+  if(cdy){ calDay = cdy.dataset.calday; render(); return; }
   const rs = e.target.closest("[data-rseg]");
   if(rs){ reportSeg = rs.dataset.rseg; render(); return; }
   const oc = e.target.closest("[data-overcat]");
