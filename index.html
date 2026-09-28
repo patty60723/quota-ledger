@@ -1576,13 +1576,18 @@ function budgetRows(p, list){
 
 let pendOpen = false, reportSeg = "analysis";
 const budOpen = new Set();
+// attention order: used up (nothing left to spend) before almost used up, then by share used
+const byUrgency = p => (a, b) => {
+  const r = c => { if(!c.monthlyLimit) return [1, -1]; const x = budgetOf(c, p); return [x.avail === 0 ? 0 : 1, x.cap ? x.used / x.cap : 1]; };
+  const [ra, ua] = r(a), [rb, ub] = r(b); return ra - rb || ub - ua;
+};
 function budgetCompact(p){
   const all = budgetCats();
   if(!all.length) return `<div class="empty">還沒有設定預算。到右上角 ⋯ →「預算與儲蓄」幫想控制的類別設上限。</div>`;
   const use = c => c.monthlyLimit ? (b => b.cap ? b.used / b.cap : 1)(budgetOf(c, p)) : -1;
   const isOver = c => c.monthlyLimit && budgetOf(c, p).avail < 0;
   const over = all.filter(isOver).sort((a,b) => use(b) - use(a));
-  const hot = all.filter(c => !isOver(c) && needsAttention(c, p)).sort((a,b) => use(b) - use(a));
+  const hot = all.filter(c => !isOver(c) && needsAttention(c, p)).sort(byUrgency(p));
   const rest = all.filter(c => !isOver(c) && !needsAttention(c, p)).sort((a,b) => use(b) - use(a));
   return (over.length ? `<div class="bgh over">超支 ${over.length}</div>` + budgetCompactRows(p, over) : "")
     + (hot.length ? `<div class="bgh">需要注意 ${hot.length}</div>` + budgetCompactRows(p, hot) : "")
@@ -1727,7 +1732,7 @@ function viewHome(){
     return `<button class="trow tap" data-act="bud-all"><span class="qic ${catTint(c)}">${catMark(c)}</span><div class="meta"><b class="nmrow"><span class="t">${esc(c.name)}</span><span class="tag ${isOver ? "over" : "warn"}">${isOver ? "超支" : b.avail === 0 ? "已用完" : "快用完"}</span></b><span class="num">已用 ${Math.round(pct*100)}% · ${isOver ? "超出 NT$" + moneyShort(-b.avail) : "還剩 NT$" + moneyShort(b.avail)}</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button>`; };
   // overspent categories go first and can be fixed right here; the rest open the budget list
   const hotLeft = hot.filter(c => !overs.some(s => s.categoryId === c.id));
-  const hotOver = hotLeft.filter(c => budgetOf(c, p).avail < 0 && overSubject(c, p)), hotRest = hotLeft.filter(c => !hotOver.includes(c));
+  const hotOver = hotLeft.filter(c => budgetOf(c, p).avail < 0 && overSubject(c, p)), hotRest = hotLeft.filter(c => !hotOver.includes(c)).sort(byUrgency(p));
   const overRow = c => `<div class="trow"><span class="qic ${catTint(c)}">${catMark(c)}</span><div class="meta"><b class="nmrow"><span class="t">${esc(c.name)}</span><span class="tag over">超支</span></b><span class="num">超出 NT$${moneyShort(-budgetOf(c, p).avail)}</span></div><button class="btn small" data-overcat="${esc(c.id)}" data-p="${pkey(p)}">處理</button></div>`;
   const alert = n ? `<section class="hsec"><div class="hhead"><h2>需要注意 <span class="count">${n}</span></h2>${pend.length > 1 ? `<button class="link" data-act="rec-all">固定收支全部確認</button>` : ""}</div>
       <div class="hcard card--alert alertc">
