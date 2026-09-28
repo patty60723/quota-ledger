@@ -1611,9 +1611,12 @@ function budgetCompactRows(p, list){
       main = `<span class="n">${esc(c.name)}</span><span class="v small muted">只設每年預算</span>`;
     }
     if(c.yearlyLimit){ const yu = yearUsed(c, p.y); detail.push(`${p.y} 年 ${moneyShort(yu)} / ${moneyShort(c.yearlyLimit)}${yu > c.yearlyLimit ? "（超過年度上限）" : ""}`); }
+    const body = `<span class="dot sm ${catTint(c)}">${catMark(c)}</span>${main}${bar}${meta ? `<span class="bm num">${meta}</span>` : ""}`;
+    // only rows with something more to show expand (and get the chevron)
+    if(!detail.length) return `<div class="bc">${body}</div>${fix}`;
     return `<button class="bc${open ? " open" : ""}" data-budx="${esc(c.id)}" aria-expanded="${open}">
-      <span class="bchev" aria-hidden="true">${icon("chev")}</span><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${main}${bar}${meta ? `<span class="bm num">${meta}</span>` : ""}
-      ${open && detail.length ? `<span class="bd num">${detail.map(d => `<span>${d}</span>`).join("")}</span>` : ""}</button>${fix}`;
+      <span class="bchev" aria-hidden="true">${icon("chev")}</span>${body}
+      ${open ? `<span class="bd num">${detail.map(d => `<span>${d}</span>`).join("")}</span>` : ""}</button>${fix}`;
   }).join("");
 }
 function homeBudget(p){ return homeBudgetInner(p); }
