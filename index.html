@@ -943,6 +943,46 @@ header.top .srch + .more{margin-left:0}
 .dl .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dl .v{font-weight:600}
 .dl small{color:var(--muted);text-align:right}
+/* ---------- onboarding & 使用說明 ---------- */
+.ob{position:fixed;inset:0;z-index:40;background:var(--paper);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.obin{max-width:560px;min-height:100%;margin:0 auto;display:flex;flex-direction:column;gap:var(--space-4);padding:calc(var(--space-4) + env(safe-area-inset-top,0px)) var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom,0px))}
+.obtop{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);min-height:44px}
+.obtop .backbtn{margin:0}
+.obdots{display:flex;gap:6px}
+.obdots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.obdots i.done{background:var(--faint)}
+.obdots i.on{width:22px;border-radius:4px;background:var(--ink)}
+.obh{font-size:24px;margin-top:var(--space-2)}
+.obp{margin:0;color:var(--muted);font-size:15px;line-height:1.6}
+.obnote{margin:0 2px}
+.obfoot{margin-top:auto;padding-top:var(--space-4);display:flex;flex-direction:column;gap:var(--space-3)}
+.obfoot .btn.block{min-height:52px;font-size:16px;border-radius:16px}
+.obskip{align-self:center}
+.obwel{flex:1;display:flex;flex-direction:column;justify-content:center;gap:var(--space-4);padding-top:var(--space-8)}
+.obwel .wm{height:52px}
+.obwel h1{margin:0;font-size:26px;line-height:1.45;font-weight:700}
+.obwel p{margin:0;font-size:15px;line-height:1.7}
+.obchips .chip{min-height:40px}
+.obchips .chip[aria-pressed="false"] .dot{opacity:.45}
+.obadd{display:flex;gap:var(--space-2)}
+.obadd .inp{flex:1;min-width:0}
+.oblims{display:flex;flex-direction:column}
+.oblim{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-2) var(--space-4);border-top:1px solid var(--line);min-height:56px}
+.oblim:first-child{border-top:0}
+.oblim .nm{font-weight:500}
+.oblim .inp{width:120px;text-align:right;flex-shrink:0}
+.oblim .v{font-weight:600}
+.obsum{margin:0 2px;color:var(--muted)}
+.obsum b{color:var(--ink)}
+.gdcards{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-inline:calc(var(--space-5) * -1);flex:1}
+.gdcards::-webkit-scrollbar{display:none}
+.gdcard{flex:0 0 100%;scroll-snap-align:center;padding:var(--space-6) var(--space-5);display:flex;flex-direction:column;gap:var(--space-4)}
+.gdic{width:64px;height:64px;border-radius:20px}
+.gdic .ic{width:30px;height:30px}
+.gdcard h3{margin:0;font-size:21px;font-weight:700}
+.gdcard p{margin:0;font-size:16px;line-height:1.75;color:var(--muted)}
+.gdfoot{flex-direction:row}
+.gdfoot .btn{flex:1;min-height:52px;border-radius:16px;font-size:16px}
 .cd .ci,.calleg .ci{width:5px;height:5px;border-radius:50%;background:var(--income);display:inline-block}
 .cd .ci{position:absolute;top:6px;right:6px}
 .cd:active{transform:none}
@@ -1369,7 +1409,7 @@ function budgetSummary(){
 }
 /* ---------- period closing: unused budget moves into savings ---------- */
 let loadedOnce = false;
-function afterLoad(){ if(loadedOnce) return; loadedOnce = true; closePeriods(); }
+function afterLoad(){ if(loadedOnce) return; loadedOnce = true; const fresh = usingDefaults && !realTx().length; closePeriods(); maybeOnboard(fresh); }
 function closePeriods(){
   const ck = pkey(curPeriod());
   if(!state.settings.savingsStart){ state.settings.savingsStart = ck; put.settings(); return; }
@@ -2094,6 +2134,9 @@ function viewSettings(){
       <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>明細預設顯示</b><span>打開明細時先看到哪一種；在明細頁上切換只影響這一次</span></div>
         <div class="seg" role="radiogroup" aria-label="明細預設顯示">${[["list","列表"],["cal","月曆"]].map(([k,l]) => `<button role="radio" data-listview-pick="${k}" aria-pressed="${(s.listView||"list")===k}" aria-checked="${(s.listView||"list")===k}">${l}</button>`).join("")}</div></div>
       <div class="setrow"><div class="k"><b>配色</b><span>淺色、深色都有對應的版本</span></div><select id="set-palette" aria-label="配色">${Object.entries(PALETTES).map(([k,v]) => `<option value="${k}" ${(s.palette||"blush")===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
+    </div></div>
+    <div class="section"><h2>說明</h2><div class="card setlist menu">
+      <button class="setrow" data-act="guide"><div class="k"><b>重看使用說明</b><span>記帳、預算彈性、想買清單等功能介紹；不會改到任何資料</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button><!--ob-extra-->
     </div></div>
 `,
     data: `<div class="section"><h2>資料</h2><div class="card setlist">
@@ -2904,6 +2947,8 @@ document.addEventListener("click", e => {
   else if(a==="back"){ tab = prevTab || "home"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
   else if(a==="more") openMore();
   else if(a==="search") openSearch();
+  else if(a==="guide") openGuide();
+  else if(a==="ob-dry") openOnboarding(true);
   else if(a==="info") togglePop(el.dataset.pop, el);
   else if(a==="imp-cancel"){ importPreview = null; render(); }
   else if(a==="imp-go"){ const pv = importPreview; importPreview = null; applyImport(pv); render(); }
@@ -2932,6 +2977,140 @@ document.addEventListener("change", e => {
   }
 });
 $("#fab").addEventListener("click", () => openEntry(null));
+
+/* ---------- onboarding: first run only (no records, nothing set up yet) ---------- */
+// every step can be skipped; the choices are applied together at the end, exactly as if set by hand in 設定
+const OB_PICKED = ["一般用餐","飲料點心","交通","日常用品","服飾","娛樂","醫療與健康","手機網路","其他支出"];
+// rough monthly shares used by 「先填總額」 to split a total across the picked categories
+const OB_WEIGHT = { "一般用餐":30,"大餐聚餐":8,"飲料點心":5,"交通":10,"日常用品":10,"服飾":6,"娛樂":8,"運動":5,"醫療與健康":5,"水電瓦斯":5,"手機網路":3,"房租房貸":30,"保險":5,"訂閱":2,"寵物":5,"其他支出":5 };
+// fresh: nothing was stored yet when the app loaded (checked before the first automatic settings save)
+function maybeOnboard(fresh){
+  if(state.settings.onboarded || !fresh) return;
+  openOnboarding(false);
+}
+function obShell(inner){
+  let el = document.getElementById("onboard");
+  if(!el){ el = document.createElement("div"); el.id = "onboard"; el.className = "ob"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); document.body.appendChild(el); }
+  el.innerHTML = `<div class="obin">${inner}</div>`; el.scrollTop = 0; return el;
+}
+function obClose(){ const el = document.getElementById("onboard"); if(el) el.remove(); }
+function openOnboarding(dry){
+  const exp = DEFAULT_CATS.filter(c => c.type === "expense");
+  const ob = { step: 0, income: null, payday: 1, picked: new Set(exp.filter(c => OB_PICKED.includes(c.name)).map(c => c.id)), extra: [], mode: "each", limits: {}, total: null, save: null };
+  const catList = () => exp.map(c => ({ id: c.id, name: c.name })).concat(ob.extra);
+  const chosen = () => catList().filter(c => ob.picked.has(c.id));
+  const room = () => ob.income ? Math.max(0, ob.income - (ob.save || 0)) : null;
+  const split = total => { const l = chosen(); const w = l.map(c => OB_WEIGHT[c.name] || 5); const sum = w.reduce((a,b) => a+b, 0) || 1;
+    return Object.fromEntries(l.map((c,i) => [c.id, Math.round(total * w[i] / sum / 100) * 100])); };
+  const limitsNow = () => ob.mode === "total" ? (ob.total ? split(ob.total) : {}) : ob.limits;
+  const dots = n => `<div class="obdots" aria-label="第 ${n} 步，共 3 步">${[1,2,3].map(i => `<i class="${i === n ? "on" : i < n ? "done" : ""}"></i>`).join("")}</div>`;
+  const top = n => `<div class="obtop"><button class="backbtn" data-ob="back">${icon("chevl")}上一步</button>${dots(n)}<button class="link" data-ob="skipall">略過設定</button></div>`;
+  const foot = (label, extra) => `<div class="obfoot">${extra || ""}<button class="btn primary block" data-ob="next">${label}</button></div>`;
+  const sumLine = () => { const r = room(); const used = Object.values(limitsNow()).reduce((a,b) => a + (b||0), 0);
+    return r === null ? `已分配 <b class="num">NT$${moneyShort(used)}</b>`
+      : `可分配 <b class="num">NT$${moneyShort(r)}</b> · 已分配 <b class="num">NT$${moneyShort(used)}</b> · ${r - used >= 0 ? `還沒分配 <b class="num">NT$${moneyShort(r - used)}</b>` : `<span class="bad">超出 <b class="num">NT$${moneyShort(used - r)}</b></span>`}`; };
+  const draw = () => {
+    let el;
+    if(ob.step === 0){
+      el = obShell(`<div class="obwel">
+          <img class="wm wm-light" src="icons/wordmark.png" alt="慢慢花手帳" width="172" height="38"><img class="wm wm-dark" src="icons/wordmark-dark.png" alt="慢慢花手帳" width="172" height="38">
+          <h1>每天知道還能花多少，<br>慢慢花，也存得到錢。</h1>
+          <p class="muted">花一分鐘設定收入、類別和預算，首頁就會算出「今天可以花」。每一步都可以略過，之後在設定裡隨時能改。</p></div>
+        <div class="obfoot"><button class="btn primary block" data-ob="next">開始設定</button><button class="btn block" data-ob="restore">我有備份，直接還原</button><button class="link obskip" data-ob="skipall">先略過，直接看看</button></div>`);
+    } else if(ob.step === 1){
+      el = obShell(`${top(1)}<h2 class="obh">收入與週期</h2><p class="obp">知道每月收入，才能算出可以分配多少預算。沒有固定收入可以直接下一步。</p>
+        <div class="fields"><label class="full">每月大約收入（NT$）<input class="inp num" id="ob-inc" inputmode="numeric" placeholder="例如 40000" value="${ob.income ?? ""}"></label>
+        <label class="full">幾號發薪<select id="ob-pay">${Array.from({length:31}, (_,i) => `<option value="${i+1}" ${ob.payday === i+1 ? "selected" : ""}>每月 ${i+1} 日</option>`).join("")}</select></label></div>
+        <p class="small muted obnote">月預算會從發薪日開始算。發薪日不固定就選 1 日。</p>${foot("下一步")}`);
+      $("#ob-inc", el).addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g, ""); ob.income = intOf(e.target.value); });
+      $("#ob-pay", el).addEventListener("change", e => { ob.payday = +e.target.value; });
+    } else if(ob.step === 2){
+      el = obShell(`${top(2)}<h2 class="obh">挑出你會用到的類別</h2><p class="obp">常用的已經先勾好，點一下可以取消。沒勾的不會刪掉，之後在設定裡能再打開。</p>
+        <div class="chips obchips" role="group" aria-label="支出類別">${catList().map(c => `<button class="chip" data-obcat="${esc(c.id)}" aria-pressed="${ob.picked.has(c.id)}"><span class="dot sm ${catTint({ sort: exp.findIndex(x => x.id === c.id) >= 0 ? exp.findIndex(x => x.id === c.id) : 100 + ob.extra.indexOf(c) })}">${catMark({ name: c.name })}</span>${esc(c.name)}</button>`).join("")}</div>
+        <div class="obadd"><input class="inp" id="ob-new" placeholder="新增自己的類別，例如：咖啡" maxlength="12"><button class="btn" data-ob="addcat">新增</button></div>
+        ${foot(`下一步（已選 ${ob.picked.size} 類）`)}`);
+      el.querySelectorAll("[data-obcat]").forEach(b => b.addEventListener("click", () => { const id = b.dataset.obcat; ob.picked.has(id) ? ob.picked.delete(id) : ob.picked.add(id); draw(); }));
+      $("#ob-new", el).addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); el.querySelector('[data-ob="addcat"]').click(); } });
+    } else if(ob.step === 3){
+      const list = chosen(); const lim = limitsNow();
+      el = obShell(`${top(3)}<h2 class="obh">設定每月預算</h2><p class="obp">幫每一類設個上限，首頁就會算出每天可以花多少。不確定可以先略過。</p>
+        <div class="fields"><label class="full">每月想存下多少（NT$，選填）<input class="inp num" id="ob-save" inputmode="numeric" placeholder="0" value="${ob.save ?? ""}"></label></div>
+        <div class="seg" role="radiogroup" aria-label="預算怎麼填"><button role="radio" data-obmode="each" aria-pressed="${ob.mode === "each"}" aria-checked="${ob.mode === "each"}">每類自己填</button><button role="radio" data-obmode="total" aria-pressed="${ob.mode === "total"}" aria-checked="${ob.mode === "total"}">先填總額</button></div>
+        ${ob.mode === "total" ? `<div class="fields"><label class="full">每月預算總額（NT$）<input class="inp num" id="ob-total" inputmode="numeric" placeholder="${room() ?? "例如 25000"}" value="${ob.total ?? ""}"></label></div>
+          <p class="small muted obnote">會照常見比例分給 ${list.length} 個類別，之後在設定裡可以再調。</p>` : ""}
+        <div class="card oblims">${list.length ? list.map(c => `<label class="oblim"><span class="nm">${esc(c.name)}</span>${ob.mode === "total" ? `<span class="num v">${lim[c.id] ? moneyShort(lim[c.id]) : "—"}</span>` : `<input class="inp num" data-oblim="${esc(c.id)}" inputmode="numeric" placeholder="不設定" value="${ob.limits[c.id] ?? ""}" aria-label="${esc(c.name)} 每月上限">`}</label>`).join("") : `<div class="empty">沒有選類別，可以回上一步挑。</div>`}</div>
+        <p class="small obsum" id="ob-sum">${sumLine()}</p>${foot("下一步")}`);
+      const upd = () => { $("#ob-sum", el).innerHTML = sumLine(); };
+      $("#ob-save", el).addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g, ""); ob.save = intOf(e.target.value); upd(); });
+      el.querySelectorAll("[data-obmode]").forEach(b => b.addEventListener("click", () => { ob.mode = b.dataset.obmode; if(ob.mode === "total" && !ob.total && room()) ob.total = room(); draw(); }));
+      const t = $("#ob-total", el); t && t.addEventListener("change", e => { ob.total = intOf(e.target.value); draw(); });
+      t && t.addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g, ""); });
+      el.querySelectorAll("[data-oblim]").forEach(i => i.addEventListener("input", () => { i.value = i.value.replace(/\D/g, ""); ob.limits[i.dataset.oblim] = intOf(i.value); upd(); }));
+    } else {
+      finish(); return;
+    }
+    el.querySelectorAll("[data-ob]").forEach(b => b.addEventListener("click", () => act(b.dataset.ob)));
+  };
+  const act = a => {
+    if(a === "next"){ if(ob.step === 3 && ob.mode === "total"){ const t = $("#ob-total"); if(t) ob.total = intOf(t.value); } ob.step++; draw(); }
+    else if(a === "back"){ ob.step = Math.max(0, ob.step - 1); draw(); }
+    else if(a === "skipall"){ ob.step = 4; skipped = true; draw(); }
+    else if(a === "restore"){ obClose(); if(!dry){ state.settings.onboarded = true; put.settings(); } goSet("data"); toast("選「從備份還原」或「貼上備份內容還原」"); }
+    else if(a === "addcat"){ const i = $("#ob-new"); const name = (i.value || "").trim(); if(!name) return;
+      const hit = catList().find(c => c.name === name); if(hit){ ob.picked.add(hit.id); draw(); return; }
+      const c = { id: uid(), name }; ob.extra.push(c); ob.picked.add(c.id); draw(); }
+  };
+  let skipped = false;
+  const finish = () => {
+    if(dry){ openGuide(true, () => toast("預覽模式：剛剛的設定沒有儲存")); return; }
+    if(!skipped) apply();
+    state.settings.onboarded = true; put.settings();
+    tab = "home"; try{ localStorage.setItem("ledger.tab", tab); }catch(e){}
+    render(); openGuide(true);
+  };
+  const apply = () => {
+    const lim = limitsNow();
+    exp.forEach(d => { const c = { ...state.categories[d.id] };
+      if(ob.picked.has(d.id)){ c.archived = false; if(lim[d.id]){ c.monthlyLimit = lim[d.id]; c.warn = true; } }
+      else c.archived = true;
+      put.cat(c); });
+    ob.extra.filter(x => ob.picked.has(x.id)).forEach((x, i) => put.cat({ id: x.id, name: x.name, type: "expense", monthlyLimit: lim[x.id] || null, perTxLimit: null, dailyLimit: null, yearlyLimit: null, warn: !!lim[x.id], archived: false, sort: 100 + i }));
+    state.settings.cycleStartDay = ob.payday; if(ob.save) state.settings.savingsTarget = ob.save;
+    // salary as a fixed income; if this month's payday has passed, the first reminder is next month's
+    if(ob.income){ const now = new Date(); const pay = Object.values(state.categories).find(c => c.type === "income" && c.name === "薪資");
+      const first = now.getDate() >= ob.payday ? new Date(now.getFullYear(), now.getMonth() + 1, 1) : now;
+      put.rec({ id: uid(), title: "薪資", amount: ob.income, type: "income", categoryId: pay ? pay.id : null, day: ob.payday, active: true, startMonth: `${first.getFullYear()}-${pad(first.getMonth()+1)}` }); }
+    viewPeriod = curPeriod();
+  };
+  draw();
+}
+// 使用說明: swipeable cards; also the last step of onboarding
+function openGuide(afterSetup, onDone){
+  const local = !db;
+  const cards = [
+    ["plus", "tint3", "記一筆，也能一點就記", "右下角「＋」記帳。常記的東西按「存成常用」，之後在首頁「快速記帳」一點就記好；同一筆記了 3 次，App 也會主動問你要不要存。"],
+    ["jar", "tint1", "預算有彈性，超支也不慌", "某一類超支時，可以跟其他類別借、跟下個月借，或動用「已節省結餘」。每一期沒用完的預算，會自動存進已節省結餘。"],
+    ["wish", "tint7", "想買的，先放 7 天", "把想買的東西加到「想買」。App 會告訴你現在可以買、再等等，還是會影響本期預算；決定買了，按「買了」就直接記帳。"],
+    ["repeat", "tint8", "固定收支與分期", "房租、電信、薪資這類每月固定的，到期會在首頁提醒你確認；分期會自動占用之後每一期的額度。「今天可以花」會先扣掉這期還沒付的。到右上角齒輪 →「固定收支與分期」新增。"],
+    ["heart", "tint5", "必要、需要、想要", "每筆支出可以標記是必要、需要還是想要。「看懂」會算出想要占多少，並用必要支出推算緊急預備金該存多少。"],
+    ["shield", "tint6", local ? "資料只存在這台手機" : "記得偶爾備份", local ? "沒有雲端帳號，換手機或清除瀏覽器資料，資料就會不見。記得定期到右上角齒輪 →「資料與備份」匯出，App 每兩週會提醒一次。剛剛設定的每一項，也都能在齒輪裡改。" : "資料會在這個頁面同步，還是建議偶爾到右上角齒輪 →「資料與備份」匯出一份。剛剛設定的每一項，也都能在齒輪裡改。"]
+  ];
+  const el = obShell(`<div class="obtop"><span></span><div class="obdots" id="gd-dots">${cards.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div><button class="link" data-gd="done">${afterSetup ? "略過" : "關閉"}</button></div>
+    <h2 class="obh">${afterSetup ? "設定好了，你可以這樣用" : "使用說明"}</h2>
+    <div class="gdcards" id="gd-cards">${cards.map(([ic, tint, h, p], i) => `<section class="gdcard" aria-label="${i+1} / ${cards.length}"><span class="qic gdic ${tint}">${icon(ic)}</span><h3>${h}</h3><p>${p}</p></section>`).join("")}</div>
+    <div class="obfoot gdfoot"><button class="btn" data-gd="prev">上一張</button><button class="btn primary" data-gd="next">下一張</button></div>`);
+  const box = $("#gd-cards", el); let at = 0;
+  const sync = () => { at = Math.round(box.scrollLeft / box.clientWidth);
+    el.querySelectorAll("#gd-dots i").forEach((d, i) => d.className = i === at ? "on" : i < at ? "done" : "");
+    $('[data-gd="prev"]', el).disabled = at === 0;
+    $('[data-gd="next"]', el).textContent = at === cards.length - 1 ? (afterSetup ? "開始使用" : "完成") : "下一張"; };
+  const done = () => { obClose(); if(onDone) onDone(); };
+  box.addEventListener("scroll", () => requestAnimationFrame(sync));
+  el.querySelector('[data-gd="done"]').addEventListener("click", done);
+  el.querySelector('[data-gd="prev"]').addEventListener("click", () => box.scrollTo({ left: (at - 1) * box.clientWidth, behavior: "smooth" }));
+  el.querySelector('[data-gd="next"]').addEventListener("click", () => { if(at === cards.length - 1) done(); else box.scrollTo({ left: (at + 1) * box.clientWidth, behavior: "smooth" }); });
+  sync();
+}
 
 /* ---------- boot ---------- */
 loadLocal();
