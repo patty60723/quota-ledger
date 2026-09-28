@@ -965,6 +965,7 @@ header.top .srch + .more{margin-left:0}
 .obchips .chip{min-height:40px}
 .obchips .chip[aria-pressed="false"] .dot{opacity:.45}
 .obadd{display:flex;gap:var(--space-2)}
+.obtoggle{padding:var(--space-1) 0}
 .obadd .inp{flex:1;min-width:0}
 .oblims{display:flex;flex-direction:column}
 .oblim{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-2) var(--space-4);border-top:1px solid var(--line);min-height:56px}
@@ -3063,7 +3064,7 @@ function obShell(inner){
 function obClose(){ const el = document.getElementById("onboard"); if(el) el.remove(); }
 function openOnboarding(dry){
   const exp = DEFAULT_CATS.filter(c => c.type === "expense");
-  const ob = { step: 0, income: null, payday: 1, picked: new Set(exp.filter(c => OB_PICKED.includes(c.name)).map(c => c.id)), extra: [], mode: "each", limits: {}, total: null, save: null };
+  const ob = { step: 0, income: null, payday: 1, sameCycle: true, cycle: 1, picked: new Set(exp.filter(c => OB_PICKED.includes(c.name)).map(c => c.id)), extra: [], mode: "each", limits: {}, total: null, save: null };
   const catList = () => exp.map(c => ({ id: c.id, name: c.name })).concat(ob.extra);
   const chosen = () => catList().filter(c => ob.picked.has(c.id));
   const room = () => ob.income ? Math.max(0, ob.income - (ob.save || 0)) : null;
@@ -3088,10 +3089,15 @@ function openOnboarding(dry){
       el = obShell(`${top(1)}<h2 class="obh">收入與週期</h2><p class="obp">知道每月收入，才能算出可以分配多少預算。沒有固定收入可以直接下一步。</p>
         <div class="fields"><label class="full">每月大約收入（NT$）<input class="inp num" id="ob-inc" inputmode="numeric" placeholder="例如 40000" value="${ob.income ?? ""}"></label>
         <label class="full">幾號發薪<select id="ob-pay">${Array.from({length:31}, (_,i) => `<option value="${i+1}" ${ob.payday === i+1 ? "selected" : ""}>每月 ${i+1} 日</option>`).join("")}</select></label></div>
-        <p class="small muted obnote">月預算會從發薪日開始算。發薪日不固定就選 1 日。</p>
+        <label class="toggle obtoggle"><input type="checkbox" id="ob-same" ${ob.sameCycle ? "checked" : ""}>預算也從發薪日開始算</label>
+        ${ob.sameCycle ? `<p class="small muted obnote">發薪那天預算重新開始，錢進來和預算重置在同一天。發薪日不固定就選 1 日。</p>`
+          : `<div class="fields"><label class="full">月預算從哪天開始<select id="ob-cycle">${Array.from({length:31}, (_,i) => `<option value="${i+1}" ${ob.cycle === i+1 ? "selected" : ""}>每月 ${i+1} 日</option>`).join("")}</select></label></div>
+          <p class="small muted obnote">預算照這一天重新開始；發薪日只用來提醒你確認薪資入帳，不會影響每天能花多少。</p>`}
         <p class="small muted obnote">收入不固定？填一個保守的月平均（例如最近幾個月裡最少的那個月），或先留空，App 會改用上一期實際記到的收入估算。</p>${foot("下一步")}`);
       $("#ob-inc", el).addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g, ""); ob.income = intOf(e.target.value); });
       $("#ob-pay", el).addEventListener("change", e => { ob.payday = +e.target.value; });
+      $("#ob-same", el).addEventListener("change", e => { ob.sameCycle = e.target.checked; draw(); });
+      const cy = $("#ob-cycle", el); cy && cy.addEventListener("change", e => { ob.cycle = +e.target.value; });
     } else if(ob.step === 2){
       el = obShell(`${top(2)}<h2 class="obh">挑出你會用到的類別</h2><p class="obp">常用的已經先勾好，點一下可以取消。沒勾的不會刪掉，之後在設定裡能再打開。</p>
         <div class="chips obchips" role="group" aria-label="支出類別">${catList().map(c => `<button class="chip" data-obcat="${esc(c.id)}" aria-pressed="${ob.picked.has(c.id)}"><span class="dot sm ${catTint({ sort: exp.findIndex(x => x.id === c.id) >= 0 ? exp.findIndex(x => x.id === c.id) : 100 + ob.extra.indexOf(c) })}">${catMark({ name: c.name })}</span>${esc(c.name)}</button>`).join("")}</div>
@@ -3144,7 +3150,7 @@ function openOnboarding(dry){
       else c.archived = true;
       put.cat(c); });
     ob.extra.filter(x => ob.picked.has(x.id)).forEach((x, i) => put.cat({ id: x.id, name: x.name, type: "expense", monthlyLimit: lim[x.id] || null, perTxLimit: null, dailyLimit: null, yearlyLimit: null, warn: !!lim[x.id], archived: false, sort: 100 + i }));
-    state.settings.cycleStartDay = ob.payday; if(ob.save) state.settings.savingsTarget = ob.save;
+    state.settings.cycleStartDay = ob.sameCycle ? ob.payday : ob.cycle; if(ob.save) state.settings.savingsTarget = ob.save;
     // salary as a fixed income; if this month's payday has passed, the first reminder is next month's
     if(ob.income){ const now = new Date(); const pay = Object.values(state.categories).find(c => c.type === "income" && c.name === "薪資");
       const first = now.getDate() >= ob.payday ? new Date(now.getFullYear(), now.getMonth() + 1, 1) : now;
