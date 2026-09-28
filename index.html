@@ -884,6 +884,9 @@ html{-webkit-tap-highlight-color:transparent}
 .quickrow::-webkit-scrollbar,.favbar::-webkit-scrollbar,.nwfilter::-webkit-scrollbar{display:none}
 .on-settings .fab{display:none}
 .wdue.soon{color:var(--warn);font-weight:600}
+.bcfix{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:0 var(--space-4) var(--space-3) calc(var(--space-4) + 24px + var(--space-3));font-size:13px;color:var(--stamp)}
+.bcfix b{font-weight:600}
+.bcfix .btn{flex-shrink:0}
 /* ---------- shared info popover ---------- */
 .infobtn{display:inline-grid;place-items:center;width:28px;height:28px;margin:-8px 0 -8px 2px;padding:0;border:0;background:none;color:inherit;opacity:.6;vertical-align:middle;position:relative;cursor:pointer}
 .infobtn::after{content:"";position:absolute;inset:-8px}
@@ -1367,14 +1370,21 @@ function resolveOver(s, choice, fromId){
   }
   setPending(s, false);
 }
-function openOverspend(s){
+// overspend fixed from the budget list: reuse a pending record in that period, else the latest expense there
+function overSubject(c, p){
+  const [a, b] = periodRange(p); const inP = s => s.date >= a && s.date <= b;
+  const pend = pendingOverspends().find(s => s.categoryId === c.id && inP(s)); if(pend) return pend;
+  const t = realTx().filter(t => t.categoryId === c.id && t.type === "expense" && inP(t)).sort((x,y) => y.date.localeCompare(x.date) || (y.createdAt||0) - (x.createdAt||0))[0];
+  return t ? subjectOf("tx", t.id) : null;
+}
+function openOverspend(s, byCategory){
   const c = state.categories[s.categoryId]; const p = periodOf(s.date); const L = periodLabel(p);
   const over = overOf(s);
   if(!over){ setPending(s, false); render(); toast("已經沒有超支了"); return; }
   const lenders = cats("expense").filter(x => x.id!==c.id && x.monthlyLimit).map(x => ({x, left: budgetOf(x, p).avail})).filter(o => o.left >= over).sort((a,b)=>b.left-a.left);
   const next = shift(p,1); const nb = budgetOf(c, next); const pool = poolBalance();
   openSheet(`<div class="hd"><h2>超出預算了</h2><button class="btn ghost" data-x>稍後處理</button></div>
-    <div class="hint over">${s.title && s.title!==c.name ? `「${esc(s.title)}」` : "這筆支出"}讓${esc(c.name)}在 ${L.title} 超出 <b class="num">${money(over)}</b>。這筆錢要從哪裡補？</div>
+    <div class="hint over">${byCategory ? "" : `${s.title && s.title!==c.name ? `「${esc(s.title)}」` : "這筆支出"}讓`}${esc(c.name)}在 ${L.title} 超出 <b class="num">${money(over)}</b>。這筆錢要從哪裡補？</div>
     <div class="opts">
       <div class="opt"><div class="k"><b>跟其他類別借</b><span>本期那個類別的額度會少 ${moneyShort(over)}</span></div>
         ${lenders.length ? `<div class="optrow"><select id="o-cat" aria-label="借用的類別">${lenders.map(o=>`<option value="${esc(o.x.id)}">${esc(o.x.name)}（還剩 ${moneyShort(o.left)}）</option>`).join("")}</select><button class="btn" data-o="cat">借這個</button></div>`
@@ -1572,7 +1582,7 @@ function budgetCompact(p){
 function budgetCompactRows(p, list){
   return list.map(c => {
     const open = budOpen.has(c.id);
-    let main, bar = "", meta = "", detail = [];
+    let main, bar = "", meta = "", detail = [], fix = "";
     if(c.monthlyLimit){
       const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1;
       const cls = pct > 1 ? "over" : pct >= warnAt() ? "warn" : "";
@@ -1582,13 +1592,14 @@ function budgetCompactRows(p, list){
       meta = `已用 ${Math.round(pct*100)}% · ${b.avail>=0 ? "還剩 NT$"+moneyShort(b.avail) : "超出 NT$"+moneyShort(-b.avail)}`;
       if(b.inst || b.occupied || b.received) detail.push([`實際 ${moneyShort(b.actual)}`, b.inst && `分期 ${moneyShort(b.inst)}`, b.occupied && `被占用 ${moneyShort(b.occupied)}`, b.received && `借入 ${moneyShort(b.received)}`].filter(Boolean).join(" · "));
       if(!c.warn) detail.push("這個類別不提醒");
+      if(b.avail < 0 && overSubject(c, p)) fix = `<div class="bcfix"><span>還沒決定從哪裡補</span><button class="btn small" data-overcat="${esc(c.id)}">處理超支</button></div>`;
     } else {
       main = `<span class="n">${esc(c.name)}</span><span class="v small muted">只設每年預算</span>`;
     }
     if(c.yearlyLimit){ const yu = yearUsed(c, p.y); detail.push(`${p.y} 年 ${moneyShort(yu)} / ${moneyShort(c.yearlyLimit)}${yu > c.yearlyLimit ? "（超過年度上限）" : ""}`); }
     return `<button class="bc${open ? " open" : ""}" data-budx="${esc(c.id)}" aria-expanded="${open}">
       <span class="bchev" aria-hidden="true">${icon("chev")}</span><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${main}${bar}${meta ? `<span class="bm num">${meta}</span>` : ""}
-      ${open && detail.length ? `<span class="bd num">${detail.map(d => `<span>${d}</span>`).join("")}</span>` : ""}</button>`;
+      ${open && detail.length ? `<span class="bd num">${detail.map(d => `<span>${d}</span>`).join("")}</span>` : ""}</button>${fix}`;
   }).join("");
 }
 function homeBudget(p){ return homeBudgetInner(p); }
@@ -2667,6 +2678,8 @@ document.addEventListener("click", e => {
   if(fs){ fixSeg = fs.dataset.fseg; render(); return; }
   const rs = e.target.closest("[data-rseg]");
   if(rs){ reportSeg = rs.dataset.rseg; render(); return; }
+  const oc = e.target.closest("[data-overcat]");
+  if(oc && !oc.closest(".sheet")){ const c = state.categories[oc.dataset.overcat]; const s = c && overSubject(c, viewPeriod); if(s) openOverspend(s, true); return; }
   const bx = e.target.closest("[data-budx]");
   if(bx){ const id = bx.dataset.budx; budOpen.has(id) ? budOpen.delete(id) : budOpen.add(id); render(); return; }
   const tp = e.target.closest("[data-theme-pick]");
