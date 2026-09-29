@@ -1390,7 +1390,7 @@ const jarList = () => Object.values(state.jars).sort((a,b) => (a.createdAt||0) -
 const jarWeeks = (j, p) => { const [a, b] = periodRange(p || curPeriod()); return jarCount(j, a, b); };
 function jarMonthly(j, p){ return j.freq === "week" ? j.amount * jarWeeks(j, p) : j.freq === "year" ? Math.round(j.amount / 12) : j.amount; }
 // the monthly amount taken off income before budgeting: the jars once there are any, else the old single target
-function savingsMonthly(p){ const l = jarList(); return l.length || state.settings.jarsMigrated ? l.reduce((s, j) => s + jarMonthly(j, p), 0) : (state.settings.savingsTarget || 0); }
+function savingsMonthly(p){ const l = jarList().filter(jarOn); return l.length || state.settings.jarsMigrated ? l.reduce((s, j) => s + jarMonthly(j, p), 0) : (state.settings.savingsTarget || 0); }
 const jarLine = j => `${jarWhen(j)}${j.freq === "year" ? " " : ""}存 ${moneyShort(j.amount)}`;
 function jarWhen(j){
   if(j.freq === "week") return `每週${WEEK[j.day ?? 1]}`;
@@ -1409,10 +1409,18 @@ function jarCount(j, a, b){
   return n;
 }
 function jarNext(j, from){ const d = parseYmd(from); for(let i = 0; i < 400; i++, d.setDate(d.getDate() + 1)){ const x = ymd(d); if(jarCount(j, x, x)) return x; } return from; }
-const jarAdj = (j, k) => Object.values(state.adjustments).filter(a => a.kind === "jar" && a.jarId === j.id && (!k || a.period === k)).reduce((s, a) => s + a.amount, 0);
-function jarBalance(j){ return (j.base || 0) + j.amount * jarCount(j, j.since, todayStr()) - jarAdj(j); }
-// only this month's share can cover an overspend, and never more than the jar holds
-function jarBorrowable(j, p){ return Math.max(0, Math.min(jarMonthly(j, p) - jarAdj(j, pkey(p)), jarBalance(j))); }
+// jar adjustments: covering an overspend (this period's share), or spending the jar's money (use: true, tied to the expense)
+const jarAdj = (j, k, useToo = !k) => Object.values(state.adjustments).filter(a => a.kind === "jar" && a.jarId === j.id && (!k || a.period === k) && (useToo || !a.use)).reduce((s, a) => s + a.amount, 0);
+const jarOn = j => j.active !== false;
+function jarBalance(j){ return (j.base || 0) + (jarOn(j) ? j.amount * jarCount(j, j.since, todayStr()) : 0) - jarAdj(j); }
+// only this period's share can cover an overspend, and never more than the jar holds
+function jarBorrowable(j, p){ return jarOn(j) ? Math.max(0, Math.min(jarMonthly(j, p) - jarAdj(j, pkey(p)), jarBalance(j))) : 0; }
+// an expense paid from a jar: the category gets the same amount added, so the budget isn't touched
+function syncJarUse(t){
+  const a = Object.values(state.adjustments).find(x => x.txId === t.id && x.kind === "jar" && x.use);
+  if(!t.jarId || t.type !== "expense"){ if(a) put.adjDel(a.id); return; }
+  put.adj({ ...(a || { id: uid(), txId: t.id, kind: "jar", use: true, at: Date.now() }), jarId: t.jarId, categoryId: t.categoryId, period: pkey(periodOf(t.date)), amount: t.amount });
+}
 // the old single 每月目標儲蓄 becomes a jar the first time the app loads with jars
 function ensureJars(){
   const t = state.settings.savingsTarget || 0;
@@ -1739,7 +1747,7 @@ function txRows(list, withDays, keepOrder){
       html += `<div class="daygrp"><span>${d.getMonth()+1} 月 ${d.getDate()} 日（${WEEK[d.getDay()]}）</span><span class="num">支出 ${moneyShort(dayOut)}</span></div>`;
     }
     const plus = t.type==="income" || t.type==="refund"; const cn = catName(t.categoryId);
-    const kind = t.virtual ? "分期" : t.type==="refund" ? "退款" : "";
+    const kind = t.virtual ? "分期" : t.type==="refund" ? "退款" : t.jarId ? `存錢罐${state.jars[t.jarId] ? `「${esc(state.jars[t.jarId].name)}」` : ""}支付` : "";
     const extra = [kind, t.pendingOverspend ? "超支待處理" : "", t.note].filter(Boolean).join(" · ");
     const sub = withDays ? [cn, extra].filter(Boolean).join(" · ") : [`${t.date.slice(5).replace("-","/")}`, cn, kind].filter(Boolean).join(" · ");
     const attr = t.virtual ? `data-inst="${esc(t.installmentId)}"` : `data-edit="${esc(t.id)}"`;
@@ -1874,7 +1882,8 @@ function todayPlan(p){
   // whatever goes beyond that has to come out of the budget, so it's taken off what's left
   const est = hasBudget ? incomeEstimate() : null;
   const unbList = hasBudget ? list.filter(t => t.type === "expense" && !ids.has(t.categoryId)) : [];
-  const unbUsed = sumOut(unbList);
+  const jarPaid = hasBudget ? Object.values(state.adjustments).filter(a => a.kind === "jar" && a.use && a.period === pkey(p) && !ids.has(a.categoryId)).reduce((s, a) => s + a.amount, 0) : 0;
+  const unbUsed = Math.max(0, sumOut(unbList) - jarPaid);
   const unbBy = {}; unbList.forEach(t => unbBy[t.categoryId] = (unbBy[t.categoryId] || 0) + outAmt(t));
   const unbNames = Object.entries(unbBy).sort((x, y) => y[1] - x[1]).map(([id]) => catName(id));
   const unbToday = hasBudget ? todayAll - todayCounted : 0;
@@ -2313,9 +2322,9 @@ function viewSettings(){
       ${importPreview.issues.length ? `<p style="margin:10px 0 4px;color:var(--warn)">需要注意 ${importPreview.issues.length} 項：</p><ul class="issues">${importPreview.issues.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`:""}
       <div class="rowbtns" style="margin-top:12px"><button class="btn" data-act="imp-cancel">取消</button><button class="btn primary" data-act="imp-go">確認匯入</button></div></div>` : "";
   const jars = jarList(); const p0 = curPeriod();
-  const jarHtml = jars.length ? jars.map(j => `<button class="catrow" data-jar="${esc(j.id)}">
+  const jarHtml = jars.length ? jars.map(j => `<button class="catrow${jarOn(j) ? "" : " arch"}" data-jar="${esc(j.id)}">
       <b>${esc(j.name)}</b><span class="num small">${moneyShort(jarBalance(j))}</span>
-      <span class="sub">${jarLine(j)}${j.freq === "week" ? ` · 本期 ${jarWeeks(j)} 次共 ${moneyShort(jarMonthly(j))}` : j.freq === "year" ? ` · 每月約 ${moneyShort(jarMonthly(j))}` : ""}${jarAdj(j, pkey(p0)) ? ` · 這個月動用 ${moneyShort(jarAdj(j, pkey(p0)))}` : ""}</span></button>`).join("")
+      <span class="sub">${jarOn(j) ? "" : "已停止存入 · "}${jarLine(j)}${j.freq === "week" ? ` · 本期 ${jarWeeks(j)} 次共 ${moneyShort(jarMonthly(j))}` : j.freq === "year" ? ` · 每月約 ${moneyShort(jarMonthly(j))}` : ""}${jarAdj(j, pkey(p0)) ? ` · 這個月動用 ${moneyShort(jarAdj(j, pkey(p0)))}` : ""}</span></button>`).join("")
       + `<div class="note">本期合計 <b class="num">${moneyShort(savingsMonthly())}</b>，預估月收入會先扣掉這筆，剩下的才是「可分配預算」。</div>`
     : `<div class="empty">還沒有存錢罐。可以依用途分開存，例如旅行、緊急預備金，每週、每月或每年存一筆。</div>`;
   const limited = cats("expense").filter(c => c.monthlyLimit);
@@ -2502,9 +2511,10 @@ function openEntry(existing, refundOf, prefill){
       const rec = { id: t.id, date, type, categoryId: catId, amount: v, title, note, recurringId: t.recurringId || null, createdAt: t.createdAt || Date.now() };
       if(t.refOf) rec.refOf = t.refOf;
       if(t.favoriteId) rec.favoriteId = t.favoriteId;
+      if(t.jarId) rec.jarId = t.jarId;
       if(type === "expense" && nwPick) rec.nw = nwPick;
       if(existing) removeTx(existing, false);
-      addTx(rec);
+      addTx(rec); if(rec.jarId) syncJarUse(rec);
       if(!existing && t.favoriteId) bumpFav(t.favoriteId, 1);
       if(t.wishId) markWishBought(t.wishId, rec);
       closeSheet(); render(); toast(existing ? "已更新" : isRefund ? "已記下退款" : t.wishId ? "已記下，願望移到已購入" : "已記下");
@@ -2711,25 +2721,55 @@ function openJar(j){
       <label>每次存（NT$）<input class="inp num" id="j-amt" inputmode="numeric" value="${j.amount ?? ""}"></label>
       <label>目前已存（NT$）<input class="inp num" id="j-bal" inputmode="numeric" value="${bal || ""}" placeholder="0"></label>
     </div>
+    ${isNew ? "" : `<label class="toggle"><input type="checkbox" id="j-on" ${jarOn(j) ? "checked" : ""}>繼續自動存入</label>`}
     <p class="small muted" id="j-hint" style="margin:0"></p>
-    <div class="rowbtns">${isNew?"":`<button class="btn danger" data-del>刪除</button>`}<button class="btn primary" data-save>儲存</button></div>`, sheet => {
+    ${!isNew && bal > 0 ? `<button class="btn" data-use>使用這筆錢（目前 ${moneyShort(bal)}）</button>` : ""}
+    ${!isNew && bal > 0 ? `<p class="small muted" style="margin:0">裡面還有錢，所以不能刪除；不想再存可以關掉「繼續自動存入」，錢會留著。</p>` : ""}
+    <div class="rowbtns">${isNew || bal > 0 ? "" : `<button class="btn danger" data-del>刪除</button>`}<button class="btn primary" data-save>儲存</button></div>`, sheet => {
     const read = () => { const freq = $("#j-freq", sheet).value; const v = (id, d) => { const el = $(id, sheet); return el ? +el.value : d; };
       const day = freq === "year" ? `${pad(v("#j-m", 1))}-${pad(v("#j-d", 1))}` : v("#j-day", 1);
       return { freq, day, amount: intOf($("#j-amt", sheet).value) || 0 }; };
-    const hint = () => { const x = read(); $("#j-hint", sheet).textContent = x.amount
+    const hint = () => { const x = read(); const on = !$("#j-on", sheet) || $("#j-on", sheet).checked;
+      $("#j-hint", sheet).textContent = !on ? "停止存入後，不會再自動存，也不會從預算扣這期的份；裡面的錢會留著，可以隨時使用或重新開始存。" : x.amount
       ? `${jarLine(x).replace("存", "自動存")}${x.freq === "week" ? `，本期（${pr}）有 ${jarWeeks(x)} 個星期${WEEK[x.day]}，共 ${moneyShort(jarMonthly(x))}` : x.freq === "year" ? `，換算每月約 ${moneyShort(jarMonthly(x))}` : ""}，下次是 ${(d => `${d.getMonth()+1}/${d.getDate()}`)(parseYmd(jarNext(x, tmr)))}。預估月收入會先扣掉這期的份，再分配給各類別。` : ""; };
     $("#j-freq", sheet).addEventListener("change", e => { const f = e.target.value;
       $("#j-dayw", sheet).innerHTML = dayField(f, f === "week" ? 1 : f === "year" ? undefined : (state.settings.cycleStartDay || 1)); hint(); });
     sheet.addEventListener("input", hint); sheet.addEventListener("change", hint); hint();
     $("[data-x]", sheet).addEventListener("click", closeSheet);
+    const use = $("[data-use]", sheet); use && use.addEventListener("click", () => { closeSheet(); openJarUse(state.jars[j.id]); });
     const del = $("[data-del]", sheet);
     del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } put.jarDel(j.id); closeSheet(); render(); toast("已刪除存錢罐"); });
     $("[data-save]", sheet).addEventListener("click", () => {
       const name = $("#j-name", sheet).value.trim(); const x = read();
       if(!name || !x.amount){ toast("請填名稱和每次存的金額"); return; }
       // rebase: what's in the jar now (including today's deposit) becomes the base, and automatic deposits count from tomorrow
-      Object.assign(j, { name, ...x, base: (intOf($("#j-bal", sheet).value) || 0) + jarAdj(j), since: tmr });
+      Object.assign(j, { name, ...x, base: (intOf($("#j-bal", sheet).value) || 0) + jarAdj(j), since: tmr, active: !$("#j-on", sheet) || $("#j-on", sheet).checked });
       put.jar(j); closeSheet(); render(); toast("已儲存");
+    });
+  });
+}
+
+// spending a jar's money: recorded as a normal expense (so reports see it), paid by the jar instead of the budget
+function openJarUse(j){
+  const bal = jarBalance(j);
+  openSheet(`<div class="hd"><h2>使用「${esc(j.name)}」</h2><button class="btn ghost" data-x>關閉</button></div>
+    <div class="hint">存錢罐裡有 <b class="num">${money(bal)}</b>。記下來的支出會照常出現在明細和統計，但由存錢罐支付，不會用到這期的預算。</div>
+    <div class="fields">
+      <label class="full">用在什麼<input class="inp" id="u-title" placeholder="例如：機票"></label>
+      <label>金額（NT$）<input class="inp num" id="u-amt" inputmode="numeric"></label>
+      <label>日期<input class="inp" id="u-date" type="date" value="${todayStr()}"></label>
+      <label class="full">類別<select id="u-cat">${usageOrder("expense").map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("")}</select></label>
+    </div>
+    <div class="rowbtns"><button class="btn primary" data-save>記下並從存錢罐扣</button></div>`, sheet => {
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    $("[data-save]", sheet).addEventListener("click", () => {
+      const amount = intOf($("#u-amt", sheet).value); const date = $("#u-date", sheet).value; const categoryId = $("#u-cat", sheet).value;
+      if(!amount){ toast("請填金額"); return; }
+      if(amount > bal){ toast(`存錢罐只有 ${moneyShort(bal)}`); return; }
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date) || !categoryId){ toast("請選日期和類別"); return; }
+      const t = { id: uid(), date, type: "expense", categoryId, amount, title: $("#u-title", sheet).value.trim() || j.name, note: "", jarId: j.id, createdAt: Date.now() };
+      addTx(t); syncJarUse(t); closeSheet(); render();
+      toast(`已從「${j.name}」支付 ${moneyShort(amount)}，還剩 ${moneyShort(jarBalance(j))}`, [["復原", () => { removeTx(t, true); render(); toast("已復原"); }]], 5000);
     });
   });
 }
