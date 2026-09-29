@@ -1800,7 +1800,7 @@ function todayPlan(p){
   const todayAll = sumOut(todayList);
   const todayCounted = hasBudget ? sumOut(todayList.filter(t => ids.has(t.categoryId))) : todayAll;
   // fixed expenses still to come this period are set aside first, capped at what their category has left
-  const due = {};
+  const due = {}; let unbDue = 0;
   Object.values(state.recurring).forEach(r => {
     if(!r.active || r.type !== "expense") return;
     for(let d = parseYmd(pa); ymd(d) <= pb; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)){
@@ -1808,16 +1808,28 @@ function todayPlan(p){
       const at = ymd(new Date(y, m-1, Math.min(r.day||1, dim(y,m))));
       if(at < pa || at > pb || (r.startMonth && ym < r.startMonth) || state.runs[`${r.id}_${ym}`]) continue;
       if(!hasBudget || ids.has(r.categoryId)) due[r.categoryId] = (due[r.categoryId]||0) + r.amount;
+      else unbDue += r.amount;
     }
   });
   const reserved = Object.entries(due).reduce((sum, [id, v]) => sum + (hasBudget ? Math.min(v, Math.max(0, budgetOf(state.categories[id], p).avail)) : v), 0);
-  const left = (hasBudget ? cap - used : inc - out - target);
+  // spending in categories without a monthly limit first uses the income left unallocated;
+  // whatever goes beyond that has to come out of the budget, so it's taken off what's left
+  const est = hasBudget ? incomeEstimate() : null;
+  const unbList = hasBudget ? list.filter(t => t.type === "expense" && !ids.has(t.categoryId)) : [];
+  const unbUsed = sumOut(unbList);
+  const unbBy = {}; unbList.forEach(t => unbBy[t.categoryId] = (unbBy[t.categoryId] || 0) + outAmt(t));
+  const unbNames = Object.entries(unbBy).sort((x, y) => y[1] - x[1]).map(([id]) => catName(id));
+  const unbToday = hasBudget ? todayAll - todayCounted : 0;
+  const unalloc = est ? Math.max(0, est.amount - target - monthlyBudgetTotal()) : 0;
+  const unbOver = est ? Math.max(0, unbUsed + unbDue - unalloc) : 0;
+  const unbOverToday = unbOver - (est ? Math.max(0, unbUsed - unbToday + unbDue - unalloc) : 0);
+  const left = (hasBudget ? cap - used - unbOver : inc - out - target);
   const spendable = left - reserved;
-  const morning = spendable + todayCounted;
+  const morning = spendable + todayCounted + unbOverToday;
   const perDay = morning > 0 ? Math.floor(morning / daysLeft) : 0;
-  const can = perDay - todayCounted;
+  const can = perDay - todayCounted - unbOverToday;
   const tomorrow = daysLeft > 1 && spendable > 0 ? Math.floor(spendable / (daysLeft - 1)) : 0;
-  return { hasBudget, cap, used, left, reserved, perDay, can, todayAll, daysLeft, elapsed, tomorrow, usedPct: hasBudget ? used / cap : 0, known: hasBudget || inc > 0 };
+  return { hasBudget, cap, used, left, reserved, unbUsed, unbNames, unbDue, unalloc, unbOver, perDay, can, todayAll, daysLeft, elapsed, tomorrow, usedPct: hasBudget ? (used + unbOver) / cap : 0, known: hasBudget || inc > 0 };
 }
 function daysSince(ms){ return ms ? Math.floor((Date.now() - ms) / 86400000) : null; }
 // remind when there are records and the last backup is missing or two weeks old
@@ -1860,7 +1872,10 @@ function viewHome(){
     : `今天已花 <b class="num">${moneyShort(t.todayAll)}</b>`;
   const todayText = `<b>今天可以花</b>：今天一早還剩的預算，平均分給剩下的 <span class="num">${t.daysLeft}</span> 天，再扣掉今天已經花的。`
     + (t.reserved > 0 ? `<br>本期還沒付的固定支出 <span class="num">NT$${moneyShort(t.reserved)}</span> 已經先扣掉了。` : "")
+    + (t.unbOver > 0 ? `<br>沒設上限的類別超出沒分配收入的 <span class="num">NT$${moneyShort(t.unbOver)}</span> 也已經扣掉了。` : "")
     + `<br>各類別之間可以互相挪用，所以這裡用的是全部類別加起來的預算。`;
+  const leftText = `<b>本期預算還剩</b>：各類別的預算加起來 <span class="num">NT$${moneyShort(t.cap)}</span>，已用 <span class="num">NT$${moneyShort(t.used)}</span>。`
+    + `<br>另外，沒設上限的類別${t.unbNames.length ? `（${esc(t.unbNames.slice(0, 3).join("、"))}${t.unbNames.length > 3 ? " 等" : ""}）` : ""}這期花了 <span class="num">NT$${moneyShort(t.unbUsed)}</span>${t.unbDue ? `，還有 <span class="num">NT$${moneyShort(t.unbDue)}</span> 固定支出沒付` : ""}。收入扣掉儲蓄後，沒分配給任何類別的 <span class="num">NT$${moneyShort(t.unalloc)}</span> 先拿來付，不夠的 <span class="num">NT$${moneyShort(t.unbOver)}</span> 只能從預算裡出，所以也扣掉了。`;
   const poolText = `<b>已節省結餘</b>：每一期結束時，有勾選「轉入已節省結餘」的類別沒用完的預算，會存進這裡。超支時可以用它來補。`;
   const hero = `<section class="hero card--hero" aria-label="今天可以花">
       <div class="hrow"><span class="hlabel">${t.known ? `今天可以花${infoBtn("today", "今天可以花怎麼算")}` : "今天已花"}</span><span class="hperiod">${dateLabel}</span></div>
@@ -1870,11 +1885,12 @@ function viewHome(){
       ${t.hasBudget ? `<div class="hbar${t.usedPct > 1 ? " over" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(t.usedPct*100)}" aria-label="本期預算已用 ${Math.round(t.usedPct*100)}%"><i style="width:${Math.min(100, t.usedPct*100)}%"></i><span class="pace" style="left:${t.elapsed*100}%" aria-hidden="true"></span><button type="button" class="pacebtn" style="left:${t.elapsed*100}%" data-act="info" data-pop="pace" aria-label="時間進度說明" aria-expanded="false" aria-controls="pop-pace"></button></div>
       ${infoPop("pace", paceText, true)}` : ""}
       <div class="hstats">
-        <div><span>${t.hasBudget ? "本期預算還剩" : "本期結餘"}</span><b class="num${over ? " neg" : ""}">${over ? "−" : ""}${moneyShort(Math.abs(t.left))}</b></div>
+        <div><span>${t.hasBudget ? `本期預算還剩${t.unbOver > 0 ? infoBtn("left", "本期預算還剩怎麼算") : ""}` : "本期結餘"}</span><b class="num${over ? " neg" : ""}">${over ? "−" : ""}${moneyShort(Math.abs(t.left))}</b></div>
         <div><span>剩下</span><b class="num">${t.daysLeft} 天</b></div>
         <div><span>已節省結餘${infoBtn("pool", "已節省結餘是什麼")}</span><b class="num">${moneyShort(pool)}</b></div>
       </div>
       ${infoPop("pool", poolText, true)}
+      ${t.unbOver > 0 ? infoPop("left", leftText, true) : ""}
     </section>`;
   const quickFavs = favList();
   const quick = `<section class="hsec"><div class="hhead"><h2>快速記帳</h2><button class="link" data-act="fav-manage">管理</button></div>
