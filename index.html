@@ -1337,7 +1337,7 @@ const DEFAULT_CATS = [
 ].map(([name,type],i)=>({id:"d"+i,name,type,monthlyLimit:null,perTxLimit:null,dailyLimit:null,yearlyLimit:null,warn:false,archived:false,sort:i}));
 const DEFAULT_SETTINGS = { weekStart: 1, cycleStartDay: 1, savingsTarget: 0, savingsStart: null, palette: "blush", favManual: false, favDismissed: [], warnPct: 80, theme: "system", lastBackupAt: null };
 const warnAt = () => (state.settings.warnPct || 80) / 100;
-const PALETTES = { blush: { name: "奶茶", bar: "#463F3A", dark: "#1F1B18" }, teal: { name: "抹茶綠", bar: "#4F7055", dark: "#131914" }, sakura: { name: "櫻花", bar: "#6B4450", dark: "#1C1517" }, mist: { name: "霧藍", bar: "#46667B", dark: "#11171C" }, coral: { name: "珊瑚海（活潑）", bar: "#1F3A93", dark: "#0F1428" } };
+const PALETTES = { blush: { name: "奶茶", bar: "#463F3A", dark: "#1F1B18" }, teal: { name: "抹茶綠", bar: "#4F7055", dark: "#131914" }, sakura: { name: "櫻花", bar: "#6B4450", dark: "#1C1517" }, mist: { name: "霧藍", bar: "#46667B", dark: "#11171C" }, coral: { name: "珊瑚海", bar: "#1F3A93", dark: "#0F1428" } };
 const THEMES = [["system","跟隨手機"],["light","淺色"],["dark","深色"]];
 // collections stored one document per item
 const COLS = ["categories","recurring","runs","installments","adjustments","closings","favorites","wishes","jars"];
