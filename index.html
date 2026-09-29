@@ -1458,11 +1458,11 @@ function jarLog(j){
   const out = [], today = todayStr(), at = ms => ymd(new Date(ms || 0));
   const segs = (j.segs || []).concat(jarOn(j) && j.since <= today ? [{ since: j.since, until: today, amount: j.amount, freq: j.freq, day: j.day }] : []);
   segs.forEach(g => { let d = g.since;
-    for(let i = 0; i < 600; i++){ const x = jarNext(g, d); if(x > g.until || !jarCount(g, x, x)) break; out.push({ date: x, label: "自動存入", amount: g.amount });
+    for(let i = 0; i < 600; i++){ const x = jarNext(g, d); if(x > g.until || !jarCount(g, x, x)) break; out.push({ date: x, type: "auto", label: "自動存入", amount: g.amount });
       const n = parseYmd(x); d = ymd(new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1)); } });
   (j.edits || []).forEach(e => out.push({ date: e.on, label: e.first ? "開始時已存" : "調整目前已存", amount: e.diff }));
   Object.values(state.adjustments).filter(a => a.jarId === j.id).forEach(a => {
-    if(a.kind === "jar-in") out.push({ date: at(a.at), ts: a.at, label: a.from === "pool" ? "存一筆（從已節省結餘）" : "存一筆（預算外）", amount: -a.amount, del: a.moveId });
+    if(a.kind === "jar-in") out.push({ date: at(a.at), ts: a.at, type: "in", label: a.from === "pool" ? "存一筆（從已節省結餘）" : "存一筆（預算外）", amount: -a.amount, del: a.moveId });
     else if(a.kind === "jar-move") { const peer = state.jars[a.peer]; const n = peer ? `「${peer.name}」` : "其他存錢罐";
       out.push({ date: at(a.at), ts: a.at, label: a.amount > 0 ? `轉到${n}` : `從${n}轉入`, amount: -a.amount, del: a.moveId }); }
     else if(a.kind === "jar" && a.use){ const t = findTx(a.txId);
@@ -2262,9 +2262,11 @@ function insights(){
   const borrowed = jars.map(j => ({ j, v: jarAdj(j, pk0) })).filter(o => o.v > 0), bTotal = borrowed.reduce((a, o) => a + o.v, 0);
   if(bTotal) out.push({ key: "jarused", pri: 72, tone: "warn", icon: "jar", title: `這期從存錢罐補了 NT$${moneyShort(bTotal)} 的超支`,
     sub: `${borrowed.map(o => `「${esc(o.j.name)}」${moneyShort(o.v)}`).join("、")}，等於這期少存這些`, act: { jars: 1 } });
-  if(el >= total - 7){ const dep = jars.filter(jarOn).reduce((a, j) => a + j.amount * jarCount(j, j.since > pa ? j.since : pa, today), 0);
+  // automatic deposits plus 存一筆 this period
+  if(el >= total - 7){ const ins = jars.flatMap(jarLog).filter(e => (e.type === "auto" || e.type === "in") && e.date >= pa && e.date <= today);
+    const dep = ins.reduce((a, e) => a + e.amount, 0), once = ins.filter(e => e.type === "in").reduce((a, e) => a + e.amount, 0);
     if(dep > 0) out.push({ key: "jarsaved", pri: 57, tone: "good", icon: "jar", title: `這期存錢罐存了 NT$${moneyShort(dep)}`,
-      sub: bTotal ? `扣掉補超支的 ${moneyShort(bTotal)}，實際多存了 <b class="num">NT$${moneyShort(Math.max(0, dep - bTotal))}</b>` : `都是自動存入，不用另外操作`, act: { jars: 1 } }); }
+      sub: [once ? `含另外存的 ${moneyShort(once)}` : "", bTotal ? `扣掉補超支的 ${moneyShort(bTotal)}，實際多存了 <b class="num">NT$${moneyShort(Math.max(0, dep - bTotal))}</b>` : once ? "" : "都是自動存入，不用另外操作"].filter(Boolean).join("；"), act: { jars: 1 } }); }
   jars.filter(j => !j.deleted).forEach(j => { const bal = jarBalance(j);
     if(!jarOn(j) && j.pausedOn && bal > 0){ const m = Math.floor(dayDiff(j.pausedOn, today) / 30);
       if(m >= 2) out.push({ key: "jarpause:" + j.id, pri: 44, tone: "info", icon: "jar", title: `「${esc(j.name)}」已經停止存入 ${m} 個月`, sub: `裡面還有 <b class="num">NT$${moneyShort(bal)}</b>，要重新開始存，或拿來用？`, act: { jar: j.id } }); }
@@ -2300,7 +2302,11 @@ function yearlySavings(Y, note){
   const poolYear = current ? Math.round(avg * 12) : accrued;
   // past years only count the months that were actually recorded
   const tMonths = current || !w ? 12 : w.n; const tYear = target * tMonths;
-  const tCard = target
+  const jarsNow = jarList(); const jarTotal = jarsNow.reduce((a, j) => a + jarBalance(j), 0);
+  // this year: what the jars actually hold now, with this year's planned amount beside it
+  const tCard = current && jarsNow.length
+    ? `<button class="ys" data-set="budget" data-bseg-go="save"><span class="mic tint3">${icon("coin")}</span><div><span>存錢罐</span><b class="num">目前合計 ${moneyShort(jarTotal)}</b><small>${w ? `今年到目前應存 ${moneyShort(target * w.n)} · ` : ""}每月 ${moneyShort(target)}</small></div></button>`
+    : target
     ? `<div class="ys"><span class="mic tint3">${icon("coin")}</span><div><span>存錢罐</span><b class="num">${tMonths === 12 ? "全年" : `${tMonths} 個月`} ${moneyShort(tYear)}</b><small>${current && w ? `到目前 ${w.n} 個月應存 ${moneyShort(target * w.n)}` : `每月 ${moneyShort(target)}`}</small></div></div>`
     : `<button class="ys" data-set="budget" data-bseg-go="save"><span class="mic tint3">${icon("coin")}</span><div><span>存錢罐</span><b>還沒設定</b><small>到「預算與儲蓄 → 儲蓄」新增存錢罐 ›</small></div></button>`;
   const pCard = `<div class="ys"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span>${closed.length
@@ -2427,7 +2433,7 @@ function viewSettings(){
       <div class="section-head"><span class="label">${allCats.length} 個類別</span><button class="btn small" data-act="cat-new">新增類別</button></div>
       <div class="card setlist">${catHtml}</div></div>`
     : `<div class="section"><div class="section-head"><h2>存錢罐${infoBtn("jar", "存錢罐怎麼運作")}</h2><button class="btn small" data-act="jar-new">新增</button></div>
-      ${infoPop("jar", "到了存錢日會自動存進去，不用確認。每週存的照這期實際有幾個存錢日算（4 或 5 次），每年存的除以 12，這期要存的加起來會先從預估月收入扣掉，剩下的才是「可分配預算」。超支時，要其他類別都借不到、已節省結餘也不夠，才可以動用存錢罐這個月該存的錢，動用的部分就是這個月少存，不用還。")}
+      ${infoPop("jar", "點進任一個存錢罐，可以使用這筆錢、存一筆（獎金、紅包或從已節省結餘轉入）、轉到其他存錢罐，也能看到每一筆進出的紀錄。到了存錢日會自動存進去，不用確認。每週存的照這期實際有幾個存錢日算（4 或 5 次），每年存的除以 12，這期要存的加起來會先從預估月收入扣掉，剩下的才是「可分配預算」。超支時，要其他類別都借不到、已節省結餘也不夠，才可以動用存錢罐這個月該存的錢，動用的部分就是這個月少存，不用還。")}
       <div class="card setlist">${jarHtml}</div></div>
       <div class="section"><div class="card setlist">
       <div class="setrow"><div class="k"><b>已節省結餘</b><span>從開始記帳開始累積，儲蓄以外的小金庫</span></div><span class="num">${money(poolBalance())}</span></div>
@@ -3623,7 +3629,7 @@ function openGuide(afterSetup, onDone){
     { v: V.rec, h: "記一筆，也能一點就記", p: "常記的東西存成常用，之後一點就記好；同一筆記了 3 次，App 也會主動問你要不要存。", where: ["{plus}記一筆", "首頁 → 快速記帳"] },
     { v: V.flex, h: "預算有彈性，超支也不慌", p: "某一類超支時，可以跟其他類別借、跟下個月借，或動用「已節省結餘」；都不夠時，還能動用存錢罐這個月該存的錢。每一期沒用完的預算，會自動存進已節省結餘。", where: ["首頁 → 需要注意", "看懂 → 預算進度"] },
     { v: V.wish, h: "想買的，先放 7 天", p: "想買的東西先放著，App 會告訴你現在可以買、再等等，還是會影響本期預算；決定買了，按「買了」就直接記帳。", where: ["下方「想買」分頁"] },
-    { v: V.jar, h: "存錢罐：分開存，存到就能用", p: "依用途開好幾個存錢罐，每週、每月或每年自動存一筆，這期要存的會先從收入扣掉。可以設目標金額，App 會算出大概什麼時候存到。要用時按「使用這筆錢」，由存錢罐支付、不動到預算；暫時不想存可以停止存入，錢會留著，也能轉到其他存錢罐。", where: ["{gear}設定 → 預算與儲蓄 → 儲蓄"] },
+    { v: V.jar, h: "存錢罐：分開存，存到就能用", p: "依用途開好幾個存錢罐，每週、每月或每年自動存一筆，這期要存的會先從收入扣掉。可以設目標金額，App 會算出大概什麼時候存到。要用時按「使用這筆錢」，由存錢罐支付、不動到預算；暫時不想存可以停止存入，錢會留著，也能轉到其他存錢罐。拿到獎金、紅包可以隨時「存一筆」，每一筆進出都有紀錄。", where: ["{gear}設定 → 預算與儲蓄 → 儲蓄"] },
     { v: V.fixed, h: "固定收支與分期", p: "房租、電信、薪資這類每月固定的，到期會提醒你確認；分期付款會自動占用之後每一期的額度。「今天可以花」會先扣掉這期還沒付的。", where: ["{gear}設定 → 固定收支與分期", "{plus}記一筆 → 分期付款"] },
     { v: V.nw, h: "必要、需要、想要", p: "每筆支出可以標記是必要、需要還是想要。「看懂」會算出想要占多少，並用必要支出推算緊急預備金該存多少。", where: ["{plus}記一筆 → 這筆是", "看懂 → 收支分析"] },
     { v: V.data, h: local ? "資料只存在這台手機" : "記得偶爾備份", p: local ? "沒有雲端帳號，換手機或清除瀏覽器資料，資料就會不見。記得定期匯出備份，App 每兩週會提醒一次。剛剛設定的每一項，也都能在右上角的「設定」裡改。" : "資料會在這個頁面同步，還是建議偶爾匯出一份備份。剛剛設定的每一項，也都能在右上角的「設定」裡改。", where: ["{gear}設定 → 資料與備份"] }
