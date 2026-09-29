@@ -259,6 +259,9 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .fields .full{grid-column:1 / -1}
 .fields input,.fields select,.field input,.field select{font-size:15px;color:var(--ink);width:100%;min-width:0}
 .fields > *{min-width:0}
+.fields #j-dayw{display:block;min-width:0}
+.jmd{display:flex;gap:var(--space-2)}
+.jmd select{flex:1 1 0;width:0}
 .toggle{display:flex;align-items:center;gap:var(--space-2);font-size:14px;color:var(--ink)}
 .toggle input{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0}
 .toggle input:disabled + *,.toggle:has(input:disabled){color:var(--faint)}
@@ -1198,7 +1201,7 @@ const warnAt = () => (state.settings.warnPct || 80) / 100;
 const PALETTES = { blush: { name: "奶茶", bar: "#463F3A", dark: "#1F1B18" }, teal: { name: "存摺綠", bar: "#0B6E66", dark: "#0E1719" } };
 const THEMES = [["system","跟隨手機"],["light","淺色"],["dark","深色"]];
 // collections stored one document per item
-const COLS = ["categories","recurring","runs","installments","adjustments","closings","favorites","wishes"];
+const COLS = ["categories","recurring","runs","installments","adjustments","closings","favorites","wishes","jars"];
 
 let state = { ...Object.fromEntries(COLS.map(n => [n, {}])), months: {}, settings: {...DEFAULT_SETTINGS} };
 DEFAULT_CATS.forEach(c => state.categories[c.id] = c);
@@ -1251,6 +1254,8 @@ const put = {
   favDel: id => delDoc("favorites", id),
   wish: w => putDoc("wishes", w.id, w),
   wishDel: id => delDoc("wishes", id),
+  jar: j => putDoc("jars", j.id, j),
+  jarDel: id => delDoc("jars", id),
   month: ym => { persistSeedIfNeeded(); const items = state.months[ym] || []; return write("months/"+ym, items.length ? {items} : null); },
   settings: () => { persistSeedIfNeeded(); return write("meta/settings", state.settings); }
 };
@@ -1376,6 +1381,44 @@ function poolBalance(){
   const used = Object.values(state.adjustments).filter(a => a.kind==="pool").reduce((s,a)=>s+a.amount,0);
   return inTotal - used;
 }
+/* ---------- savings jars ---------- */
+// jar: {id, name, freq: "week"|"month"|"year", amount, day (week: 0-6 weekday, month: 1-31, year: "MM-DD"), base, since}
+// deposits happen by themselves on each scheduled day from `since` on; base is the balance before that (edits rebase it)
+const JAR_FREQ = [["week","每週"],["month","每月"],["year","每年"]];
+const jarList = () => Object.values(state.jars).sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
+function jarMonthly(j){ return j.freq === "week" ? Math.round(j.amount * 52 / 12) : j.freq === "year" ? Math.round(j.amount / 12) : j.amount; }
+// the monthly amount taken off income before budgeting: the jars once there are any, else the old single target
+function savingsMonthly(){ const l = jarList(); return l.length || state.settings.jarsMigrated ? l.reduce((s, j) => s + jarMonthly(j), 0) : (state.settings.savingsTarget || 0); }
+const jarLine = j => `${jarWhen(j)}${j.freq === "year" ? " " : ""}存 ${moneyShort(j.amount)}`;
+function jarWhen(j){
+  if(j.freq === "week") return `每週${WEEK[j.day ?? 1]}`;
+  if(j.freq === "year"){ const [m, d] = String(j.day || "01-01").split("-").map(Number); return `每年 ${m}/${d}`; }
+  return `每月 ${j.day || 1} 號`;
+}
+// how many scheduled deposit days fall in [a, b] (ymd strings, inclusive)
+function jarCount(j, a, b){
+  if(!a || a > b) return 0; let n = 0; const A = parseYmd(a), B = parseYmd(b);
+  if(j.freq === "week"){ const d = new Date(A); d.setDate(d.getDate() + ((((j.day ?? 1) - d.getDay()) % 7) + 7) % 7);
+    for(; d <= B; d.setDate(d.getDate() + 7)) n++; return n; }
+  if(j.freq === "year"){ const [m, dd] = String(j.day || "01-01").split("-").map(Number);
+    for(let y = A.getFullYear(); y <= B.getFullYear(); y++){ const x = ymd(new Date(y, m - 1, Math.min(dd, dim(y, m)))); if(x >= a && x <= b) n++; } return n; }
+  for(let y = A.getFullYear(), m = A.getMonth() + 1; y < B.getFullYear() || (y === B.getFullYear() && m <= B.getMonth() + 1); m === 12 ? (m = 1, y++) : m++){
+    const x = ymd(new Date(y, m - 1, Math.min(j.day || 1, dim(y, m)))); if(x >= a && x <= b) n++; }
+  return n;
+}
+function jarNext(j, from){ const d = parseYmd(from); for(let i = 0; i < 400; i++, d.setDate(d.getDate() + 1)){ const x = ymd(d); if(jarCount(j, x, x)) return x; } return from; }
+const jarAdj = (j, k) => Object.values(state.adjustments).filter(a => a.kind === "jar" && a.jarId === j.id && (!k || a.period === k)).reduce((s, a) => s + a.amount, 0);
+function jarBalance(j){ return (j.base || 0) + j.amount * jarCount(j, j.since, todayStr()) - jarAdj(j); }
+// only this month's share can cover an overspend, and never more than the jar holds
+function jarBorrowable(j, p){ return Math.max(0, Math.min(jarMonthly(j) - jarAdj(j, pkey(p)), jarBalance(j))); }
+// the old single 每月目標儲蓄 becomes a jar the first time the app loads with jars
+function ensureJars(){
+  const t = state.settings.savingsTarget || 0;
+  if(state.settings.jarsMigrated || !t) return;
+  state.settings.jarsMigrated = true;
+  if(!jarList().length) put.jar({ id: uid(), name: "儲蓄", freq: "month", amount: t, day: state.settings.cycleStartDay || 1, base: 0, since: todayStr(), createdAt: Date.now() });
+  put.settings();
+}
 // Calendar year Y, from January (or the first recorded period that year) to now (or December for past years)
 function yearWindow(Y){
   const cur = curPeriod(); if(Y > cur.y) return null;
@@ -1440,19 +1483,19 @@ function incomeEstimate(){
 }
 function allocationLine(total){
   const inc = incomeEstimate(); if(!inc) return "";
-  const target = state.settings.savingsTarget || 0; const room = inc.amount - target; const left = room - total;
-  return `預估月收入 ${moneyShort(inc.amount)}（${inc.source}）${target ? ` − 目標儲蓄 ${moneyShort(target)}` : ""} = 可分配 <b class="num">${moneyShort(room)}</b>，`
+  const target = savingsMonthly(); const room = inc.amount - target; const left = room - total;
+  return `預估月收入 ${moneyShort(inc.amount)}（${inc.source}）${target ? ` − 存錢罐每月 ${moneyShort(target)}` : ""} = 可分配 <b class="num">${moneyShort(room)}</b>，`
     + (left >= 0 ? `還有 <b class="num">${moneyShort(left)}</b> 沒分配` : `<span class="bad">超出 <b class="num">${moneyShort(-left)}</b></span>`);
 }
 function budgetSummary(){
   const list = cats("expense").filter(c => c.monthlyLimit); const total = monthlyBudgetTotal();
-  const inc = incomeEstimate(); const room = inc ? inc.amount - (state.settings.savingsTarget || 0) : 0;
+  const inc = incomeEstimate(); const room = inc ? inc.amount - savingsMonthly() : 0;
   const pct = room > 0 ? total / room : 0;
   if(room > 0) return `<div class="budsum card--soft">
     <div class="bs1"><span>可分配預算</span><b class="num">NT$ ${moneyShort(room)}</b></div>
     <div class="bs2"><span>已分配<b class="num">${moneyShort(total)}</b></span><span>${room - total >= 0 ? `未分配<b class="num">${moneyShort(room - total)}</b>` : `<span class="bad">超出<b class="num">${moneyShort(total - room)}</b></span>`}</span></div>
     <div class="bar ${pct > 1 ? "over" : pct >= .95 ? "warn" : ""}" role="img" aria-label="已分配 ${Math.round(pct*100)}%"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
-    <p><button class="inlink" data-set="fixed" data-fseg-go="rec">預估月收入 ${moneyShort(inc.amount)}（${inc.source}）${icon("chev","sm")}</button>${state.settings.savingsTarget ? ` − 目標儲蓄 ${moneyShort(state.settings.savingsTarget)}` : ""} · ${list.length} 個類別有設上限</p>
+    <p><button class="inlink" data-set="fixed" data-fseg-go="rec">預估月收入 ${moneyShort(inc.amount)}（${inc.source}）${icon("chev","sm")}</button>${savingsMonthly() ? ` − 存錢罐每月 ${moneyShort(savingsMonthly())}` : ""} · ${list.length} 個類別有設上限</p>
     ${inc.source === "上一期收入" ? `<p>收入不固定，所以先用上一期實際記到的收入估算。想用固定的數字，可以在固定收支加一筆收入。</p>` : ""}
   </div>`;
   return `<div class="budsum">
@@ -1463,7 +1506,7 @@ function budgetSummary(){
 }
 /* ---------- period closing: unused budget moves into savings ---------- */
 let loadedOnce = false;
-function afterLoad(){ if(loadedOnce) return; loadedOnce = true; const fresh = usingDefaults && !realTx().length; closePeriods(); maybeOnboard(fresh); }
+function afterLoad(){ if(loadedOnce) return; loadedOnce = true; const fresh = usingDefaults && !realTx().length; closePeriods(); ensureJars(); maybeOnboard(fresh); }
 function closePeriods(){
   const ck = pkey(curPeriod());
   if(!state.settings.savingsStart){ state.settings.savingsStart = ck; put.settings(); return; }
@@ -1528,6 +1571,8 @@ function resolveOver(s, choice, fromId){
       put.adj({ ...base, id: uid(), period: pkey(shift(p,1)), categoryId: c.id, amount: -over, kind: "borrow-next" });
     } else if(choice==="pool"){
       put.adj({ ...base, id: uid(), period: k, categoryId: c.id, amount: over, kind: "pool" });
+    } else if(choice==="jar"){
+      put.adj({ ...base, id: uid(), period: k, categoryId: c.id, amount: over, kind: "jar", jarId: fromId });
     }
   }
   setPending(s, false);
@@ -1545,6 +1590,13 @@ function openOverspend(s, byCategory){
   if(!over){ setPending(s, false); render(); toast("已經沒有超支了"); return; }
   const lenders = cats("expense").filter(x => x.id!==c.id && x.monthlyLimit).map(x => ({x, left: budgetOf(x, p).avail})).filter(o => o.left >= over).sort((a,b)=>b.left-a.left);
   const next = shift(p,1); const nb = budgetOf(c, next); const pool = poolBalance();
+  // savings are the last resort: only once no category can lend and 已節省結餘 can't cover it
+  const jarOpen = !lenders.length && pool < over;
+  const jars = jarList().map(j => ({ j, can: jarBorrowable(j, p) })); const jarOk = jars.filter(o => o.can >= over);
+  const jarRow = !jars.length ? "" : `<div class="opt"><div class="k"><b>動用存錢罐</b><span>${!jarOpen ? "其他類別都借不到、已節省結餘也不夠時，才能動用"
+      : jarOk.length ? `用這個月該存的錢補，這個月就少存 ${moneyShort(over)}` : `每個存錢罐這個月能動用的都不到 ${moneyShort(over)}`}</span></div>
+      ${jarOpen && jarOk.length ? `<div class="optrow"><select id="o-jar" aria-label="動用的存錢罐">${jarOk.map(o => `<option value="${esc(o.j.id)}">${esc(o.j.name)}（可動用 ${moneyShort(o.can)}）</option>`).join("")}</select><button class="btn" data-o="jar">動用這個</button></div>`
+        : `<button class="btn" disabled>動用存錢罐</button>`}</div>`;
   openSheet(`<div class="hd"><h2>超出預算了</h2><button class="btn ghost" data-x>稍後處理</button></div>
     <div class="hint over">${byCategory ? "" : `${s.title && s.title!==c.name ? `「${esc(s.title)}」` : "這筆支出"}讓`}${esc(c.name)}在 ${L.title} 超出 <b class="num">${money(over)}</b>。這筆錢要從哪裡補？</div>
     <div class="opts">
@@ -1553,12 +1605,13 @@ function openOverspend(s, byCategory){
           : `<span class="small muted">沒有類別還剩 ${moneyShort(over)} 以上</span>`}</div>
       <div class="opt"><div class="k"><b>跟下個月借</b><span>${esc(c.name)}在 ${next.m} 月期${nb.avail - over >= 0 ? `會剩 ${moneyShort(nb.avail - over)}` : `會超出 ${moneyShort(over - nb.avail)}`}</span></div><button class="btn" data-o="next">借下個月</button></div>
       <div class="opt"><div class="k"><b>動用已節省結餘</b><span>目前結餘 ${moneyShort(pool)}${pool>=over?`，動用後剩 ${moneyShort(pool-over)}`:"，不夠補這筆"}</span></div><button class="btn" data-o="pool" ${pool>=over?"":"disabled"}>動用結餘</button></div>
+      ${jarRow}
     </div>
     <p class="small muted" style="margin:0">先不決定的話，之後可以在首頁「需要注意」或「看懂 → 預算進度」處理。</p>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", () => { closeSheet(); render(); });
     sheet.querySelectorAll("[data-o]").forEach(b => b.addEventListener("click", () => {
-      const ch = b.dataset.o; const fromId = ch==="cat" ? $("#o-cat", sheet).value : null;
-      const snap = () => ({ me: budgetOf(c, p).avail, lender: fromId ? budgetOf(state.categories[fromId], p).avail : 0, next: budgetOf(c, next).avail, pool: poolBalance() });
+      const ch = b.dataset.o; const fromId = ch==="cat" ? $("#o-cat", sheet).value : ch==="jar" ? $("#o-jar", sheet).value : null;
+      const snap = () => ({ me: budgetOf(c, p).avail, lender: ch==="cat" ? budgetOf(state.categories[fromId], p).avail : 0, next: budgetOf(c, next).avail, pool: poolBalance(), jar: ch==="jar" ? jarBalance(state.jars[fromId]) : 0 });
       const before = snap(); resolveOver(s, ch, fromId); const after = snap();
       closeSheet(); render(); showRealloc(c, ch, fromId, before, after, next);
     }));
@@ -1571,9 +1624,11 @@ function showRealloc(c, ch, fromId, b, a, next){
   if(ch === "cat"){ const lc = state.categories[fromId]; rows.push(row(`${esc(lc.name)} 本期還剩`, b.lender, a.lender)); }
   if(ch === "next") rows.push(row(`${esc(c.name)} ${next.m} 月期還剩`, b.next, a.next));
   if(ch === "pool") rows.push(row("已節省結餘", b.pool, a.pool));
+  if(ch === "jar") rows.push(row(`存錢罐「${esc(state.jars[fromId].name)}」`, b.jar, a.jar));
   rows.push(row(`${esc(c.name)} 本期還剩`, b.me, a.me));
   const foot = ch === "cat" ? `本期總額度沒有增加，只是把 ${moneyShort(moved)} 從${esc(state.categories[fromId].name)}移到${esc(c.name)}。`
     : ch === "next" ? `本期總額度沒有增加，是先用掉下個月的 ${moneyShort(moved)}。`
+    : ch === "jar" ? `這 ${moneyShort(moved)} 用存錢罐「${esc(state.jars[fromId].name)}」這個月該存的錢支付，等於這個月少存 ${moneyShort(moved)}，不用還。`
     : `本期預算沒有增加，這 ${moneyShort(moved)} 由之前省下來的結餘支付。`;
   openSheet(`<div class="hd"><h2>已重新分配</h2></div>
     <div class="card rlist">${rows.join("")}</div>
@@ -1792,7 +1847,7 @@ function confirmRun(item, v){
 function todayPlan(p){
   const list = txIn(p); const today = todayStr(); const [pa, pb] = periodRange(p);
   const daysTotal = dayDiff(pa, pb) + 1, daysLeft = Math.max(1, dayDiff(today, pb) + 1), elapsed = Math.min(1, (dayDiff(pa, today) + 1) / daysTotal);
-  const inc = sumIncome(list), out = sumOut(list), target = state.settings.savingsTarget || 0;
+  const inc = sumIncome(list), out = sumOut(list), target = savingsMonthly();
   const limited = cats("expense").filter(c => c.monthlyLimit); const ids = new Set(limited.map(c => c.id));
   const bs = limited.map(c => budgetOf(c, p)); const cap = bs.reduce((s,b)=>s+b.cap,0), used = bs.reduce((s,b)=>s+b.used,0);
   const hasBudget = cap > 0;
@@ -1860,7 +1915,7 @@ function upcoming(){
 }
 function viewHome(){
   const p = curPeriod(); const L = periodLabel(p);
-  const t = todayPlan(p); const pool = poolBalance(); const target = state.settings.savingsTarget || 0;
+  const t = todayPlan(p); const pool = poolBalance(); const target = savingsMonthly();
   // pace popover: how far through the period we are vs. how much of the budget is used (display only)
   const [ppa, ppb] = periodRange(p); const pDays = dayDiff(ppa, ppb) + 1, pDay = Math.min(pDays, dayDiff(ppa, todayStr()) + 1);
   const tPct = Math.round(t.elapsed * 100), uPct = Math.round(t.usedPct * 100);
@@ -2139,15 +2194,15 @@ function runInsight(a){
 // yearly view of savings: the monthly target ×12, and the pool's pace from closed periods
 function yearlySavings(Y, note){
   const w = yearWindow(Y); const current = Y === curPeriod().y;
-  const target = state.settings.savingsTarget || 0;
+  const target = savingsMonthly();
   const closed = Object.values(state.closings).filter(c => (c.period || "").startsWith(Y + "-"));
   const accrued = closed.reduce((s, c) => s + (c.total || 0), 0); const avg = closed.length ? accrued / closed.length : 0;
   const poolYear = current ? Math.round(avg * 12) : accrued;
   // past years only count the months that were actually recorded
   const tMonths = current || !w ? 12 : w.n; const tYear = target * tMonths;
   const tCard = target
-    ? `<div class="ys"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b class="num">${tMonths === 12 ? "全年" : `${tMonths} 個月`} ${moneyShort(tYear)}</b><small>${current && w ? `到目前 ${w.n} 個月應存 ${moneyShort(target * w.n)}` : `每月 ${moneyShort(target)}`}</small></div></div>`
-    : `<button class="ys" data-set="budget" data-bseg-go="save"><span class="mic tint3">${icon("coin")}</span><div><span>目標儲蓄</span><b>還沒設定</b><small>到「預算與儲蓄」填每月要存多少 ›</small></div></button>`;
+    ? `<div class="ys"><span class="mic tint3">${icon("coin")}</span><div><span>存錢罐</span><b class="num">${tMonths === 12 ? "全年" : `${tMonths} 個月`} ${moneyShort(tYear)}</b><small>${current && w ? `到目前 ${w.n} 個月應存 ${moneyShort(target * w.n)}` : `每月 ${moneyShort(target)}`}</small></div></div>`
+    : `<button class="ys" data-set="budget" data-bseg-go="save"><span class="mic tint3">${icon("coin")}</span><div><span>存錢罐</span><b>還沒設定</b><small>到「預算與儲蓄 → 儲蓄」新增存錢罐 ›</small></div></button>`;
   const pCard = `<div class="ys"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span>${closed.length
       ? (current ? `<b class="num">全年約 ${moneyShort(poolYear)}</b><small>今年已轉入 ${moneyShort(accrued)} · 平均每期 ${moneyShort(avg)}</small>`
                  : `<b class="num">全年 ${moneyShort(accrued)}</b><small>${closed.length} 期轉入</small>`)
@@ -2155,7 +2210,7 @@ function yearlySavings(Y, note){
   const both = tYear + poolYear;
   const line = both > 0 ? (current
       ? `照目前這樣花，${Y} 年約可存 <b class="num">NT$ ${moneyShort(both)}</b>${closed.length && closed.length < 12 ? `<small>（結餘依今年 ${closed.length} 期的平均推算）</small>` : ""}`
-      : `${Y} 年目標儲蓄加已節省結餘，共 <b class="num">NT$ ${moneyShort(both)}</b>`) : "";
+      : `${Y} 年存錢罐加已節省結餘，共 <b class="num">NT$ ${moneyShort(both)}</b>`) : "";
   const trust = note ? `<p class="ynote${w && w.current && w.n < 12 ? " low" : ""}">${note}</p>` : "";
   return `${line ? `<p class="ytotal">${line}</p>` : ""}${trust}<div class="ysav">${tCard}${pCard}</div>`;
 }
@@ -2255,6 +2310,12 @@ function viewSettings(){
       <ul class="issues"><li>類別 ${importPreview.cats.length} 個</li><li>固定收支 ${importPreview.recs.length} 筆</li><li>分期 ${importPreview.insts.length} 筆</li><li>慾望清單 ${importPreview.wishes.length} 個</li><li>交易 ${importPreview.txs.length} 筆（${esc(importPreview.sheets.join("、")||"無月表")}）</li></ul>
       ${importPreview.issues.length ? `<p style="margin:10px 0 4px;color:var(--warn)">需要注意 ${importPreview.issues.length} 項：</p><ul class="issues">${importPreview.issues.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`:""}
       <div class="rowbtns" style="margin-top:12px"><button class="btn" data-act="imp-cancel">取消</button><button class="btn primary" data-act="imp-go">確認匯入</button></div></div>` : "";
+  const jars = jarList(); const p0 = curPeriod();
+  const jarHtml = jars.length ? jars.map(j => `<button class="catrow" data-jar="${esc(j.id)}">
+      <b>${esc(j.name)}</b><span class="num small">${moneyShort(jarBalance(j))}</span>
+      <span class="sub">${jarLine(j)}${j.freq === "month" ? "" : ` · 每月約 ${moneyShort(jarMonthly(j))}`}${jarAdj(j, pkey(p0)) ? ` · 這個月動用 ${moneyShort(jarAdj(j, pkey(p0)))}` : ""}</span></button>`).join("")
+      + `<div class="note">每月合計約 <b class="num">${moneyShort(savingsMonthly())}</b>，預估月收入會先扣掉這筆，剩下的才是「可分配預算」。</div>`
+    : `<div class="empty">還沒有存錢罐。可以依用途分開存，例如旅行、緊急預備金，每週、每月或每年存一筆。</div>`;
   const limited = cats("expense").filter(c => c.monthlyLimit);
   const poolChips = limited.length ? `<div class="chips" role="group" aria-label="可以轉入已節省結餘的類別">${limited.map(c => `<button class="chip" data-pool="${esc(c.id)}" aria-pressed="${toPool(c)}">${esc(c.name)}</button>`).join("")}</div>`
     : `<span class="small muted">先幫類別設每月上限，才能選。</span>`;
@@ -2265,8 +2326,10 @@ function viewSettings(){
     ${budSeg === "cat" ? `<div class="section">${budgetSummary()}
       <div class="section-head"><span class="label">${allCats.length} 個類別</span><button class="btn small" data-act="cat-new">新增類別</button></div>
       <div class="card setlist">${catHtml}</div></div>`
-    : `<div class="section"><div class="card setlist">
-      <div class="setrow"><div class="k"><b>每月目標儲蓄</b><span>預估月收入先扣掉這筆，剩下的才是「可分配預算」</span></div><input class="inp num" id="set-target" inputmode="numeric" value="${s.savingsTarget||""}" placeholder="0" style="width:120px;text-align:right" aria-label="每月目標儲蓄"></div>
+    : `<div class="section"><div class="section-head"><h2>存錢罐${infoBtn("jar", "存錢罐怎麼運作")}</h2><button class="btn small" data-act="jar-new">新增</button></div>
+      ${infoPop("jar", "到了存錢日會自動存進去，不用確認。每個存錢罐換算成每月大約多少，加起來會先從預估月收入扣掉，剩下的才是「可分配預算」。超支時，要其他類別都借不到、已節省結餘也不夠，才可以動用存錢罐這個月該存的錢，動用的部分就是這個月少存，不用還。")}
+      <div class="card setlist">${jarHtml}</div></div>
+      <div class="section"><div class="card setlist">
       <div class="setrow"><div class="k"><b>已節省結餘</b><span>從開始記帳開始累積，儲蓄以外的小金庫</span></div><span class="num">${money(poolBalance())}</span></div>
       <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>可以轉入已節省結餘的類別</b><span>只列出有設每月上限的類別</span></div>${poolChips}</div>
     </div></div></div>`}
@@ -2627,6 +2690,47 @@ function openRecurring(r){
   });
 }
 
+function openJar(j){
+  const isNew = !j; const today = todayStr(); const now = new Date();
+  j = j ? {...j} : { id: uid(), name: "", freq: "month", amount: null, day: state.settings.cycleStartDay || 1, base: 0, since: today, createdAt: Date.now() };
+  const bal = isNew ? 0 : jarBalance(j); let confirmDel = false;
+  const tmr = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  const dayField = (freq, day) => freq === "week"
+      ? `<select id="j-day" aria-label="星期幾">${[1,2,3,4,5,6,0].map(d => `<option value="${d}" ${+day===d?"selected":""}>星期${WEEK[d]}</option>`).join("")}</select>`
+    : freq === "year" ? (() => { const [m, d] = String(typeof day === "string" ? day : `${pad(now.getMonth()+1)}-${pad(now.getDate())}`).split("-").map(Number);
+        return `<span class="jmd"><select id="j-m" aria-label="月">${Array.from({length:12},(_,i)=>`<option value="${i+1}" ${m===i+1?"selected":""}>${i+1} 月</option>`).join("")}</select><select id="j-d" aria-label="日">${Array.from({length:31},(_,i)=>`<option value="${i+1}" ${d===i+1?"selected":""}>${i+1} 日</option>`).join("")}</select></span>`; })()
+    : `<select id="j-day" aria-label="每月幾號">${Array.from({length:31},(_,i)=>`<option value="${i+1}" ${+day===i+1?"selected":""}>${i+1} 號</option>`).join("")}</select>`;
+  openSheet(`<div class="hd"><h2>${isNew?"新增存錢罐":"編輯存錢罐"}</h2><button class="btn ghost" data-x>關閉</button></div>
+    <div class="fields">
+      <label class="full">名稱<input class="inp" id="j-name" value="${esc(j.name)}" placeholder="例如：旅行、緊急預備金"></label>
+      <label>多久存一次<select id="j-freq">${JAR_FREQ.map(([k,l]) => `<option value="${k}" ${j.freq===k?"selected":""}>${l}</option>`).join("")}</select></label>
+      <label>哪一天<span id="j-dayw">${dayField(j.freq, j.day)}</span></label>
+      <label>每次存（NT$）<input class="inp num" id="j-amt" inputmode="numeric" value="${j.amount ?? ""}"></label>
+      <label>目前已存（NT$）<input class="inp num" id="j-bal" inputmode="numeric" value="${bal || ""}" placeholder="0"></label>
+    </div>
+    <p class="small muted" id="j-hint" style="margin:0"></p>
+    <div class="rowbtns">${isNew?"":`<button class="btn danger" data-del>刪除</button>`}<button class="btn primary" data-save>儲存</button></div>`, sheet => {
+    const read = () => { const freq = $("#j-freq", sheet).value; const v = (id, d) => { const el = $(id, sheet); return el ? +el.value : d; };
+      const day = freq === "year" ? `${pad(v("#j-m", 1))}-${pad(v("#j-d", 1))}` : v("#j-day", 1);
+      return { freq, day, amount: intOf($("#j-amt", sheet).value) || 0 }; };
+    const hint = () => { const x = read(); $("#j-hint", sheet).textContent = x.amount
+      ? `${jarLine(x).replace("存", "自動存")}${x.freq === "month" ? "" : `，換算每月約 ${moneyShort(jarMonthly(x))}`}，下次是 ${(d => `${d.getMonth()+1}/${d.getDate()}`)(parseYmd(jarNext(x, tmr)))}。預估月收入會先扣掉每月的份，再分配給各類別。` : ""; };
+    $("#j-freq", sheet).addEventListener("change", e => { const f = e.target.value;
+      $("#j-dayw", sheet).innerHTML = dayField(f, f === "week" ? 1 : f === "year" ? undefined : (state.settings.cycleStartDay || 1)); hint(); });
+    sheet.addEventListener("input", hint); sheet.addEventListener("change", hint); hint();
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    const del = $("[data-del]", sheet);
+    del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } put.jarDel(j.id); closeSheet(); render(); toast("已刪除存錢罐"); });
+    $("[data-save]", sheet).addEventListener("click", () => {
+      const name = $("#j-name", sheet).value.trim(); const x = read();
+      if(!name || !x.amount){ toast("請填名稱和每次存的金額"); return; }
+      // rebase: what's in the jar now (including today's deposit) becomes the base, and automatic deposits count from tomorrow
+      Object.assign(j, { name, ...x, base: (intOf($("#j-bal", sheet).value) || 0) + jarAdj(j), since: tmr });
+      put.jar(j); closeSheet(); render(); toast("已儲存");
+    });
+  });
+}
+
 /* ---------- favorites (常用) ---------- */
 const favKey = x => [x.type, x.categoryId, String(x.title || "").trim(), x.amount || ""].join("|");
 function favList(){
@@ -2955,7 +3059,7 @@ function openMore(){
   const canInstall = !!installEvt && !window.claude && !isStandalone();
   openSheet(`<div class="hd"><h2>設定</h2><button class="btn ghost" data-x>關閉</button></div>
     <div class="card setlist menu">
-      ${item("budget", "類別與每月上限、目標儲蓄、已節省結餘")}
+      ${item("budget", "類別與每月上限、存錢罐、已節省結餘")}
       ${item("fixed", "每月固定的收入、支出，以及分期")}
       ${item("fav", "快速記帳的項目和排序")}
       ${item("prefs", "週期、警戒線、明細預設、主題配色")}
@@ -3060,7 +3164,7 @@ function restoreBackup(obj){
     COLS.forEach(n => Object.keys(old[n] || {}).forEach(id => { if(!state[n][id]) write(n+"/"+id, null); }));
     Object.keys(old.months).forEach(ym => { if(!state.months[ym]) write("months/"+ym, null); });
   }
-  pushAll(); saveLocal(); render(); toast("已從備份還原");
+  pushAll(); ensureJars(); saveLocal(); render(); toast("已從備份還原");
 }
 
 /* ---------- events ---------- */
@@ -3093,7 +3197,7 @@ document.addEventListener("click", e => {
   if(bx){ const id = bx.dataset.budx; budOpen.has(id) ? budOpen.delete(id) : budOpen.add(id); render(); return; }
   const tp = e.target.closest("[data-theme-pick]");
   if(tp && !tp.closest(".sheet")){ state.settings.theme = tp.dataset.themePick; put.settings(); render(); return; }
-  const el = e.target.closest("[data-set],[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-inst],[data-over],[data-pool],[data-favq],[data-favedit],[data-favmove],[data-wishedit],[data-wishbuy]");
+  const el = e.target.closest("[data-set],[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-jar],[data-inst],[data-over],[data-pool],[data-favq],[data-favedit],[data-favmove],[data-wishedit],[data-wishbuy]");
   if(!el || el.closest(".sheet")) return;
   if(el.dataset.favq){ const f = state.favorites[el.dataset.favq]; f && quickRecord(f); return; }
   if(el.dataset.favedit){ const f = state.favorites[el.dataset.favedit]; f && openFavorite(f); return; }
@@ -3108,6 +3212,7 @@ document.addEventListener("click", e => {
   if(el.dataset.over){ const [kind, id] = el.dataset.over.split(":"); const s = subjectOf(kind, id); s && openOverspend(s); return; }
   if(el.dataset.cat){ openCategory(state.categories[el.dataset.cat]); return; }
   if(el.dataset.rec){ openRecurring(state.recurring[el.dataset.rec]); return; }
+  if(el.dataset.jar){ openJar(state.jars[el.dataset.jar]); return; }
   if(el.dataset.confirm || el.dataset.skip){
     const key = el.dataset.confirm || el.dataset.skip; const item = pendingRecurring().find(x => x.key===key); if(!item) return;
     if(el.dataset.skip){ put.run(key, {status:"skipped", at: Date.now()}); render(); toast("這個月已略過"); return; }
@@ -3120,6 +3225,7 @@ document.addEventListener("click", e => {
   else if(a==="next"){ viewPeriod = shift(viewPeriod,1); render(); }
   else if(a==="cat-new") openCategory(null);
   else if(a==="rec-new") openRecurring(null);
+  else if(a==="jar-new") openJar(null);
   else if(a==="fav-new") openFavorite(null);
   else if(a==="fav-auto"){ state.settings.favManual = false; put.settings(); render(); }
   else if(a==="fav-manage") goSet("fav");
@@ -3154,7 +3260,6 @@ document.addEventListener("change", e => {
   else if(id==="set-ins"){ state.settings.insOff = !e.target.checked; put.settings(); render(); }
   else if(id==="set-week"){ state.settings.weekStart = +e.target.value; put.settings(); render(); }
   else if(id==="set-palette"){ state.settings.palette = e.target.value; put.settings(); render(); }
-  else if(id==="set-target"){ state.settings.savingsTarget = intOf(e.target.value) || 0; put.settings(); render(); toast("已更新目標儲蓄"); }
   else if(id==="f-xlsx" && e.target.files[0]){
     const f = e.target.files[0];
     if(!window.XLSX){ toast("讀取 Excel 的元件沒有載入，請重新整理後再試"); return; }
@@ -3234,6 +3339,7 @@ function openOnboarding(dry){
       const list = chosen(); const lim = limitsNow();
       el = obShell(`${top(3)}<h2 class="obh">設定每月預算</h2><p class="obp">幫每一類設個上限，首頁就會算出每天可以花多少。不確定可以先略過。</p>
         <div class="fields"><label class="full">每月想存下多少（NT$，選填）<input class="inp num" id="ob-save" inputmode="numeric" placeholder="0" value="${ob.save ?? ""}"></label></div>
+        <p class="small muted" style="margin:0">會先放進一個叫「儲蓄」的存錢罐；之後可以到設定 → 預算與儲蓄，改名或依用途分成好幾個。</p>
         <div class="seg" role="radiogroup" aria-label="預算怎麼填"><button role="radio" data-obmode="each" aria-pressed="${ob.mode === "each"}" aria-checked="${ob.mode === "each"}">每類自己填</button><button role="radio" data-obmode="total" aria-pressed="${ob.mode === "total"}" aria-checked="${ob.mode === "total"}">先填總額</button></div>
         ${ob.mode === "total" ? `<div class="fields"><label class="full">每月預算總額（NT$）<input class="inp num" id="ob-total" inputmode="numeric" placeholder="${room() ?? "例如 25000"}" value="${ob.total ?? ""}"></label></div>
           <p class="small muted obnote">會照常見比例分給 ${list.length} 個類別，之後在設定裡可以再調。</p>` : ""}
@@ -3275,7 +3381,7 @@ function openOnboarding(dry){
       else c.archived = true;
       put.cat(c); });
     ob.extra.filter(x => ob.picked.has(x.id)).forEach((x, i) => put.cat({ id: x.id, name: x.name, type: "expense", monthlyLimit: lim[x.id] || null, perTxLimit: null, dailyLimit: null, yearlyLimit: null, warn: !!lim[x.id], archived: false, sort: 100 + i }));
-    state.settings.cycleStartDay = ob.sameCycle ? ob.payday : ob.cycle; if(ob.save) state.settings.savingsTarget = ob.save;
+    state.settings.cycleStartDay = ob.sameCycle ? ob.payday : ob.cycle; if(ob.save){ state.settings.savingsTarget = ob.save; state.settings.jarsMigrated = true; if(!jarList().length) put.jar({ id: uid(), name: "儲蓄", freq: "month", amount: ob.save, day: ob.payday, base: 0, since: todayStr(), createdAt: Date.now() }); }
     // salary as a fixed income; if this month's payday has passed, the first reminder is next month's
     if(ob.income){ const now = new Date(); const pay = Object.values(state.categories).find(c => c.type === "income" && c.name === "薪資");
       const first = now.getDate() >= ob.payday ? new Date(now.getFullYear(), now.getMonth() + 1, 1) : now;
@@ -3302,7 +3408,7 @@ function openGuide(afterSetup, onDone){
   };
   const cards = [
     { v: V.rec, h: "記一筆，也能一點就記", p: "常記的東西存成常用，之後一點就記好；同一筆記了 3 次，App 也會主動問你要不要存。", where: ["{plus}記一筆", "首頁 → 快速記帳"] },
-    { v: V.flex, h: "預算有彈性，超支也不慌", p: "某一類超支時，可以跟其他類別借、跟下個月借，或動用「已節省結餘」。每一期沒用完的預算，會自動存進已節省結餘。", where: ["首頁 → 需要注意", "看懂 → 預算進度"] },
+    { v: V.flex, h: "預算有彈性，超支也不慌", p: "某一類超支時，可以跟其他類別借、跟下個月借，或動用「已節省結餘」；都不夠時，還能動用存錢罐這個月該存的錢。每一期沒用完的預算，會自動存進已節省結餘。", where: ["首頁 → 需要注意", "看懂 → 預算進度"] },
     { v: V.wish, h: "想買的，先放 7 天", p: "想買的東西先放著，App 會告訴你現在可以買、再等等，還是會影響本期預算；決定買了，按「買了」就直接記帳。", where: ["下方「想買」分頁"] },
     { v: V.fixed, h: "固定收支與分期", p: "房租、電信、薪資這類每月固定的，到期會提醒你確認；分期付款會自動占用之後每一期的額度。「今天可以花」會先扣掉這期還沒付的。", where: ["{gear}設定 → 固定收支與分期", "{plus}記一筆 → 分期付款"] },
     { v: V.nw, h: "必要、需要、想要", p: "每筆支出可以標記是必要、需要還是想要。「看懂」會算出想要占多少，並用必要支出推算緊急預備金該存多少。", where: ["{plus}記一筆 → 這筆是", "看懂 → 收支分析"] },
