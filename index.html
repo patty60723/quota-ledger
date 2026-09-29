@@ -943,7 +943,6 @@ html{-webkit-tap-highlight-color:transparent}
 :root[data-theme="dark"] .cd.l4 :is(.dn,.da){color:var(--paper)}
 .calscale{display:inline-flex;align-items:center;gap:4px}
 .calscale .cd{display:inline-block;width:14px;height:14px;min-height:0;padding:0;border-radius:4px}
-.calscale small{font-size:inherit;color:var(--faint);margin-left:2px}
 .cd.today .dn{color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:3px}
 .cd.sel{box-shadow:inset 0 0 0 2px var(--ink)}
 .cd.future .dn{color:var(--faint)}
@@ -2145,9 +2144,8 @@ function calendarView(list){
   // selected day: keep it if it's in this period, else today (when inside), else the latest day with records, else the first day
   if(!calDay || calDay < a || calDay > b) calDay = today >= a && today <= b ? today : (Object.keys(byDay).sort().pop() || a);
   const outOf = d => sumOut(byDay[d] || []);
-  // shading: daily spending only (fixed items like 房貸 left out), measured against this period's typical day (median)
-  const isFixed = fixedTester(); const dailyOf = d => sumOut((byDay[d] || []).filter(t => !(t.type === "expense" && isFixed(t))));
-  const dv = Object.keys(byDay).map(dailyOf).filter(v => v > 0).sort((x, y) => x - y);
+  // shading: each day's spending against this period's typical day (median), so one big day doesn't flatten the rest
+  const dv = Object.keys(byDay).map(outOf).filter(v => v > 0).sort((x, y) => x - y);
   const med = dv.length ? (dv.length % 2 ? dv[(dv.length - 1) / 2] : (dv[dv.length / 2 - 1] + dv[dv.length / 2]) / 2) : 1;
   const levelOf = v => v <= 0 ? 0 : v <= med ? 1 : v <= med * 2 ? 2 : v <= med * 4 ? 3 : 4;
   const ws = state.settings.weekStart ?? 1;
@@ -2157,7 +2155,7 @@ function calendarView(list){
   let cells = Array.from({length: lead}, () => `<span class="cd pad" aria-hidden="true"></span>`).join("");
   for(let d = parseYmd(a); ymd(d) <= b; d.setDate(d.getDate() + 1)){
     const k = ymd(d), out = outOf(k), inc = sumIncome(byDay[k] || []);
-    const lvl = levelOf(dailyOf(k));
+    const lvl = levelOf(out);
     const label = d.getDate();
     cells += `<button class="cd l${lvl}${k === today ? " today" : k > today ? " future" : ""}${k === calDay ? " sel" : ""}" data-calday="${k}" aria-pressed="${k === calDay}" aria-label="${d.getMonth()+1} 月 ${d.getDate()} 日${out ? `，支出 ${out} 元` : ""}${inc ? `，收入 ${inc} 元` : ""}">
       <span class="dn num">${label}</span>${out ? `<span class="da num">${short(out)}</span>` : ""}${inc ? `<i class="ci" aria-hidden="true"></i>` : ""}</button>`;
@@ -2165,7 +2163,7 @@ function calendarView(list){
   const dayList = byDay[calDay] || []; const sd = parseYmd(calDay);
   const dayHead = `${sd.getMonth()+1} 月 ${sd.getDate()} 日（${WEEK[sd.getDay()]}）`;
   return `<div class="card cal"><div class="calh" aria-hidden="true">${heads}</div><div class="calg">${cells}</div>
-      <div class="calleg"><span><i class="ci"></i>有收入</span><span class="calscale" aria-label="顏色代表當天日常支出的多寡，不含固定支出">少<i class="cd l1"></i><i class="cd l2"></i><i class="cd l3"></i><i class="cd l4"></i>多<small>（不含固定支出）</small></span></div></div>
+      <div class="calleg"><span><i class="ci"></i>有收入</span><span class="calscale" aria-label="顏色代表當天支出的多寡">少<i class="cd l1"></i><i class="cd l2"></i><i class="cd l3"></i><i class="cd l4"></i>多</span></div></div>
     <div class="section"><div class="card txlist">${dayList.length ? txRows(dayList, true) : `<div class="daygrp"><span>${dayHead}</span></div><div class="empty">這天沒有紀錄。</div>`}</div></div>`;
 }
 
