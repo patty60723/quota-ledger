@@ -1488,8 +1488,11 @@ function jarGoalText(j, bal){
   return `目標 ${moneyShort(j.goal)} · 還差 ${moneyShort(j.goal - bal)}${d ? ` · 約 ${d.slice(0, 7).replace("-", "/")} 存到` : jarOn(j) ? "" : " · 已停止存入"}`;
 }
 function jarDelete(id){
-  const used = Object.values(state.adjustments).some(a => a.kind === "jar" && a.jarId === id);
-  if(used) put.jar({ ...state.jars[id], deleted: true, active: false }); else put.jarDel(id);
+  const j = state.jars[id]; const used = Object.values(state.adjustments).some(a => a.jarId === id || a.peer === id);
+  if(!used){ put.jarDel(id); return; }
+  // a deleted jar stops depositing, so what its deposits added so far moves into base first (otherwise it would go negative)
+  const now = new Date(); const tmr = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  put.jar({ ...j, base: jarBalance(j) + jarAdj(j), since: tmr, deleted: true, active: false });
 }
 // deleting a record paid by (or refunded to) a jar: say where the money went
 function delToast(t){
@@ -2003,7 +2006,8 @@ function todayPlan(p){
   const unbExtra = est ? Math.max(0, unbUsed + unbDue - unalloc) : 0;
   const unbOver = unbExtra + overAlloc;
   const unbOverToday = unbExtra - (est ? Math.max(0, unbUsed - unbToday + unbDue - unalloc) : 0);
-  const left = (hasBudget ? cap - used - unbOver : inc - out - target);
+  const jarUseAll = hasBudget ? 0 : Object.values(state.adjustments).filter(a => a.kind === "jar" && a.use && a.period === pkey(p)).reduce((s, a) => s + a.amount, 0);
+  const left = (hasBudget ? cap - used - unbOver : inc - out + jarUseAll - target);
   const spendable = left - reserved;
   const morning = spendable + todayCounted + unbOverToday;
   const perDay = morning > 0 ? Math.floor(morning / daysLeft) : 0;
@@ -2701,6 +2705,10 @@ function openEntry(existing, refundOf, prefill){
       if(t.refOf) rec.refOf = t.refOf;
       if(t.favoriteId) rec.favoriteId = t.favoriteId;
       if(t.jarId && (type === "expense" || type === "refund")) rec.jarId = t.jarId;
+      // a jar-paid expense can't grow past what the jar has (its current share counts as available)
+      if(rec.jarId && type === "expense" && state.jars[rec.jarId]){ const j = state.jars[rec.jarId];
+        const mine = Object.values(state.adjustments).filter(x => x.txId === t.id && x.kind === "jar" && x.use).reduce((s2, x) => s2 + x.amount, 0);
+        if(v > jarBalance(j) + mine){ toast(`「${j.name}」只有 ${moneyShort(jarBalance(j) + mine)}，金額不能超過`); return; } }
       if(type === "expense" && nwPick) rec.nw = nwPick;
       if(existing) removeTx(existing, false);
       addTx(rec); if(rec.jarId) syncJarUse(rec);
