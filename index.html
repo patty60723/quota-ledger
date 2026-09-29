@@ -1875,7 +1875,7 @@ function viewHome(){
     + (t.unbOver > 0 ? `<br>沒設上限的類別超出沒分配收入的 <span class="num">NT$${moneyShort(t.unbOver)}</span> 也已經扣掉了。` : "")
     + `<br>各類別之間可以互相挪用，所以這裡用的是全部類別加起來的預算。`;
   const leftText = `<b>本期預算還剩</b>：各類別的預算加起來 <span class="num">NT$${moneyShort(t.cap)}</span>，已用 <span class="num">NT$${moneyShort(t.used)}</span>。`
-    + `<br>另外，沒設上限的類別${t.unbNames.length ? `（${esc(t.unbNames.slice(0, 3).join("、"))}${t.unbNames.length > 3 ? " 等" : ""}）` : ""}這期花了 <span class="num">NT$${moneyShort(t.unbUsed)}</span>${t.unbDue ? `，還有 <span class="num">NT$${moneyShort(t.unbDue)}</span> 固定支出沒付` : ""}。收入扣掉儲蓄後，沒分配給任何類別的 <span class="num">NT$${moneyShort(t.unalloc)}</span> 先拿來付，不夠的 <span class="num">NT$${moneyShort(t.unbOver)}</span> 只能從預算裡出，所以也扣掉了。`;
+    + `<br>另外，沒設上限的類別${t.unbNames.length ? `（${esc(t.unbNames.slice(0, 3).join("、"))}${t.unbNames.length > 3 ? " 等" : ""}）` : ""}這期花了 <span class="num">NT$${moneyShort(t.unbUsed)}</span>${t.unbDue ? `，還有 <span class="num">NT$${moneyShort(t.unbDue)}</span> 固定支出沒付` : ""}。${t.unalloc > 0 ? `收入扣掉儲蓄後，沒分配給任何類別的 <span class="num">NT$${moneyShort(t.unalloc)}</span> 先拿來付，不夠的 <span class="num">NT$${moneyShort(t.unbOver)}</span>` : `收入扣掉儲蓄後已經全部分配給各類別，這 <span class="num">NT$${moneyShort(t.unbOver)}</span>`} 只能從預算裡出，所以也扣掉了。`;
   const poolText = `<b>已節省結餘</b>：每一期結束時，有勾選「轉入已節省結餘」的類別沒用完的預算，會存進這裡。超支時可以用它來補。`;
   const hero = `<section class="hero card--hero" aria-label="今天可以花">
       <div class="hrow"><span class="hlabel">${t.known ? `今天可以花${infoBtn("today", "今天可以花怎麼算")}` : "今天已花"}</span><span class="hperiod">${dateLabel}</span></div>
