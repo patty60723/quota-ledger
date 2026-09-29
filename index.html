@@ -1016,6 +1016,11 @@ header.top .srch + .more{margin-left:0}
 .gdic .ic{width:30px;height:30px}
 .gdcard h3{margin:0;font-size:21px;font-weight:700}
 .gdcard p{margin:0;font-size:16px;line-height:1.75;color:var(--muted)}
+.gdlead{margin-bottom:calc(var(--space-2) * -1) !important}
+.gdpts{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:var(--space-2)}
+.gdpts li{position:relative;padding-left:18px;font-size:15.5px;line-height:1.6;color:var(--muted)}
+.gdpts li::before{content:"";position:absolute;left:3px;top:.68em;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.gdpts b{color:var(--ink);font-weight:600}
 .gdfoot{flex-direction:row}
 .gdfoot .btn{flex:1;min-height:52px;border-radius:16px;font-size:16px}
 /* guide visuals: real components, frozen */
@@ -3718,19 +3723,22 @@ function openGuide(afterSetup, onDone){
     jar: `<div class="card setlist"><div class="catrow"><b>旅行</b><span class="num small">18,000</span><span class="sub">每年 12/1 存 12,000</span><span class="sub">目標 30,000 · 約 2027/12 存到</span><span class="jbar"><i style="width:60%"></i></span></div></div>`,
     data: `<div class="card setlist"><div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原</span></div><span class="btn small">匯出</span></div></div>`
   };
+  // each card: an optional one-line lead, then short points (bold = the words to look for in the app)
   const cards = [
-    { v: V.rec, h: "記一筆，也能一點就記", p: "常記的東西存成常用，之後一點就記好；同一筆記了 3 次，App 也會主動問你要不要存成常用。金額旁邊有小計算機，拆帳、加總不用另外開程式。", where: ["{plus}記一筆", "首頁 → 快速記帳"] },
-    { v: V.flex, h: "預算有彈性，超支也不慌", p: "某一類超支時，可以跟其他類別借、跟下個月借，或動用「已節省結餘」；都不夠時，還能動用存錢罐這個月該存的錢。每一期沒用完的預算，會自動存進已節省結餘。", where: ["首頁 → 需要注意", "看懂 → 預算進度"] },
-    { v: V.wish, h: "想買的，先放 7 天", p: "想買的東西先放著，App 會告訴你現在可以買、再等等，還是會影響本期預算；決定買了，按「買了」就直接記帳。", where: ["下方「想買」分頁"] },
-    { v: V.jar, h: "存錢罐：分開存，存到就能用", p: "依用途開好幾個存錢罐，每週、每月或每年自動存一筆，這期要存的會先從收入扣掉。可以設目標金額，App 會算出大概什麼時候存到。要用時按「使用這筆錢」，由存錢罐支付、不動到預算；暫時不想存可以停止存入，錢會留著，也能轉到其他存錢罐。拿到獎金、紅包可以隨時「存一筆」，每一筆進出都有紀錄。", where: ["{gear}設定 → 預算與儲蓄 → 儲蓄"] },
-    { v: V.fixed, h: "固定收支與分期", p: "房租、電信、薪資這類每月固定的，到期會提醒你確認；分期付款會自動占用之後每一期的額度。「今天可以花」會先扣掉這期還沒付的。", where: ["{gear}設定 → 固定收支與分期", "{plus}記一筆 → 分期付款"] },
-    { v: V.nw, h: "必要、需要、想要", p: "每筆支出可以標記是必要、需要還是想要。「看懂」會算出想要占多少，並用必要支出推算緊急預備金該存多少。", where: ["{plus}記一筆 → 這筆是", "看懂 → 收支分析"] },
-    { v: V.data, h: local ? "資料只存在這台手機" : "記得偶爾備份", p: local ? "沒有雲端帳號，換手機或清除瀏覽器資料，資料就會不見。記得定期匯出備份，App 每兩週會提醒一次。剛剛設定的每一項，也都能在右上角的「設定」裡改。" : "資料會在這個頁面同步，還是建議偶爾匯出一份備份。剛剛設定的每一項，也都能在右上角的「設定」裡改。", where: ["{gear}設定 → 資料與備份"] }
+    { v: V.rec, h: "記一筆，也能一點就記", pts: ["常記的東西<b>存成常用</b>，之後一點就記好", "同一筆記了 3 次，App 會問你要不要<b>存成常用</b>", "金額旁的<b>計算機</b>：拆帳、加總直接算"], where: ["{plus}記一筆", "首頁 → 快速記帳"] },
+    { v: V.flex, h: "預算有彈性，超支也不慌", lead: "某一類超支時，可以這樣補：", pts: ["跟<b>其他類別</b>借，或跟<b>下個月</b>借", "動用<b>已節省結餘</b>：每期沒用完的預算會存進來", "都不夠時，才動用<b>存錢罐</b>這期該存的錢"], where: ["首頁 → 需要注意", "看懂 → 預算進度"] },
+    { v: V.wish, h: "想買的，先放 7 天", pts: ["想買的先放著冷靜幾天", "App 會告訴你<b>可以買</b>、<b>再等等</b>，還是會影響本期預算", "決定買了，按<b>「買了」</b>就直接記帳"], where: ["下方「想買」分頁"] },
+    { v: V.jar, h: "存錢罐：分開存，存到就能用", pts: ["依用途分開存，<b>每週、每月或每年</b>自動存一筆", "可以設<b>目標金額</b>，算出大概什麼時候存到", "<b>使用這筆錢</b>由存錢罐支付，不動到預算", "也能<b>存一筆</b>、轉到其他存錢罐，每筆進出都有<b>紀錄</b>"], where: ["{gear}設定 → 預算與儲蓄 → 儲蓄"] },
+    { v: V.fixed, h: "固定收支與分期", pts: ["房租、電信、薪資這類固定的，到期會提醒你<b>確認</b>", "<b>分期付款</b>會先占用之後每一期的額度", "「今天可以花」會先扣掉這期<b>還沒付的</b>"], where: ["{gear}設定 → 固定收支與分期", "{plus}記一筆 → 分期付款"] },
+    { v: V.nw, h: "必要、需要、想要", pts: ["記帳時標記這筆是<b>必要、需要還是想要</b>", "「看懂」會算出<b>想要占多少</b>", "用必要支出推算<b>緊急預備金</b>該存多少"], where: ["{plus}記一筆 → 這筆是", "看懂 → 收支分析"] },
+    { v: V.data, h: local ? "資料只存在這台手機" : "記得偶爾備份", pts: local
+        ? ["沒有雲端帳號，<b>換手機或清除瀏覽器資料就會不見</b>", "記得定期<b>匯出備份</b>，App 每兩週提醒一次", "設定過的每一項，都能在右上角<b>設定</b>裡改"]
+        : ["資料會在這個頁面同步", "還是建議偶爾<b>匯出備份</b>", "設定過的每一項，都能在右上角<b>設定</b>裡改"], where: ["{gear}設定 → 資料與備份"] }
   ];
   const el = obShell(`<div class="obtop"><span></span><div class="obdots" id="gd-dots">${cards.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div><button class="link" data-gd="done">${afterSetup ? "略過" : "關閉"}</button></div>
     <p class="gdtitle">${afterSetup ? "設定好了，看看還能怎麼用" : "使用說明"}</p>
     <div class="gdcards" id="gd-cards">${cards.map((c, i) => `<section class="gdcard" aria-label="${i+1} / ${cards.length}：${c.h}">
-      <div class="gdviz" aria-hidden="true">${c.v}</div><h3>${c.h}</h3><p>${c.p}</p>
+      <div class="gdviz" aria-hidden="true">${c.v}</div><h3>${c.h}</h3>${c.lead ? `<p class="gdlead">${c.lead}</p>` : ""}<ul class="gdpts">${c.pts.map(x => `<li>${x}</li>`).join("")}</ul>
       <div class="gdpath"><span class="lbl">在哪裡</span>${c.where.map(w => `<span class="pth">${w.replace("{plus}", icon("plus")).replace("{gear}", icon("gear"))}</span>`).join("")}</div></section>`).join("")}</div>
     <div class="obfoot gdfoot"><button class="btn" data-gd="prev">上一張</button><button class="btn primary" data-gd="next">下一張</button></div>`);
   const box = $("#gd-cards", el); let at = 0;
