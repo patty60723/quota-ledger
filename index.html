@@ -1414,8 +1414,9 @@ function jarCount(j, a, b){
 }
 function jarNext(j, from){ const d = parseYmd(from); for(let i = 0; i < 400; i++, d.setDate(d.getDate() + 1)){ const x = ymd(d); if(jarCount(j, x, x)) return x; } return from; }
 // jar adjustments: covering an overspend (this period's share), or spending the jar's money (use: true, tied to the expense)
-// moves between jars (kind "jar-move": + out of this jar, − into it) only change balances, never a period's share
-const jarAdj = (j, k, useToo = !k) => Object.values(state.adjustments).filter(a => a.jarId === j.id && (a.kind === "jar" || (!k && a.kind === "jar-move")) && (!k || a.period === k) && (useToo || !a.use)).reduce((s, a) => s + a.amount, 0);
+// moves between jars (kind "jar-move": + out of this jar, − into it) and one-off deposits (kind "jar-in", negative)
+// only change balances, never a period's share
+const jarAdj = (j, k, useToo = !k) => Object.values(state.adjustments).filter(a => a.jarId === j.id && (a.kind === "jar" || (!k && (a.kind === "jar-move" || a.kind === "jar-in"))) && (!k || a.period === k) && (useToo || !a.use)).reduce((s, a) => s + a.amount, 0);
 const jarOn = j => j.active !== false && !j.deleted;
 function jarBalance(j){ return (j.base || 0) + (jarOn(j) ? j.amount * jarCount(j, j.since, todayStr()) : 0) - jarAdj(j); }
 // only this period's share can cover an overspend, and never more than the jar holds
@@ -2779,6 +2780,7 @@ function openJar(j){
     ${isNew ? "" : `<label class="toggle"><input type="checkbox" id="j-on" ${jarOn(j) ? "checked" : ""}>繼續自動存入</label>`}
     <p class="small muted" id="j-hint" style="margin:0"></p>
     ${!isNew && bal > 0 ? `<button class="btn" data-use>使用這筆錢（目前 ${moneyShort(bal)}）</button>` : ""}
+    ${!isNew ? `<button class="btn" data-add>存一筆</button>` : ""}
     ${!isNew && bal > 0 && jarList().length > 1 ? `<button class="btn" data-move>轉到其他存錢罐</button>` : ""}
     ${!isNew && bal > 0 ? `<p class="small muted" style="margin:0">裡面還有錢，所以不能刪除；不想再存可以關掉「繼續自動存入」，或把錢轉到其他存錢罐。</p>` : ""}
     <div class="rowbtns">${isNew || bal > 0 ? "" : `<button class="btn danger" data-del>刪除</button>`}<button class="btn primary" data-save>儲存</button></div>`, sheet => {
@@ -2794,6 +2796,7 @@ function openJar(j){
     $("[data-x]", sheet).addEventListener("click", closeSheet);
     const use = $("[data-use]", sheet); use && use.addEventListener("click", () => { closeSheet(); openJarUse(state.jars[j.id]); });
     const mv = $("[data-move]", sheet); mv && mv.addEventListener("click", () => { closeSheet(); openJarMove(state.jars[j.id]); });
+    const add = $("[data-add]", sheet); add && add.addEventListener("click", () => { closeSheet(); openJarAdd(state.jars[j.id]); });
     const del = $("[data-del]", sheet);
     del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } jarDelete(j.id); closeSheet(); render(); toast("已刪除存錢罐"); });
     $("[data-save]", sheet).addEventListener("click", () => {
@@ -2807,6 +2810,38 @@ function openJar(j){
   });
 }
 
+// a one-off deposit: money from outside the budget (bonus, gifts), or moved in from 已節省結餘; the budget doesn't change
+function openJarAdd(j){
+  const pool = poolBalance(); let from = "out";
+  const draw = sheet => {
+    sheet.innerHTML = `<div class="hd"><h2>存進「${esc(j.name)}」</h2><button class="btn ghost" data-x>關閉</button></div>
+    <div class="fields"><label class="full">金額（NT$）<input class="inp num" id="a-amt" inputmode="numeric" value="${sheet._amt || ""}"></label></div>
+    <div class="seg" role="radiogroup" aria-label="這筆錢從哪裡來">${[["out", "預算外的錢"], ["pool", "從已節省結餘"]].map(([k, l]) => `<button role="radio" data-from="${k}" aria-pressed="${from === k}" aria-checked="${from === k}" ${k === "pool" && pool <= 0 ? "disabled" : ""}>${l}</button>`).join("")}</div>
+    <p class="small muted" style="margin:0">${from === "out" ? "例如獎金、紅包、賣二手的錢。只會加進存錢罐，預算不變。" : `已節省結餘目前 ${moneyShort(pool)}，會減少同樣的金額。預算不變。`}</p>
+    <div class="rowbtns"><button class="btn primary" data-save>存進去</button></div>`;
+    $("#a-amt", sheet).addEventListener("input", e => { sheet._amt = e.target.value.replace(/\D/g, ""); e.target.value = sheet._amt; });
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    sheet.querySelectorAll("[data-from]").forEach(b => b.addEventListener("click", () => { from = b.dataset.from; draw(sheet); }));
+    $("[data-save]", sheet).addEventListener("click", () => {
+      const amount = intOf($("#a-amt", sheet).value);
+      if(!amount){ toast("請填金額"); return; }
+      if(from === "pool" && amount > pool){ toast(`已節省結餘只有 ${moneyShort(pool)}`); return; }
+      const b = { jar: jarBalance(j), pool }; const at = Date.now(), moveId = uid();
+      const docs = [{ id: uid(), kind: "jar-in", moveId, jarId: j.id, from, amount: -amount, at }];
+      if(from === "pool") docs.push({ id: uid(), kind: "pool", moveId, jarId: j.id, amount, at });
+      docs.forEach(put.adj); closeSheet(); render();
+      const row = (name, x, y) => `<div class="rl"><span class="n">${esc(name)}</span><span class="num"><s>${moneyShort(x)}</s> → <b>${moneyShort(y)}</b></span></div>`;
+      openSheet(`<div class="hd"><h2>已存進去</h2></div>
+        <div class="card rlist">${from === "pool" ? row("已節省結餘", b.pool, poolBalance()) : ""}${row(j.name, b.jar, jarBalance(j))}</div>
+        <p class="rlnote">預算沒有變${from === "pool" ? `，是把已節省結餘的 ${moneyShort(amount)} 移進「${esc(j.name)}」` : `，這 ${moneyShort(amount)} 是預算外的錢`}。</p>
+        <div class="rowbtns"><button class="btn" data-undo>復原</button><button class="btn primary" data-x>知道了</button></div>`, sh => {
+        $("[data-x]", sh).addEventListener("click", closeSheet);
+        $("[data-undo]", sh).addEventListener("click", () => { docs.forEach(d => put.adjDel(d.id)); closeSheet(); render(); toast("已復原"); });
+      });
+    });
+  };
+  openSheet("", draw);
+}
 // moving money between jars: both balances change, the budget doesn't
 function openJarMove(j){
   const bal = jarBalance(j); const others = jarList().filter(x => x.id !== j.id);
