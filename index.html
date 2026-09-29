@@ -1412,7 +1412,8 @@ function jarCount(j, a, b){
 }
 function jarNext(j, from){ const d = parseYmd(from); for(let i = 0; i < 400; i++, d.setDate(d.getDate() + 1)){ const x = ymd(d); if(jarCount(j, x, x)) return x; } return from; }
 // jar adjustments: covering an overspend (this period's share), or spending the jar's money (use: true, tied to the expense)
-const jarAdj = (j, k, useToo = !k) => Object.values(state.adjustments).filter(a => a.kind === "jar" && a.jarId === j.id && (!k || a.period === k) && (useToo || !a.use)).reduce((s, a) => s + a.amount, 0);
+// moves between jars (kind "jar-move": + out of this jar, − into it) only change balances, never a period's share
+const jarAdj = (j, k, useToo = !k) => Object.values(state.adjustments).filter(a => a.jarId === j.id && (a.kind === "jar" || (!k && a.kind === "jar-move")) && (!k || a.period === k) && (useToo || !a.use)).reduce((s, a) => s + a.amount, 0);
 const jarOn = j => j.active !== false;
 function jarBalance(j){ return (j.base || 0) + (jarOn(j) ? j.amount * jarCount(j, j.since, todayStr()) : 0) - jarAdj(j); }
 // only this period's share can cover an overspend, and never more than the jar holds
@@ -2759,7 +2760,8 @@ function openJar(j){
     ${isNew ? "" : `<label class="toggle"><input type="checkbox" id="j-on" ${jarOn(j) ? "checked" : ""}>繼續自動存入</label>`}
     <p class="small muted" id="j-hint" style="margin:0"></p>
     ${!isNew && bal > 0 ? `<button class="btn" data-use>使用這筆錢（目前 ${moneyShort(bal)}）</button>` : ""}
-    ${!isNew && bal > 0 ? `<p class="small muted" style="margin:0">裡面還有錢，所以不能刪除；不想再存可以關掉「繼續自動存入」，錢會留著。</p>` : ""}
+    ${!isNew && bal > 0 && jarList().length > 1 ? `<button class="btn" data-move>轉到其他存錢罐</button>` : ""}
+    ${!isNew && bal > 0 ? `<p class="small muted" style="margin:0">裡面還有錢，所以不能刪除；不想再存可以關掉「繼續自動存入」，或把錢轉到其他存錢罐。</p>` : ""}
     <div class="rowbtns">${isNew || bal > 0 ? "" : `<button class="btn danger" data-del>刪除</button>`}<button class="btn primary" data-save>儲存</button></div>`, sheet => {
     const read = () => { const freq = $("#j-freq", sheet).value; const v = (id, d) => { const el = $(id, sheet); return el ? +el.value : d; };
       const day = freq === "year" ? `${pad(v("#j-m", 1))}-${pad(v("#j-d", 1))}` : v("#j-day", 1);
@@ -2772,6 +2774,7 @@ function openJar(j){
     sheet.addEventListener("input", hint); sheet.addEventListener("change", hint); hint();
     $("[data-x]", sheet).addEventListener("click", closeSheet);
     const use = $("[data-use]", sheet); use && use.addEventListener("click", () => { closeSheet(); openJarUse(state.jars[j.id]); });
+    const mv = $("[data-move]", sheet); mv && mv.addEventListener("click", () => { closeSheet(); openJarMove(state.jars[j.id]); });
     const del = $("[data-del]", sheet);
     del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } put.jarDel(j.id); closeSheet(); render(); toast("已刪除存錢罐"); });
     $("[data-save]", sheet).addEventListener("click", () => {
@@ -2785,6 +2788,36 @@ function openJar(j){
   });
 }
 
+// moving money between jars: both balances change, the budget doesn't
+function openJarMove(j){
+  const bal = jarBalance(j); const others = jarList().filter(x => x.id !== j.id);
+  openSheet(`<div class="hd"><h2>從「${esc(j.name)}」轉出</h2><button class="btn ghost" data-x>關閉</button></div>
+    <div class="hint">「${esc(j.name)}」裡有 <b class="num">${money(bal)}</b>。轉到其他存錢罐不會影響預算，只是換個地方放。</div>
+    <div class="fields">
+      <label class="full">轉到<select id="m-to">${others.map(x => `<option value="${esc(x.id)}">${esc(x.name)}（目前 ${moneyShort(jarBalance(x))}）</option>`).join("")}</select></label>
+      <label class="full">金額（NT$）<input class="inp num" id="m-amt" inputmode="numeric" value="${bal}"></label>
+    </div>
+    <div class="rowbtns"><button class="btn primary" data-save>轉過去</button></div>`, sheet => {
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    $("[data-save]", sheet).addEventListener("click", () => {
+      const amount = intOf($("#m-amt", sheet).value); const to = state.jars[$("#m-to", sheet).value];
+      if(!amount || !to){ toast("請填金額"); return; }
+      if(amount > bal){ toast(`「${j.name}」只有 ${moneyShort(bal)}`); return; }
+      const b = { from: jarBalance(j), to: jarBalance(to) }; const moveId = uid(), at = Date.now();
+      const docs = [{ id: uid(), kind: "jar-move", moveId, jarId: j.id, peer: to.id, amount, at }, { id: uid(), kind: "jar-move", moveId, jarId: to.id, peer: j.id, amount: -amount, at }];
+      docs.forEach(put.adj); closeSheet(); render();
+      const row = (name, x, y) => `<div class="rl"><span class="n">${esc(name)}</span><span class="num"><s>${moneyShort(x)}</s> → <b>${moneyShort(y)}</b></span></div>`;
+      const left = jarBalance(j);
+      openSheet(`<div class="hd"><h2>已轉過去</h2></div>
+        <div class="card rlist">${row(j.name, b.from, left)}${row(to.name, b.to, jarBalance(to))}</div>
+        <p class="rlnote">預算沒有變，只是把 ${moneyShort(amount)} 從「${esc(j.name)}」移到「${esc(to.name)}」。${left === 0 ? `「${esc(j.name)}」已經清空，不需要的話可以到它的編輯畫面刪除。` : ""}</p>
+        <div class="rowbtns"><button class="btn" data-undo>復原</button><button class="btn primary" data-x>知道了</button></div>`, sh => {
+        $("[data-x]", sh).addEventListener("click", closeSheet);
+        $("[data-undo]", sh).addEventListener("click", () => { docs.forEach(d => put.adjDel(d.id)); closeSheet(); render(); toast("已復原"); });
+      });
+    });
+  });
+}
 // spending a jar's money: recorded as a normal expense (so reports see it), paid by the jar instead of the budget
 function openJarUse(j){
   const bal = jarBalance(j);
@@ -3490,7 +3523,7 @@ function openGuide(afterSetup, onDone){
     { v: V.rec, h: "記一筆，也能一點就記", p: "常記的東西存成常用，之後一點就記好；同一筆記了 3 次，App 也會主動問你要不要存。", where: ["{plus}記一筆", "首頁 → 快速記帳"] },
     { v: V.flex, h: "預算有彈性，超支也不慌", p: "某一類超支時，可以跟其他類別借、跟下個月借，或動用「已節省結餘」；都不夠時，還能動用存錢罐這個月該存的錢。每一期沒用完的預算，會自動存進已節省結餘。", where: ["首頁 → 需要注意", "看懂 → 預算進度"] },
     { v: V.wish, h: "想買的，先放 7 天", p: "想買的東西先放著，App 會告訴你現在可以買、再等等，還是會影響本期預算；決定買了，按「買了」就直接記帳。", where: ["下方「想買」分頁"] },
-    { v: V.jar, h: "存錢罐：分開存，存到就能用", p: "依用途開好幾個存錢罐，每週、每月或每年自動存一筆，這期要存的會先從收入扣掉。可以設目標金額，App 會算出大概什麼時候存到。要用時按「使用這筆錢」，由存錢罐支付、不動到預算；暫時不想存可以停止存入，錢會留著。", where: ["{gear}設定 → 預算與儲蓄 → 儲蓄"] },
+    { v: V.jar, h: "存錢罐：分開存，存到就能用", p: "依用途開好幾個存錢罐，每週、每月或每年自動存一筆，這期要存的會先從收入扣掉。可以設目標金額，App 會算出大概什麼時候存到。要用時按「使用這筆錢」，由存錢罐支付、不動到預算；暫時不想存可以停止存入，錢會留著，也能轉到其他存錢罐。", where: ["{gear}設定 → 預算與儲蓄 → 儲蓄"] },
     { v: V.fixed, h: "固定收支與分期", p: "房租、電信、薪資這類每月固定的，到期會提醒你確認；分期付款會自動占用之後每一期的額度。「今天可以花」會先扣掉這期還沒付的。", where: ["{gear}設定 → 固定收支與分期", "{plus}記一筆 → 分期付款"] },
     { v: V.nw, h: "必要、需要、想要", p: "每筆支出可以標記是必要、需要還是想要。「看懂」會算出想要占多少，並用必要支出推算緊急預備金該存多少。", where: ["{plus}記一筆 → 這筆是", "看懂 → 收支分析"] },
     { v: V.data, h: local ? "資料只存在這台手機" : "記得偶爾備份", p: local ? "沒有雲端帳號，換手機或清除瀏覽器資料，資料就會不見。記得定期匯出備份，App 每兩週會提醒一次。剛剛設定的每一項，也都能在右上角的「設定」裡改。" : "資料會在這個頁面同步，還是建議偶爾匯出一份備份。剛剛設定的每一項，也都能在右上角的「設定」裡改。", where: ["{gear}設定 → 資料與備份"] }
