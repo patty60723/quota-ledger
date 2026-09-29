@@ -248,6 +248,15 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .amount{display:flex;align-items:baseline;gap:var(--space-2);border-bottom:2px solid var(--ink);padding-bottom:var(--space-1)}
 .amount span{font-family:var(--f-num);color:var(--muted)}
+.amount .calcbtn{align-self:center;flex-shrink:0;width:40px;height:40px;border-radius:12px;border:0;background:var(--sunk);color:var(--ink);display:grid;place-items:center}
+.amount .calcbtn[aria-expanded="true"]{background:var(--ink);color:var(--surface)}
+.calc{display:flex;flex-direction:column;gap:var(--space-2)}
+.calc .expr{font-family:var(--f-num);font-size:15px;color:var(--muted);text-align:right;min-height:1.4em;word-break:break-all}
+.calc .expr b{color:var(--ink)}
+.calc .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2)}
+.calc .keys button{height:46px;border-radius:12px;border:0;background:var(--sunk);color:var(--ink);font-family:var(--f-num);font-size:19px;font-weight:600}
+.calc .keys button.op{background:var(--accent-soft);color:var(--accent)}
+.calc .keys button.eq{grid-column:1 / -1;background:var(--ink);color:var(--surface);font-size:16px}
 .amount input{border:0;background:none;font-family:var(--f-num);font-size:34px;font-weight:600;width:100%;outline:none;font-variant-numeric:tabular-nums;padding:0}
 .chips{display:flex;flex-wrap:wrap;gap:var(--space-2)}
 .chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:var(--space-2) var(--space-3);font-size:14px}
@@ -935,6 +944,7 @@ header.top .srch + .more{margin-left:0}
 .srchbox .inp{width:100%;padding-left:40px}
 .srchhint,.srchsum{margin:0 2px}
 /* 支出分類: small 排行/圓餅 toggle in the section head */
+.rscope{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-2) var(--space-3);padding:var(--space-3) var(--space-4) 0}
 .seg.mini{padding:2px;border-radius:12px}
 .seg.mini button{min-height:36px;padding:var(--space-1) var(--space-3);font-size:13px}
 .section-head:has(.seg.mini){align-items:center}
@@ -1169,6 +1179,7 @@ const ICON = {
   recurring: '<path d="M20 7h-5V2"/><path d="M20 7a8 8 0 1 0 1 8"/>',
   more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   chev: '<path d="m9 18 6-6-6-6"/>',
+  calc: '<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7.5h7M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 15.5h.01M12 15.5h.01M15.5 15.5h.01"/>',
   chevl: '<path d="m15 18-6-6 6-6"/>',
   up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
   down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
@@ -2119,12 +2130,21 @@ function calendarView(list){
     <div class="section"><div class="card txlist">${dayList.length ? txRows(dayList, true) : `<div class="daygrp"><span>${dayHead}</span></div><div class="empty">這天沒有紀錄。</div>`}</div></div>`;
 }
 
+// a record counts as fixed if it came from a fixed item, or looks like one (same category, same name ignoring spaces, or same amount)
+function fixedTester(){
+  const norm = x => String(x || "").replace(/\s/g, "").toLowerCase();
+  const recs = Object.values(state.recurring).filter(r => r.active && r.type === "expense");
+  return t => !!t.recurringId || recs.some(r => r.categoryId === t.categoryId && (norm(r.title) === norm(t.title) || r.amount === t.amount));
+}
 function viewReport(){
   const list = txIn(viewPeriod); const out = sumOut(list);
-  const byCat = {}; list.forEach(t => { const v = outAmt(t); if(v) byCat[t.categoryId] = (byCat[t.categoryId]||0)+v; });
+  // 支出分類 leaves fixed items (房貸, 電信…) out by default so they don't always top the list
+  const isFixed = fixedTester(); const fixedOut = rankAll ? 0 : sumOut(list.filter(t => t.type === "expense" && isFixed(t)));
+  const rList = rankAll ? list : list.filter(t => !(t.type === "expense" && isFixed(t))); const rOut = sumOut(rList);
+  const byCat = {}; rList.forEach(t => { const v = outAmt(t); if(v) byCat[t.categoryId] = (byCat[t.categoryId]||0)+v; });
   const rows = Object.entries(byCat).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]); const max = rows[0]?.[1] || 1;
   const overIds = new Set(budgetCats().filter(c => c.monthlyLimit && budgetOf(c, viewPeriod).avail < 0).map(c => c.id));
-  const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<button class="r${overIds.has(id) ? " over" : ""}" data-rank="${esc(id)}" aria-label="看${esc(catName(id))}的所有支出"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${out>0?Math.round(v/out*100):0}%</small></span><span class="rchev" aria-hidden="true">${icon("chev")}</span></button>`).join("")}</div>`
+  const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<button class="r${overIds.has(id) ? " over" : ""}" data-rank="${esc(id)}" aria-label="看${esc(catName(id))}的所有支出"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${rOut>0?Math.round(v/rOut*100):0}%</small></span><span class="rchev" aria-hidden="true">${icon("chev")}</span></button>`).join("")}</div>`
     : `<div class="empty">這一期沒有支出。</div>`;
   const ns = nwSplit(list); const pctOf = v => ns.total ? Math.round(v / ns.total * 100) : 0;
   const nwHist = []; for(let i=5;i>=0;i--){ const pp = shift(viewPeriod,-i); const sp = nwSplit(txIn(pp)); nwHist.push({ p: pp, pct: sp.total ? sp.want / sp.total : null }); }
@@ -2171,7 +2191,11 @@ function viewReport(){
     <div class="section"><div class="section-head"><h2>${icon("report")}支出分類</h2><div class="seg mini" role="tablist" aria-label="支出分類顯示方式">
         <button role="tab" data-rview="rank" aria-pressed="${rankView==="rank"}" aria-selected="${rankView==="rank"}">排行</button>
         <button role="tab" data-rview="pie" aria-pressed="${rankView==="pie"}" aria-selected="${rankView==="pie"}">圓餅</button></div></div>
-      <div class="card">${rankView === "pie" ? donut(rows, out) : rank}</div></div>
+      <div class="card"><div class="rscope"><div class="seg mini" role="tablist" aria-label="要不要算固定支出">
+        <button role="tab" data-rscope="daily" aria-pressed="${!rankAll}" aria-selected="${!rankAll}">日常支出</button>
+        <button role="tab" data-rscope="all" aria-pressed="${rankAll}" aria-selected="${rankAll}">全部支出</button></div>
+        ${fixedOut ? `<span class="small muted">另有固定支出 NT$${moneyShort(fixedOut)} 沒列入</span>` : ""}</div>
+      ${rankView === "pie" ? donut(rows, rOut) : rank}</div></div>
     <div class="section"><div class="section-head"><h2>必要・需要・想要${infoBtn("nw", "必要・需要・想要的說明")}</h2><span class="label">${ns.total ? `想要占 ${Math.round(ns.wantPct*100)}%` : ""}</span></div>${infoPop("nw", "下方的小長條是近 6 期「想要」占支出的比例。<br>點必要、需要、想要，可以看這一期的每一筆並修改標記。")}<div class="card">${nwHtml}</div></div>
     <div class="section"><div class="section-head"><h2>近 6 期收支</h2><span class="label">到 ${periodLabel(viewPeriod).title}</span></div>
       <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>
@@ -2181,7 +2205,8 @@ function viewReport(){
 }
 
 // 支出分類 as a donut: the five biggest categories plus 其他, with a legend that carries names, amounts and shares
-let rankView = "rank";
+let rankView = "rank", rankAll = false;
+try{ rankAll = localStorage.getItem("ledger.rankscope") === "all"; }catch(e){}
 try{ if(localStorage.getItem("ledger.rankview") === "pie") rankView = "pie"; }catch(e){}
 function donut(rows, out){
   if(!rows.length || out <= 0) return `<div class="empty">這一期沒有支出。</div>`;
@@ -2216,9 +2241,7 @@ function insights(){
   const hasPrev = realTx().some(t => t.date < pa);
   const spend = (l, id) => l.filter(t => !id || t.categoryId === id).reduce((a, t) => a + outAmt(t), 0);
   // a record counts as fixed if it came from a fixed item, or looks like one (same category, same name ignoring spaces, or same amount)
-  const norm = x => String(x || "").replace(/\s/g, "").toLowerCase();
-  const recs = Object.values(state.recurring).filter(r => r.active && r.type === "expense");
-  const isFixed = t => !!t.recurringId || recs.some(r => r.categoryId === t.categoryId && (norm(r.title) === norm(t.title) || r.amount === t.amount));
+  const isFixed = fixedTester();
   const projOf = (c, b) => { const mine = cur.filter(t => t.categoryId === c.id && !t.virtual);
     const once = t => isFixed(t) || outAmt(t) >= b.cap * 0.3;   // big one-off buys aren't a daily pace either
     const fixed = mine.filter(once).reduce((a, t) => a + outAmt(t), 0), vary = mine.filter(t => !once(t)).reduce((a, t) => a + outAmt(t), 0);
@@ -2491,13 +2514,23 @@ document.addEventListener("keydown", e => { if(e.key==="Escape" && $("#scrim")){
 
 // existing: a stored transaction to edit; refundOf: an expense to refund
 // prefill: {type, categoryId, amount, title, note, favoriteId, wishId} for a new entry started from a favorite or wish
+// small calculator for the amount: numbers with + − × ÷ (× ÷ first); null when the expression isn't complete
+function calcEval(expr){
+  const tok = String(expr || "").match(/\d+|[+−×÷]/g); if(!tok || /[+−×÷]/.test(tok[tok.length - 1])) return tok && tok.length > 1 ? calcEval(tok.slice(0, -1).join("")) : null;
+  const terms = []; let cur = +tok[0];
+  for(let i = 1; i < tok.length; i += 2){ const op = tok[i], v = +tok[i + 1];
+    if(op === "×") cur *= v; else if(op === "÷"){ if(!v) return null; cur /= v; } else { terms.push(cur); terms.push(op); cur = v; } }
+  terms.push(cur); let r = terms[0];
+  for(let i = 1; i < terms.length; i += 2) r = terms[i] === "+" ? r + terms[i + 1] : r - terms[i + 1];
+  return Number.isFinite(r) ? r : null;
+}
 function openEntry(existing, refundOf, prefill){
   const isRefund = refundOf || existing?.type==="refund";
   const t = existing ? {...existing}
     : refundOf ? { id: uid(), date: todayStr(), type: "refund", categoryId: refundOf.categoryId, amount: refundOf.amount, title: `退款：${refundOf.title || catName(refundOf.categoryId)}`, note: "", refOf: refundOf.id, jarId: refundOf.jarId }
     : prefill ? { id: uid(), date: todayStr(), type: prefill.type || "expense", categoryId: prefill.categoryId || null, amount: prefill.amount ?? null, title: prefill.title || "", note: prefill.note || "", favoriteId: prefill.favoriteId, wishId: prefill.wishId, nw: prefill.nw }
     : { id: uid(), date: todayStr(), type: "expense", categoryId: null, amount: null, title: "", note: "" };
-  let type = t.type, catId = t.categoryId, confirmDel = false, delMode = false, inst = false, n = 3, nwPick = t.nw || null;
+  let type = t.type, catId = t.categoryId, confirmDel = false, delMode = false, inst = false, n = 3, nwPick = t.nw || null, calcOpen = false, calcExpr = "";
   const draw = sheet => {
     const list = usageOrder(type === "refund" ? "expense" : type);
     if(catId && !isRefund && state.categories[catId]?.type !== type) catId = null;
@@ -2509,7 +2542,8 @@ function openEntry(existing, refundOf, prefill){
       ${favs.length ? `<div class="favbar" role="group" aria-label="常用">${favs.map(f => `<button class="chip fav" data-favq="${esc(f.id)}"><span class="dot sm ${catTint(state.categories[f.categoryId])}">${catMark(state.categories[f.categoryId], f.name)}</span>${esc(f.name)}${f.amount ? ` <span class="num">${moneyShort(f.amount)}</span>` : ""}</button>`).join("")}</div>` : ""}
       ${isRefund ? `<div class="hint">退款會算回「${esc(catName(catId))}」，那一期的額度會還回來。</div>`
         : `<div class="seg" role="group" aria-label="收支"><button data-type="expense" aria-pressed="${type==="expense"}">支出</button><button data-type="income" aria-pressed="${type==="income"}">收入</button></div>`}
-      <label class="amount"><span>${inst ? "總額" : "NT$"}</span><input id="e-amt" inputmode="numeric" pattern="[0-9]*" placeholder="0" value="${t.amount ?? ""}" aria-label="金額"></label>
+      <label class="amount"><span>${inst ? "總額" : "NT$"}</span><input id="e-amt" inputmode="${calcOpen ? "none" : "numeric"}" pattern="[0-9]*" placeholder="0" value="${t.amount ?? ""}" aria-label="金額" ${calcOpen ? "readonly" : ""}><button type="button" class="calcbtn" data-calc aria-label="計算機" aria-expanded="${calcOpen}">${icon("calc")}</button></label>
+      ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+"].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq" data-k="=">＝ 填入金額</button></div></div>` : ""}
       ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}"><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${esc(c.name)}</button>`).join("")}</div>`}
       ${!existing && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期付款</label>
         ${inst ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">期數<input class="inp num" id="e-n" inputmode="numeric" value="${n}" style="width:70px;text-align:right"></label>` : ""}</div>` : ""}
@@ -2553,6 +2587,18 @@ function openEntry(existing, refundOf, prefill){
       box.innerHTML = lines.map(([cls, txt]) => `<div class="hint ${cls}">${txt}</div>`).join("");
     };
     amt.addEventListener("input", () => { amt.value = amt.value.replace(/\D/g,""); t.amount = amt.value ? +amt.value : null; hint(); });
+    // calculator: builds an expression from the keys, keeps the amount field showing the result (rounded, never negative)
+    const showCalc = () => { const r = calcEval(calcExpr); const box = $("#e-expr", sheet); if(!box) return;
+      box.innerHTML = calcExpr ? `${esc(calcExpr.replace(/[+−×÷]/g, " $& "))}${r !== null && /[+−×÷]/.test(calcExpr) ? (r < 0 ? `（結果小於 0，不能當金額）` : ` = <b>${moneyShort(Math.round(r))}</b>`) : ""}` : "輸入算式，例如 350 + 120 − 50";
+      if(r !== null){ const v = Math.max(0, Math.round(r)); amt.value = v || ""; t.amount = v || null; hint(); } };
+    $("[data-calc]", sheet).addEventListener("click", () => { calcOpen = !calcOpen; if(calcOpen) calcExpr = amt.value || ""; draw(sheet); });
+    sheet.querySelectorAll("[data-k]").forEach(b => b.addEventListener("click", () => { const k = b.dataset.k;
+      if(k === "C") calcExpr = ""; else if(k === "⌫") calcExpr = calcExpr.slice(0, -1);
+      else if(k === "="){ const r = calcEval(calcExpr); calcExpr = r !== null ? String(Math.max(0, Math.round(r))) : calcExpr; calcOpen = false; showCalc(); draw(sheet); return; }
+      else if("+−×÷".includes(k)){ if(!calcExpr) return; calcExpr = /[+−×÷]$/.test(calcExpr) ? calcExpr.slice(0, -1) + k : calcExpr + k; }
+      else calcExpr += k;
+      showCalc(); }));
+    if(calcOpen) showCalc();
     $("#e-date", sheet).addEventListener("change", hint);
     ["e-title","e-note","e-date"].forEach(id => $("#"+id, sheet).addEventListener("input", e => { t[{"e-title":"title","e-note":"note","e-date":"date"}[id]] = e.target.value; }));
     sheet.querySelectorAll("[data-type]").forEach(b => b.addEventListener("click", () => { type = b.dataset.type; if(type!=="expense") inst = false; draw(sheet); }));
@@ -3400,6 +3446,8 @@ document.addEventListener("click", e => {
   if(lv && !lv.closest(".sheet")){ state.settings.listView = lv.dataset.listviewPick; listMode = null; put.settings(); render(); return; }
   const rv = e.target.closest("[data-rview]");
   if(rv){ rankView = rv.dataset.rview; try{ localStorage.setItem("ledger.rankview", rankView); }catch(err){} render(); return; }
+  const rsc = e.target.closest("[data-rscope]");
+  if(rsc){ rankAll = rsc.dataset.rscope === "all"; try{ localStorage.setItem("ledger.rankscope", rsc.dataset.rscope); }catch(err){} render(); return; }
   const cdy = e.target.closest("[data-calday]");
   if(cdy){ calDay = cdy.dataset.calday; render(); return; }
   const rs = e.target.closest("[data-rseg]");
