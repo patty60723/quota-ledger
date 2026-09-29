@@ -580,7 +580,7 @@ button.r:hover{background:var(--sunk)}
 .nwbar i{display:block;height:100%}
 .nwbar i:first-child{border-radius:7px 0 0 7px}.nwbar i:last-of-type{border-radius:0 7px 7px 0}
 .nwbar i + i{border-left:2px solid var(--surface)}
-.nwbar .must,.sw.must{background:var(--income)}
+.nwbar .must,.sw.must{background:var(--nw-must)}
 .nwbar .need,.sw.need{background:var(--nw-need)}
 .nwbar .want,.sw.want{background:var(--expense)}
 .nwbar .none,.sw.none{background:var(--line)}
@@ -611,7 +611,7 @@ button.r:hover{background:var(--sunk)}
 .nwf{flex:0 0 auto;border:0;border-radius:999px;padding:var(--space-2) var(--space-3);background:var(--sunk);color:var(--muted);font-weight:600;font-size:13px;display:flex;gap:var(--space-2);align-items:center}
 .nwf .num{font-weight:500;opacity:.8}
 .nwf[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
-.nwf.must[aria-pressed="true"]{background:var(--income);color:#fff}
+.nwf.must[aria-pressed="true"]{background:var(--nw-must);color:#fff}
 .nwf.need[aria-pressed="true"]{background:var(--nw-need);color:#fff}
 .nwf.want[aria-pressed="true"]{background:var(--expense);color:#fff}
 .tagrow .nwb[aria-checked="true"].must{background:var(--t3);color:var(--t3f)}
@@ -637,6 +637,11 @@ button.r:hover{background:var(--sunk)}
 :root{--nw-need:#1A9A7A}
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--nw-need:#22A583} }
 :root[data-theme="dark"]{--nw-need:#22A583}
+/* 必要 uses its own blue in 存摺綠 so it doesn't look like 需要's green; 奶茶's income blue already stands apart */
+:root{--nw-must:#2F6BA8}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--nw-must:#6FA0D6} }
+:root[data-theme="dark"]{--nw-must:#6FA0D6}
+:root[data-palette="blush"]{--nw-must:var(--income)}
 
 /* ---------- 2.0 ---------- */
 header.top{align-items:center}
@@ -677,6 +682,8 @@ header.top .ttl{font-size:17px;font-weight:700}
 .hbig .hof{font-size:17px;font-weight:600;color:var(--hero-muted);margin-left:var(--space-2);letter-spacing:0}
 .budtail{display:flex;justify-content:space-between;align-items:center;margin:var(--space-2) var(--space-1) 0}
 .hhead h2 .hsm{font-size:12px;font-weight:400;color:var(--muted);margin-left:var(--space-1)}
+.budcount{margin:calc(var(--space-2) * -1) 0 0;font-size:13px;color:var(--muted)}
+.section-head > .link{white-space:nowrap;flex-shrink:0}
 .fseg{margin:var(--space-1) 0 2px}
 .fseg small{font-size:12px;color:var(--faint);margin-left:2px}
 .recgrp{display:flex;justify-content:space-between;padding:var(--space-3) var(--space-4) var(--space-2);font-size:12px;color:var(--muted);background:var(--sunk)}
@@ -822,7 +829,7 @@ header.top .ttl{font-size:22px}
 /* 明細: the tag is tertiary, the day header is quiet */
 .nwpill{background:none !important;color:var(--muted) !important;padding:0 !important;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:4px}
 .nwpill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-.nwpill.must::before{background:var(--income)} .nwpill.need::before{background:var(--nw-need)} .nwpill.want::before{background:var(--expense)}
+.nwpill.must::before{background:var(--nw-must)} .nwpill.need::before{background:var(--nw-need)} .nwpill.want::before{background:var(--expense)}
 .daygrp{font-weight:400;color:var(--muted);font-size:12px}
 .tx{align-items:center}
 .tx .amt{align-self:center;text-align:right}
@@ -970,7 +977,10 @@ header.top .srch + .more{margin-left:0}
 /* ---------- onboarding & 使用說明 ---------- */
 .ob{position:fixed;inset:0;z-index:40;background:var(--paper);overflow-y:auto;-webkit-overflow-scrolling:touch}
 .obin{max-width:560px;min-height:100%;margin:0 auto;display:flex;flex-direction:column;gap:var(--space-4);padding:calc(var(--space-4) + env(safe-area-inset-top,0px)) var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom,0px))}
-.obtop{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);min-height:44px}
+.obtop{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--space-3);min-height:44px}
+.obtop > :first-child{justify-self:start}
+.obtop > :last-child{justify-self:end}
+.gdtitle{margin:calc(var(--space-2) * -1) 0 0;text-align:center;font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.02em}
 .obtop .backbtn{margin:0}
 .obdots{display:flex;gap:6px}
 .obdots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
@@ -1019,6 +1029,17 @@ header.top .srch + .more{margin-left:0}
 .gdfab{margin-left:auto;flex-shrink:0;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--fab-bg);color:var(--fab-ink);box-shadow:var(--elev)}
 .gdfab .ic{width:24px;height:24px}
 .gdopts{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.gdstep{display:flex;align-items:center;gap:var(--space-2);font-size:13px;font-weight:600;color:var(--ink)}
+.gdnum{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--surface);font-size:12px;font-family:var(--f-num)}
+.gdgrow{height:14px}
+.gdgrow i{width:var(--w);animation:gdgrow 4s ease-in-out infinite}
+.gdleg{display:flex;flex-wrap:wrap;gap:var(--space-1) var(--space-4);font-size:12.5px;color:var(--muted)}
+.gdleg span{display:inline-flex;align-items:center;gap:6px}
+.gdleg .sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+.gdpick{animation:gdpick 4s ease-in-out infinite}
+@keyframes gdgrow{0%,15%{width:0}45%,100%{width:var(--w)}}
+@keyframes gdpick{0%,8%{background:var(--sunk);color:var(--muted)}14%,100%{background:var(--t1);color:var(--t1f)}}
+@media (prefers-reduced-motion:reduce){ .gdgrow i,.gdpick{animation:none} .gdpick{background:var(--t1);color:var(--t1f)} }
 .gdopts span{font-size:12.5px;font-weight:600;padding:var(--space-1) var(--space-3);border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--ink)}
 .gdviz .wish{padding:var(--space-3) var(--space-4)}
 .gdamt{display:inline-flex;align-items:center;justify-content:flex-end;min-height:40px;width:84px}
@@ -1355,6 +1376,7 @@ function instPortions(inst){
   const out = []; const start = fromKey(inst.startPeriod);
   const endIdx = inst.status !== "active" && inst.endPeriod ? Math.max(0, monthsBetween(start, fromKey(inst.endPeriod))) : null;
   for(let k=0; k<inst.n; k++){
+    if(k < (inst.skip || 0)) continue;   // paid before the ledger started (added mid-way by 每期金額)
     let amt = instAmount(inst, k), note = "";
     if(endIdx !== null && k > endIdx) break;
     if(inst.status === "paidoff" && k === endIdx){ amt = 0; for(let j=k; j<inst.n; j++) amt += instAmount(inst, j); note = "提前還清"; }
@@ -1543,6 +1565,7 @@ function nwOf(t){
   if(t.type === "refund"){ const o = t.refOf && findTx(t.refOf); if(o) return nwOf(o); }
   if(t.nw) return t.nw;
   if(t.installmentId){ const i = state.installments[t.installmentId]; if(i && i.nw) return i.nw; }
+  if(t.recurringId){ const r = state.recurring[t.recurringId]; if(r && r.nw) return r.nw; }
   const d = catNw(state.categories[t.categoryId]); return d === "ask" ? null : d;
 }
 function nwSplit(list){
@@ -2184,8 +2207,9 @@ function viewReport(){
     </div>`;
   if(reportSeg === "budget"){
     const bc = budgetCats(); const hot = bc.filter(c => needsAttention(c, viewPeriod)).length;
-    return periodNav() + insight + seg + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><span class="label">${bc.length} 個類別${hot ? ` · ${hot} 個需要注意` : ""}</span></div>
-      <div class="card budc">${budgetCompact(viewPeriod)}</div><div class="budtail"><span></span><button class="link" data-set="budget">調整預算${icon("chev","sm")}</button></div></div>`;
+    return periodNav() + insight + seg + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><button class="link" data-set="budget">調整預算${icon("chev","sm")}</button></div>
+      <p class="budcount">${bc.length} 個類別${hot ? ` · ${hot} 個需要注意` : ""}</p>
+      <div class="card budc">${budgetCompact(viewPeriod)}</div></div>`;
   }
   return periodNav() + insight + seg + `
     <div class="section"><div class="section-head"><h2>${icon("report")}支出分類</h2><div class="seg mini" role="tablist" aria-label="支出分類顯示方式">
@@ -2432,7 +2456,7 @@ function viewSettings(){
   const insts = Object.values(state.installments).sort((a,b)=>(a.status==="active"?0:1)-(b.status==="active"?0:1) || b.date.localeCompare(a.date));
   const instHtml = insts.length ? insts.map(i => `<button class="catrow${i.status==="active"?"":" arch"}" data-inst="${esc(i.id)}">
       <b>${esc(i.title)}</b><span class="num small">${moneyShort(i.total)}</span>
-      <span class="sub">${esc(catName(i.categoryId))} · ${i.n} 期 · ${instStatus(i)}</span></button>`).join("")
+      <span class="sub">${esc(catName(i.categoryId))} · ${i.n} 期 · ${instStatus(i)}${i.skip ? ` · 從第 ${i.skip + 1} 期開始記` : ""}</span></button>`).join("")
     : `<div class="empty">還沒有分期。記帳時打開「分期付款」就會出現在這裡。</div>`;
   const imp = importPreview ? `<div class="note" style="border-top:0">
       <b style="color:var(--ink)">匯入預覽：${esc(importPreview.fileName)}</b>
@@ -2530,7 +2554,7 @@ function openEntry(existing, refundOf, prefill){
     : refundOf ? { id: uid(), date: todayStr(), type: "refund", categoryId: refundOf.categoryId, amount: refundOf.amount, title: `退款：${refundOf.title || catName(refundOf.categoryId)}`, note: "", refOf: refundOf.id, jarId: refundOf.jarId }
     : prefill ? { id: uid(), date: todayStr(), type: prefill.type || "expense", categoryId: prefill.categoryId || null, amount: prefill.amount ?? null, title: prefill.title || "", note: prefill.note || "", favoriteId: prefill.favoriteId, wishId: prefill.wishId, nw: prefill.nw }
     : { id: uid(), date: todayStr(), type: "expense", categoryId: null, amount: null, title: "", note: "" };
-  let type = t.type, catId = t.categoryId, confirmDel = false, delMode = false, inst = false, n = 3, nwPick = t.nw || null, calcOpen = false, calcExpr = "";
+  let type = t.type, catId = t.categoryId, confirmDel = false, delMode = false, inst = false, n = 3, nwPick = t.nw || null, calcOpen = false, calcExpr = "", instMode = "total", instAt = 1;
   const draw = sheet => {
     const list = usageOrder(type === "refund" ? "expense" : type);
     if(catId && !isRefund && state.categories[catId]?.type !== type) catId = null;
@@ -2542,11 +2566,13 @@ function openEntry(existing, refundOf, prefill){
       ${favs.length ? `<div class="favbar" role="group" aria-label="常用">${favs.map(f => `<button class="chip fav" data-favq="${esc(f.id)}"><span class="dot sm ${catTint(state.categories[f.categoryId])}">${catMark(state.categories[f.categoryId], f.name)}</span>${esc(f.name)}${f.amount ? ` <span class="num">${moneyShort(f.amount)}</span>` : ""}</button>`).join("")}</div>` : ""}
       ${isRefund ? `<div class="hint">退款會算回「${esc(catName(catId))}」，那一期的額度會還回來。</div>`
         : `<div class="seg" role="group" aria-label="收支"><button data-type="expense" aria-pressed="${type==="expense"}">支出</button><button data-type="income" aria-pressed="${type==="income"}">收入</button></div>`}
-      <label class="amount"><span>${inst ? "總額" : "NT$"}</span><input id="e-amt" inputmode="${calcOpen ? "none" : "numeric"}" pattern="[0-9]*" placeholder="0" value="${t.amount ?? ""}" aria-label="金額" ${calcOpen ? "readonly" : ""}><button type="button" class="calcbtn" data-calc aria-label="計算機" aria-expanded="${calcOpen}">${icon("calc")}</button></label>
+      <label class="amount"><span>${inst ? (instMode === "per" ? "每期" : "總額") : "NT$"}</span><input id="e-amt" inputmode="${calcOpen ? "none" : "numeric"}" pattern="[0-9]*" placeholder="0" value="${t.amount ?? ""}" aria-label="金額" ${calcOpen ? "readonly" : ""}><button type="button" class="calcbtn" data-calc aria-label="計算機" aria-expanded="${calcOpen}">${icon("calc")}</button></label>
       ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+"].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq" data-k="=">＝ 填入金額</button></div></div>` : ""}
       ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}"><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${esc(c.name)}</button>`).join("")}</div>`}
       ${!existing && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期付款</label>
-        ${inst ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">期數<input class="inp num" id="e-n" inputmode="numeric" value="${n}" style="width:70px;text-align:right"></label>` : ""}</div>` : ""}
+        ${inst ? `<div class="seg mini" role="radiogroup" aria-label="怎麼輸入分期">${[["total","輸入總額"],["per","輸入每期"]].map(([k,l]) => `<button type="button" role="radio" data-imode="${k}" aria-pressed="${instMode===k}" aria-checked="${instMode===k}">${l}</button>`).join("")}</div>
+        <label class="field" style="flex-direction:row;align-items:center;gap:8px">${instMode === "per" ? "總期數" : "期數"}<input class="inp num" id="e-n" inputmode="numeric" value="${n}" style="width:70px;text-align:right"></label>
+        ${instMode === "per" ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">這期是第<input class="inp num" id="e-at" inputmode="numeric" value="${instAt}" style="width:60px;text-align:right">期</label>` : ""}` : ""}</div>` : ""}
       ${type==="expense" && !isRefund ? `<div class="nwrow" role="radiogroup" aria-label="必要、需要或想要"><span>這筆是</span><div class="nwseg" id="e-nw"></div></div>` : ""}
       <div id="e-hint"></div>
       <div class="fields">
@@ -2569,9 +2595,12 @@ function openEntry(existing, refundOf, prefill){
       const lines = [];
       let nowAmt = v;
       if(inst){
-        const nn = Math.max(2, Math.min(60, intOf($("#e-n", sheet)?.value) || 2)); const per = Math.floor(v / nn), first = v - per*(nn-1);
+        const nn = Math.max(2, Math.min(60, intOf($("#e-n", sheet)?.value) || 2));
+        if(instMode === "per"){ const at = Math.max(1, Math.min(nn, intOf($("#e-at", sheet)?.value) || 1)); nowAmt = v;
+          if(v) lines.push(["", `共 ${nn} 期、總額 <b class="num">${money(v * nn)}</b>。${at > 1 ? `第 1–${at - 1} 期在開始記帳前已經繳了，不會算進來；` : ""}這期是第 ${at} 期${nn > at ? `，之後 ${nn - at} 期（到 ${shift(p, nn - at).m} 月期）的${esc(c.name)}額度會先被占用` : "，這是最後一期"}`]); }
+        else { const per = Math.floor(v / nn), first = v - per*(nn-1);
         nowAmt = first;
-        if(v) lines.push(["", `每期 <b class="num">${money(per)}</b>${first!==per?`，首期 ${moneyShort(first)}`:""}，從 ${L.short} 到 ${shift(p,nn-1).m} 月期，未來 ${nn-1} 期的${esc(c.name)}額度會先被占用`]);
+        if(v) lines.push(["", `每期 <b class="num">${money(per)}</b>${first!==per?`，首期 ${moneyShort(first)}`:""}，從 ${L.short} 到 ${shift(p,nn-1).m} 月期，未來 ${nn-1} 期的${esc(c.name)}額度會先被占用`]); }
       }
       const sign = isRefund ? -1 : 1;
       if(c.monthlyLimit){
@@ -2613,6 +2642,8 @@ function openEntry(existing, refundOf, prefill){
     drawNw();
     sheet.querySelectorAll(".chips .chip[data-cat]").forEach(b => b.addEventListener("click", drawNw));
     const nBox = $("#e-n", sheet); nBox && nBox.addEventListener("input", () => { nBox.value = nBox.value.replace(/\D/g,""); n = +nBox.value || 2; hint(); });
+    const atBox = $("#e-at", sheet); atBox && atBox.addEventListener("input", () => { atBox.value = atBox.value.replace(/\D/g,""); instAt = +atBox.value || 1; hint(); });
+    sheet.querySelectorAll("[data-imode]").forEach(b => b.addEventListener("click", () => { instMode = b.dataset.imode; draw(sheet); }));
     $("[data-x]", sheet).addEventListener("click", closeSheet);
     const del = $("[data-del]", sheet);
     del && del.addEventListener("click", () => {
@@ -2644,6 +2675,9 @@ function openEntry(existing, refundOf, prefill){
         const nn = Math.max(2, Math.min(60, intOf($("#e-n", sheet).value) || 2)); const per = Math.floor(v / nn);
         const rec = { id: uid(), title: title || catName(catId), categoryId: catId, total: v, n: nn, per, first: v - per*(nn-1), date, note,
           startPeriod: pkey(periodOf(date)), status: "active", events: [{ type: "create", at: Date.now() }], createdAt: Date.now() };
+        // entered by 每期金額 in the middle of a plan: earlier payments were before the ledger, so they're skipped
+        if(instMode === "per"){ const at = Math.max(1, Math.min(nn, intOf($("#e-at", sheet).value) || 1));
+          Object.assign(rec, { total: v * nn, per: v, first: v, startPeriod: pkey(shift(periodOf(date), -(at - 1))), skip: at - 1 }); }
         if(nwPick) rec.nw = nwPick;
         put.inst(rec); if(t.wishId) markWishBought(t.wishId, rec); closeSheet(); render(); toast(`已記下 ${nn} 期分期`);
         checkOverspend(subjectOf("inst", rec.id));
@@ -2827,17 +2861,24 @@ function openRecurring(r){
       <label>收支<select id="r-type"><option value="expense" ${r.type==="expense"?"selected":""}>支出</option><option value="income" ${r.type==="income"?"selected":""}>收入</option></select></label>
       <label>類別<select id="r-cat">${catOpts(r.type)}</select></label>
     </div>
+    <div class="nwrow" id="r-nwrow" ${r.type==="expense"?"":"hidden"} role="radiogroup" aria-label="必要、需要或想要"><span>這筆是</span><div class="nwseg" id="r-nw"></div></div>
     <label class="toggle"><input type="checkbox" id="r-active" ${r.active?"checked":""}>啟用</label>
     <div class="rowbtns">${isNew?"":`<button class="btn danger" data-del>刪除</button>`}<button class="btn primary" data-save>儲存</button></div>`, sheet => {
+    // 必要／需要／想要 for the records this item creates; not picked = the category's default
+    let nw = r.nw || null;
+    const drawNw = () => { const d = catNw(state.categories[$("#r-cat", sheet).value]); const cur = nw || (d === "ask" ? null : d);
+      $("#r-nw", sheet).innerHTML = NW_KEYS.map(k => `<button type="button" class="nwb ${k}" data-rnw="${k}" role="radio" aria-checked="${cur===k}">${NW_LABEL[k]}</button>`).join("");
+      sheet.querySelectorAll("[data-rnw]").forEach(b => b.addEventListener("click", () => { nw = b.dataset.rnw; drawNw(); })); };
+    drawNw(); $("#r-cat", sheet).addEventListener("change", drawNw);
     $("[data-x]", sheet).addEventListener("click", closeSheet);
-    $("#r-type", sheet).addEventListener("change", e => { $("#r-cat", sheet).innerHTML = catOpts(e.target.value); });
+    $("#r-type", sheet).addEventListener("change", e => { $("#r-cat", sheet).innerHTML = catOpts(e.target.value); $("#r-nwrow", sheet).hidden = e.target.value !== "expense"; drawNw(); });
     const del = $("[data-del]", sheet);
     del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } put.recDel(r.id); closeSheet(); render(); toast("已刪除"); });
     $("[data-save]", sheet).addEventListener("click", () => {
       const title = $("#r-title", sheet).value.trim(); const amount = intOf($("#r-amt", sheet).value);
       const categoryId = $("#r-cat", sheet).value;
       if(!title || !amount || !categoryId){ toast("請填項目、金額和類別"); return; }
-      Object.assign(r, { title, amount, categoryId, day: +$("#r-day", sheet).value, type: $("#r-type", sheet).value, active: $("#r-active", sheet).checked });
+      Object.assign(r, { title, amount, categoryId, day: +$("#r-day", sheet).value, type: $("#r-type", sheet).value, active: $("#r-active", sheet).checked, nw: $("#r-type", sheet).value === "expense" ? nw : null });
       put.rec(r); closeSheet(); render(); toast("已儲存");
     });
   });
@@ -3668,13 +3709,17 @@ function openGuide(afterSetup, onDone){
     wish: `<div class="card wish"><div class="w0"><span class="wst ok">可以買</span><span class="num wprice">NT$1,290</span></div><div class="wmain"><b>藍牙耳機</b><span class="wmeta">娛樂 · 想要 · 已放 8 天</span></div><p class="wimpact">買了之後，娛樂本期可用 <span class="num">NT$3,000</span> → <b class="num">NT$1,710</b></p></div>`,
     fixed: `<div class="hcard"><div class="trow"><span class="qic tint2">${icon("coin")}</span><div class="meta"><b>薪資</b><span>10/5 待確認</span></div><span class="amtin num gdamt">40,000</span><span class="okbtn">${ok}</span></div>
       <div class="trow"><span class="qic tint4">${icon("phone")}</span><div class="meta"><b>新手機</b><span>10/1 · 分期 2/12</span></div><div class="upr"><b class="num">−2,075</b><small>3 天後</small></div></div></div>`,
-    nw: `<div class="card gdpad"><div class="nwrow"><span>這筆是</span><div class="nwseg"><span class="nwb must">必要</span><span class="nwb need" aria-checked="true">需要</span><span class="nwb want">想要</span></div></div>
-      <div class="nwbar"><i class="must" style="width:46%"></i><i class="need" style="width:32%"></i><i class="want" style="width:22%"></i></div></div>`,
+    // two places, one idea: tag while recording (step 1), see the split in 看懂 (step 2); a short loop picks 想要 and the bar fills
+    nw: `<div class="gdstep"><span class="gdnum">1</span>記一筆時標記</div>
+      <div class="card gdpad"><div class="nwrow"><span>這筆是</span><div class="nwseg"><span class="nwb must">必要</span><span class="nwb need">需要</span><span class="nwb want gdpick">想要</span></div></div></div>
+      <div class="gdstep"><span class="gdnum">2</span>在看懂看比例</div>
+      <div class="card gdpad"><div class="nwbar gdgrow"><i class="must" style="--w:46%"></i><i class="need" style="--w:32%"></i><i class="want" style="--w:22%"></i></div>
+        <div class="gdleg"><span><i class="sw must"></i>必要 46%</span><span><i class="sw need"></i>需要 32%</span><span><i class="sw want"></i>想要 22%</span></div></div>`,
     jar: `<div class="card setlist"><div class="catrow"><b>旅行</b><span class="num small">18,000</span><span class="sub">每年 12/1 存 12,000</span><span class="sub">目標 30,000 · 約 2027/12 存到</span><span class="jbar"><i style="width:60%"></i></span></div></div>`,
     data: `<div class="card setlist"><div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原</span></div><span class="btn small">匯出</span></div></div>`
   };
   const cards = [
-    { v: V.rec, h: "記一筆，也能一點就記", p: "常記的東西存成常用，之後一點就記好；同一筆記了 3 次，App 也會主動問你要不要存。金額旁邊有小計算機，拆帳、加總不用另外開程式。", where: ["{plus}記一筆", "首頁 → 快速記帳"] },
+    { v: V.rec, h: "記一筆，也能一點就記", p: "常記的東西存成常用，之後一點就記好；同一筆記了 3 次，App 也會主動問你要不要存成常用。金額旁邊有小計算機，拆帳、加總不用另外開程式。", where: ["{plus}記一筆", "首頁 → 快速記帳"] },
     { v: V.flex, h: "預算有彈性，超支也不慌", p: "某一類超支時，可以跟其他類別借、跟下個月借，或動用「已節省結餘」；都不夠時，還能動用存錢罐這個月該存的錢。每一期沒用完的預算，會自動存進已節省結餘。", where: ["首頁 → 需要注意", "看懂 → 預算進度"] },
     { v: V.wish, h: "想買的，先放 7 天", p: "想買的東西先放著，App 會告訴你現在可以買、再等等，還是會影響本期預算；決定買了，按「買了」就直接記帳。", where: ["下方「想買」分頁"] },
     { v: V.jar, h: "存錢罐：分開存，存到就能用", p: "依用途開好幾個存錢罐，每週、每月或每年自動存一筆，這期要存的會先從收入扣掉。可以設目標金額，App 會算出大概什麼時候存到。要用時按「使用這筆錢」，由存錢罐支付、不動到預算；暫時不想存可以停止存入，錢會留著，也能轉到其他存錢罐。拿到獎金、紅包可以隨時「存一筆」，每一筆進出都有紀錄。", where: ["{gear}設定 → 預算與儲蓄 → 儲蓄"] },
@@ -3683,7 +3728,7 @@ function openGuide(afterSetup, onDone){
     { v: V.data, h: local ? "資料只存在這台手機" : "記得偶爾備份", p: local ? "沒有雲端帳號，換手機或清除瀏覽器資料，資料就會不見。記得定期匯出備份，App 每兩週會提醒一次。剛剛設定的每一項，也都能在右上角的「設定」裡改。" : "資料會在這個頁面同步，還是建議偶爾匯出一份備份。剛剛設定的每一項，也都能在右上角的「設定」裡改。", where: ["{gear}設定 → 資料與備份"] }
   ];
   const el = obShell(`<div class="obtop"><span></span><div class="obdots" id="gd-dots">${cards.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div><button class="link" data-gd="done">${afterSetup ? "略過" : "關閉"}</button></div>
-    <h2 class="obh">${afterSetup ? "設定好了，你可以這樣用" : "使用說明"}</h2>
+    <p class="gdtitle">${afterSetup ? "設定好了，看看還能怎麼用" : "使用說明"}</p>
     <div class="gdcards" id="gd-cards">${cards.map((c, i) => `<section class="gdcard" aria-label="${i+1} / ${cards.length}：${c.h}">
       <div class="gdviz" aria-hidden="true">${c.v}</div><h3>${c.h}</h3><p>${c.p}</p>
       <div class="gdpath"><span class="lbl">在哪裡</span>${c.where.map(w => `<span class="pth">${w.replace("{plus}", icon("plus")).replace("{gear}", icon("gear"))}</span>`).join("")}</div></section>`).join("")}</div>
