@@ -1826,7 +1826,7 @@ function budgetRows(p, list){
   }).join("");
 }
 
-let pendOpen = false, reportSeg = "analysis";
+let pendOpen = false, upOpen = false, reportSeg = "analysis";
 const budOpen = new Set();
 // attention order: used up (nothing left to spend) before almost used up, then by share used
 const byUrgency = p => (a, b) => {
@@ -1953,6 +1953,9 @@ function upcoming(){
   }));
   Object.values(state.wishes).filter(w => !w.purchasedOn && w.deadline && w.deadline >= today && w.deadline <= lim).forEach(w =>
     out.push({ date: w.deadline, title: w.name, sub: "想買的最晚購買日", amount: w.price, wish: true, cat: state.categories[w.categoryId] }));
+  // each jar's next automatic deposit (only the next one, so a weekly jar doesn't fill the list)
+  const tmr = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  jarList().filter(jarOn).forEach(j => { const d = jarNext(j, tmr); if(d > today && d <= lim && jarCount(j, d, d)) out.push({ date: d, title: j.name, sub: "存錢罐自動存入", amount: j.amount, jar: j.id }); });
   return out.sort((a,b) => a.date.localeCompare(b.date));
 }
 function viewHome(){
@@ -2022,10 +2025,11 @@ function viewHome(){
       ${pend.length > 3 ? `<button class="budfoot" data-act="pend-toggle">${pendOpen ? "收起" : `還有 ${pend.length - 3} 筆固定收支`}</button>` : ""}
       ${bk ? `<div class="trow"><span class="qic tint6">${icon("shield")}</span><div class="meta"><b>備份資料</b><span>${backupText()}，資料只存在這台裝置</span></div><button class="btn small" data-act="export">匯出</button></div>` : ""}
       </div></section>` : "";
-  const up = upcoming().slice(0, 5);
+  const upAll = upcoming(); const up = upOpen ? upAll : upAll.slice(0, 5);
   const md = s => { const x = parseYmd(s); return `${x.getMonth()+1}/${x.getDate()}`; };
   const next = up.length ? `<section class="hsec"><div class="hhead"><h2>接下來 <small class="hsm">兩週內</small></h2><button class="link" data-set="fixed">管理${icon("chev","sm")}</button></div>
-      <div class="hcard">${up.map(u => { const dd = dayDiff(todayStr(), u.date); return `<div class="trow"><span class="qic ${catTint(u.cat)}">${u.wish ? icon("wish") : catMark(u.cat, u.title)}</span><div class="meta"><b>${esc(u.title)}</b><span>${md(u.date)} · ${u.sub}</span></div><div class="upr"><b class="num${u.income ? " inc" : ""}">${u.amount ? (u.income ? "+" : "−") + moneyShort(u.amount) : ""}</b><small>${dd === 1 ? "明天" : `${dd} 天後`}</small></div></div>`; }).join("")}</div></section>` : "";
+      <div class="hcard">${up.map(u => { const dd = dayDiff(todayStr(), u.date); return `<div class="trow"><span class="qic ${u.jar ? "tint3" : catTint(u.cat)}">${u.wish ? icon("wish") : u.jar ? icon("jar") : catMark(u.cat, u.title)}</span><div class="meta"><b>${esc(u.title)}</b><span>${md(u.date)} · ${u.sub}</span></div><div class="upr"><b class="num${u.income ? " inc" : ""}">${u.jar ? `存 ${moneyShort(u.amount)}` : u.amount ? (u.income ? "+" : "−") + moneyShort(u.amount) : ""}</b><small>${dd === 1 ? "明天" : `${dd} 天後`}</small></div></div>`; }).join("")}
+      ${upAll.length > 5 ? `<button class="budfoot" data-act="up-toggle">${upOpen ? "收起" : `還有 ${upAll.length - 5} 筆${upAll.slice(5).some(u => u.jar) ? "（含存錢罐）" : ""}`}</button>` : ""}</div></section>` : "";
   const recent = realTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,5);
   const rec = `<section class="hsec"><div class="hhead"><h2>最近</h2><button class="link" data-tab="list">看全部${icon("chev","sm")}</button></div>
       <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到右上角齒輪 →「資料與備份」匯入。</div>`}</div></section>`;
@@ -3360,6 +3364,7 @@ document.addEventListener("click", e => {
   else if(a==="nw-tag") openNwTagger(viewPeriod);
   else if(a==="bud-all"){ tab = "report"; reportSeg = "budget"; viewPeriod = curPeriod(); try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
   else if(a==="pend-toggle"){ pendOpen = !pendOpen; render(); }
+  else if(a==="up-toggle"){ upOpen = !upOpen; render(); }
   else if(a==="rec-all"){
     const items = pendingRecurring(); let n = 0;
     items.forEach(item => { const v = intOf(document.getElementById("pa-"+item.key)?.value) || item.r.amount; if(v){ confirmRun(item, v); n++; } });
