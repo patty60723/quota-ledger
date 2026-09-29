@@ -1725,6 +1725,12 @@ function closePeriods(){
       const perCat = {}; let total = 0;
       // a period with no records at all means the app wasn't used; don't count its whole budget as saved
       if(txIn(p).length) cats("expense").forEach(c => { if(toPool(c)){ const s = Math.max(0, budgetOf(c, p).avail); if(s > 0){ perCat[c.id] = s; total += s; } } });
+      // can't save more than the period really had left: overspending elsewhere and spending in categories
+      // without a limit (beyond unallocated income) already used part of it, so the leftovers are scaled down
+      const room = Math.max(0, todayPlan(p).left);
+      if(total > room){ const f = room / total; let sum = 0; const ids = Object.keys(perCat);
+        ids.forEach((id, i) => { perCat[id] = i === ids.length - 1 ? room - sum : Math.floor(perCat[id] * f); sum += perCat[id]; });
+        total = room; }
       put.closing(k, { period: k, perCat, total, at: Date.now() }); changed = true;
     }
     p = shift(p, 1);
@@ -2405,7 +2411,7 @@ function insights(){
     for(let d = parseYmd(pa); ymd(d) < today; d.setDate(d.getDate() + 1)) if(!spent.has(ymd(d))) free++;
     if(free >= 3) out.push({ key: "free", pri: 40, tone: "good", icon: "star", title: `這期有 ${free} 天沒有花錢`, sub: `不算固定支出。過了 ${el - 1} 天，每 ${Math.max(1, Math.round((el - 1) / free))} 天就有 1 天沒花`, act: { list: 1 } }); }
   // 9. near the end of the period: how much should roll into 已節省結餘
-  if(el >= total - 7 && el < total){ const save = cats("expense").filter(toPool).reduce((a, c) => { const b = budgetOf(c, p); return a + Math.max(0, b.cap - Math.max(b.used, projOf(c, b))); }, 0);
+  if(el >= total - 7 && el < total){ const save = Math.min(Math.max(0, todayPlan(p).left), cats("expense").filter(toPool).reduce((a, c) => { const b = budgetOf(c, p); return a + Math.max(0, b.cap - Math.max(b.used, projOf(c, b))); }, 0));
     if(save >= 500) out.push({ key: "save", pri: 58, tone: "good", icon: "jar", title: `這期可望存下 NT$${moneyShort(save)}`, sub: `照目前的速度，這期結束時會轉入已節省結餘`, act: { bud: 1 } }); }
   // 10. savings jars
   const jars = jarList(), pk0 = pkey(p);
