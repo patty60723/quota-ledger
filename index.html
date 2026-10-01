@@ -646,11 +646,12 @@ button.r:hover{background:var(--sunk)}
 .budsum b{color:var(--ink)}
 .bad,.bad b{color:var(--stamp)}
 .ysav{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}
-.ys{display:flex;align-items:center;gap:var(--space-3);background:var(--surface);border:0;border-radius:16px;padding:var(--space-3);box-shadow:var(--card-shadow);min-width:0;text-align:left;color:var(--ink)}
+.ys{display:flex;align-items:flex-start;gap:var(--space-3);background:var(--surface);border:0;border-radius:16px;padding:var(--space-3);box-shadow:var(--card-shadow);min-width:0;text-align:left;color:var(--ink)}
 .ys > div{display:flex;flex-direction:column;min-width:0}
 .ys span{font-size:12px;color:var(--muted)}
-.ys b{font-size:16px;font-weight:700;white-space:nowrap}
+.ys b{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ys small{font-size:11px;color:var(--muted);line-height:1.4}
+@media (max-width:400px){ .ys > .mic{display:none} }
 .ytotal{margin:0;padding:var(--space-3) var(--space-4);border-radius:14px;background:var(--accent-soft);font-size:14px;color:var(--ink)}
 .ytotal b{font-weight:700}
 .ytotal small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
@@ -2471,14 +2472,14 @@ function yearlySavings(Y, note){
   const jarsNow = jarList(); const jarTotal = jarsNow.reduce((a, j) => a + jarBalance(j), 0);
   // this year: what the jars actually hold now, with this year's planned amount beside it
   const tCard = current && jarsNow.length
-    ? `<button class="ys" data-set="budget" data-bseg-go="save"><span class="mic tint3">${icon("coin")}</span><div><span>存錢罐</span><b class="num">目前合計 ${moneyShort(jarTotal)}</b><small>${w ? `今年到目前應存 ${moneyShort(target * w.n)} · ` : ""}每月 ${moneyShort(target)}</small></div></button>`
+    ? `<button class="ys" data-set="budget" data-bseg-go="save"><span class="mic tint3">${icon("coin")}</span><div><span>存錢罐 · 目前合計</span><b class="num">${moneyShort(jarTotal)}</b><small>${w ? `今年應存 ${moneyShort(target * w.n)}<br>` : ""}每月 ${moneyShort(target)}</small></div></button>`
     : target
-    ? `<div class="ys"><span class="mic tint3">${icon("coin")}</span><div><span>存錢罐</span><b class="num">${tMonths === 12 ? "全年" : `${tMonths} 個月`} ${moneyShort(tYear)}</b><small>${current && w ? `到目前 ${w.n} 個月應存 ${moneyShort(target * w.n)}` : `每月 ${moneyShort(target)}`}</small></div></div>`
+    ? `<div class="ys"><span class="mic tint3">${icon("coin")}</span><div><span>存錢罐 · ${tMonths === 12 ? "全年" : `${tMonths} 個月`}</span><b class="num">${moneyShort(tYear)}</b><small>${current && w ? `到目前 ${w.n} 個月應存 ${moneyShort(target * w.n)}` : `每月 ${moneyShort(target)}`}</small></div></div>`
     : `<button class="ys" data-set="budget" data-bseg-go="save"><span class="mic tint3">${icon("coin")}</span><div><span>存錢罐</span><b>還沒設定</b><small>到「預算與儲蓄 → 儲蓄」新增存錢罐 ›</small></div></button>`;
-  const pCard = `<div class="ys"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘</span>${closed.length
-      ? (current ? `<b class="num">全年約 ${moneyShort(poolYear)}</b><small>今年已轉入 ${moneyShort(accrued)} · 平均每期 ${moneyShort(avg)}</small>`
-                 : `<b class="num">全年 ${moneyShort(accrued)}</b><small>${closed.length} 期轉入</small>`)
-      : (current ? `<b class="num">今年 0</b><small>這一期結束後開始累積</small>` : `<b class="num">全年 0</b><small>這一年沒有轉入</small>`)}</div></div>`;
+  const pCard = `<div class="ys"><span class="mic tint1">${icon("jar")}</span><div><span>已節省結餘${closed.length
+      ? (current ? ` · 全年約</span><b class="num">${moneyShort(poolYear)}</b><small>今年已轉入 ${moneyShort(accrued)}<br>平均每期 ${moneyShort(avg)}</small>`
+                 : ` · 全年</span><b class="num">${moneyShort(accrued)}</b><small>${closed.length} 期轉入</small>`)
+      : (current ? ` · 今年</span><b class="num">0</b><small>這一期結束後開始累積</small>` : ` · 全年</span><b class="num">0</b><small>這一年沒有轉入</small>`)}</div></div>`;
   const both = tYear + poolYear;
   const line = both > 0 ? (current
       ? `照目前這樣花，${Y} 年約可存 <b class="num">NT$ ${moneyShort(both)}</b>${closed.length && closed.length < 12 ? `<small>（結餘依今年 ${closed.length} 期的平均推算）</small>` : ""}`
