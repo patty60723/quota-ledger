@@ -267,6 +267,8 @@ h2{font-family:var(--f-body);font-weight:700;font-size:17px;margin:0;text-wrap:b
 .tx .dot.inc{background:var(--accent-soft);color:var(--accent)}
 .tx .mid{display:flex;flex-direction:column;min-width:0}
 .tx .mid b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fxrow{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap}
+.fxtag{display:inline-block;vertical-align:2px;margin-right:6px;padding:0 6px;border:1px solid var(--line);border-radius:999px;font-size:11px;font-weight:600;line-height:17px;color:var(--muted)}
 .tx .mid span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tx .amt{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-weight:500}
 .tx .amt.inc{color:var(--pos)}
@@ -1943,7 +1945,7 @@ function nwTag(t){ if(t.type === "income") return ""; const k = nwOf(t); return 
 function txRows(list, withDays, keepOrder){
   if(!list.length) return `<div class="empty">這一期還沒有紀錄。按右下角「＋」記第一筆。</div>`;
   const sorted = keepOrder ? list : [...list].sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0));
-  let html = "", lastDay = null;
+  let html = "", lastDay = null; const isFixed = fixedTester();
   sorted.forEach(t => {
     if(withDays && t.date !== lastDay){
       lastDay = t.date; const d = parseYmd(t.date);
@@ -1957,7 +1959,7 @@ function txRows(list, withDays, keepOrder){
     const sub = withDays ? [cn, extra].filter(Boolean).join(" · ") : [`${t.date.slice(5).replace("-","/")}`, cn, kind].filter(Boolean).join(" · ");
     const attr = t.virtual ? `data-inst="${esc(t.installmentId)}"` : `data-edit="${esc(t.id)}"`;
     html += `<button class="tx" ${attr}><span class="dot ${catTint(state.categories[t.categoryId])}">${catMark(state.categories[t.categoryId], cn)}</span>
-      <span class="mid"><b>${esc(t.title || cn)}</b><span class="subl">${nwTag(t)}<span class="subt">${esc(sub)}</span></span></span>
+      <span class="mid"><b>${t.type === "expense" && !t.virtual && isFixed(t) ? `<span class="fxtag">固定</span>` : ""}${esc(t.title || cn)}</b><span class="subl">${nwTag(t)}<span class="subt">${esc(sub)}</span></span></span>
       <span class="amt${plus?" inc":""}">${plus?"+":"−"}${moneyShort(t.amount)}</span></button>`;
   });
   return html;
@@ -2263,7 +2265,12 @@ function calendarView(list){
 }
 
 // a record counts as fixed if it came from a fixed item, or looks like one (same category, same name ignoring spaces, or same amount)
+// a record's own 固定支出 switch (t.fixed) wins; otherwise the automatic guess above
 function fixedTester(){
+  const auto = fixedAutoTester();
+  return t => t.fixed === true ? true : t.fixed === false ? false : auto(t);
+}
+function fixedAutoTester(){
   const norm = x => String(x || "").replace(/\s/g, "").toLowerCase();
   const recs = Object.values(state.recurring).filter(r => r.active && r.type === "expense");
   return t => !!t.recurringId || recs.some(r => r.categoryId === t.categoryId && (norm(r.title) === norm(t.title) || r.amount === t.amount));
@@ -2666,7 +2673,7 @@ function openEntry(existing, refundOf, prefill){
     : refundOf ? { id: uid(), date: todayStr(), type: "refund", categoryId: refundOf.categoryId, amount: refundOf.amount, title: `退款：${refundOf.title || catName(refundOf.categoryId)}`, note: "", refOf: refundOf.id, jarId: refundOf.jarId }
     : prefill ? { id: uid(), date: todayStr(), type: prefill.type || "expense", categoryId: prefill.categoryId || null, amount: prefill.amount ?? null, title: prefill.title || "", note: prefill.note || "", favoriteId: prefill.favoriteId, wishId: prefill.wishId, nw: prefill.nw }
     : { id: uid(), date: todayStr(), type: "expense", categoryId: null, amount: null, title: "", note: "" };
-  let type = t.type, catId = t.categoryId, confirmDel = false, delMode = false, inst = false, n = 3, nwPick = t.nw || null, calcOpen = false, calcExpr = "", instMode = "total", instAt = 1;
+  let type = t.type, catId = t.categoryId, confirmDel = false, delMode = false, inst = false, n = 3, nwPick = t.nw || null, fixedPick = typeof t.fixed === "boolean" ? t.fixed : null, calcOpen = false, calcExpr = "", instMode = "total", instAt = 1;
   const draw = sheet => {
     const list = usageOrder(type === "refund" ? "expense" : type);
     if(catId && !isRefund && state.categories[catId]?.type !== type) catId = null;
@@ -2687,6 +2694,7 @@ function openEntry(existing, refundOf, prefill){
         <label class="field" style="flex-direction:row;align-items:center;gap:8px">${instMode === "per" ? "總期數" : "期數"}<input class="inp num" id="e-n" inputmode="numeric" value="${n}" style="width:70px;text-align:right"></label>
         ${instMode === "per" ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">這期是第<input class="inp num" id="e-at" inputmode="numeric" value="${instAt}" style="width:60px;text-align:right">期</label>` : ""}` : ""}</div>` : ""}
       ${type==="expense" && !isRefund ? `<div class="nwrow" role="radiogroup" aria-label="必要、需要或想要"><span>這筆是</span><div class="nwseg" id="e-nw"></div></div>` : ""}
+      ${type==="expense" && !isRefund && !inst ? `<div class="fxrow"><label class="toggle"><input type="checkbox" id="e-fixed">固定支出</label><span class="small muted" id="e-fixed-note"></span></div>` : ""}
       <div id="e-hint"></div>
       <div class="fields">
         <label>日期<input class="inp" type="date" id="e-date" value="${t.date}"></label>
@@ -2754,6 +2762,14 @@ function openEntry(existing, refundOf, prefill){
       nwBox.querySelectorAll("[data-nw]").forEach(b => b.addEventListener("click", () => { nwPick = b.dataset.nw; drawNw(); })); };
     drawNw();
     sheet.querySelectorAll(".chips .chip[data-cat]").forEach(b => b.addEventListener("click", drawNw));
+    // 固定支出: follows the automatic guess until switched by hand; the hand choice is what gets saved
+    const fxBox = $("#e-fixed", sheet), fxNote = $("#e-fixed-note", sheet);
+    const fxAuto = () => fixedAutoTester()({ type, categoryId: catId, title: $("#e-title", sheet)?.value || t.title, amount: intOf(amt.value), recurringId: t.recurringId });
+    const syncFixed = () => { if(!fxBox) return; const a = fxAuto(); fxBox.checked = fixedPick ?? a;
+      fxNote.textContent = fixedPick === null ? (a ? "自動判斷：跟固定收支相符" : "") : "手動設定"; };
+    if(fxBox){ fxBox.addEventListener("change", () => { fixedPick = fxBox.checked; syncFixed(); });
+      sheet.querySelectorAll(".chips .chip[data-cat]").forEach(b => b.addEventListener("click", syncFixed));
+      amt.addEventListener("input", syncFixed); $("#e-title", sheet).addEventListener("input", syncFixed); syncFixed(); }
     const nBox = $("#e-n", sheet); nBox && nBox.addEventListener("input", () => { nBox.value = nBox.value.replace(/\D/g,""); n = +nBox.value || 2; hint(); });
     const atBox = $("#e-at", sheet); atBox && atBox.addEventListener("input", () => { atBox.value = atBox.value.replace(/\D/g,""); instAt = +atBox.value || 1; hint(); });
     sheet.querySelectorAll("[data-imode]").forEach(b => b.addEventListener("click", () => { instMode = b.dataset.imode; draw(sheet); }));
@@ -2800,6 +2816,8 @@ function openEntry(existing, refundOf, prefill){
       if(t.refOf) rec.refOf = t.refOf;
       if(t.favoriteId) rec.favoriteId = t.favoriteId;
       if(t.jarId && (type === "expense" || type === "refund")) rec.jarId = t.jarId;
+      // only a hand choice that differs from the automatic guess is stored
+      if(type === "expense" && fixedPick !== null && fixedPick !== fixedAutoTester()(rec)) rec.fixed = fixedPick;
       // a jar-paid expense can't grow past what the jar has (its current share counts as available)
       if(rec.jarId && type === "expense" && state.jars[rec.jarId]){ const j = state.jars[rec.jarId];
         const mine = Object.values(state.adjustments).filter(x => x.txId === t.id && x.kind === "jar" && x.use).reduce((s2, x) => s2 + x.amount, 0);
