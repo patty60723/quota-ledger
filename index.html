@@ -2680,6 +2680,7 @@ function openEntry(existing, refundOf, prefill){
         : `<div class="seg" role="group" aria-label="收支"><button data-type="expense" aria-pressed="${type==="expense"}">支出</button><button data-type="income" aria-pressed="${type==="income"}">收入</button></div>`}
       <label class="amount"><span>${inst ? (instMode === "per" ? "每期" : "總額") : "NT$"}</span><input id="e-amt" inputmode="${calcOpen ? "none" : "numeric"}" pattern="[0-9]*" placeholder="0" value="${t.amount ?? ""}" aria-label="金額" ${calcOpen ? "readonly" : ""}><button type="button" class="calcbtn" data-calc aria-label="計算機" aria-expanded="${calcOpen}">${icon("calc")}</button></label>
       ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+"].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq" data-k="=">＝ 填入金額</button></div></div>` : ""}
+      ${t.wishId && !existing && state.wishes[t.wishId]?.price ? `<div class="hint">清單上的價格是 <b class="num">NT$${moneyShort(state.wishes[t.wishId].price)}</b>，實際價格不同可以直接改金額</div>` : ""}
       ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}"><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${esc(c.name)}</button>`).join("")}</div>`}
       ${!existing && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期付款</label>
         ${inst ? `<div class="seg mini" role="radiogroup" aria-label="怎麼輸入分期">${[["total","輸入總額"],["per","輸入每期"]].map(([k,l]) => `<button type="button" role="radio" data-imode="${k}" aria-pressed="${instMode===k}" aria-checked="${instMode===k}">${l}</button>`).join("")}</div>
@@ -3276,7 +3277,18 @@ function wishStatus(w, s){
 }
 function markWishBought(wishId, rec){
   const w = state.wishes[wishId]; if(!w) return;
-  put.wish({ ...w, purchasedOn: rec.date || todayStr(), boughtRef: rec.id, boughtKind: rec.n ? "inst" : "tx" });
+  put.wish({ ...w, purchasedOn: rec.date || todayStr(), boughtRef: rec.id, boughtKind: rec.n ? "inst" : "tx", paid: rec.n ? rec.total : rec.amount });
+}
+// what a bought wish really cost: saved at purchase, else read from its record; and how that compares with the listed price
+function wishPaid(w){
+  if(w.paid) return w.paid;
+  if(w.boughtKind === "inst"){ const i = state.installments[w.boughtRef]; return i ? i.total : null; }
+  const t = w.boughtRef && findTx(w.boughtRef); return t ? t.amount : null;
+}
+function wishPaidLine(w){
+  const paid = wishPaid(w); if(!paid) return "";
+  const d = w.price ? w.price - paid : 0;
+  return `實付 NT$${moneyShort(paid)}${d > 0 ? `（比清單價省 ${moneyShort(d)}）` : d < 0 ? `（比清單價多 ${moneyShort(-d)}）` : ""}`;
 }
 function viewWish(){
   const RANK = { ok: 0, wait: 1, impact: 2 };
@@ -3310,7 +3322,7 @@ function viewWish(){
       ${open.length ? `<p class="small muted" style="margin:0">可以買 ${cnt("ok")} · 再等等 ${cnt("wait")} · 會影響本期預算 ${cnt("impact")}</p>` : ""}
       <div class="wishes">${cards}</div></div>
     ${bought.length ? `<div class="section"><details class="card bought"><summary><b>已購入</b> <span class="muted small">${bought.length} 個</span></summary>
-      ${bought.map(w => `<button class="catrow" data-wishedit="${esc(w.id)}"><b>${esc(w.name)}</b><span class="num small">${w.price ? moneyShort(w.price) : ""}</span><span class="sub">${esc(catName(w.categoryId))} · ${md(w.purchasedOn)} 購入</span></button>`).join("")}</details></div>` : ""}`;
+      ${bought.map(w => `<button class="catrow" data-wishedit="${esc(w.id)}"><b>${esc(w.name)}</b><span class="num small">${wishPaid(w) || w.price ? moneyShort(wishPaid(w) || w.price) : ""}</span><span class="sub">${esc(catName(w.categoryId))} · ${md(w.purchasedOn)} 購入${wishPaidLine(w) ? ` · ${wishPaidLine(w)}` : ""}</span></button>`).join("")}</details></div>` : ""}`;
 }
 function openWish(w){
   const isNew = !w;
@@ -3327,13 +3339,13 @@ function openWish(w){
         <label>最晚購買日<input class="inp" id="w-deadline" type="date" value="${esc(w.deadline || "")}"></label>
         <label class="full">備註<input class="inp" id="w-note" value="${esc(w.note)}" placeholder="選填"></label>
       </div>
-      ${w.purchasedOn ? `<p class="small muted" style="margin:0">${w.purchasedOn} 已購入。</p>` : ""}
+      ${w.purchasedOn ? `<p class="small muted" style="margin:0">${w.purchasedOn} 已購入${wishPaidLine(w) ? `，${wishPaidLine(w)}` : ""}。</p>` : ""}
       <div class="rowbtns">${isNew ? "" : `<button class="btn danger" data-del>${confirmDel ? "確定刪除" : "刪除"}</button>`}${w.purchasedOn ? `<button class="btn" data-unbuy>改回未購入</button>` : ""}<button class="btn primary" data-save>儲存</button></div>`;
     $("[data-x]", sheet).addEventListener("click", closeSheet);
     const del = $("[data-del]", sheet);
     del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } put.wishDel(w.id); closeSheet(); render(); toast("已刪除"); });
     const unbuy = $("[data-unbuy]", sheet);
-    unbuy && unbuy.addEventListener("click", () => { const x = { ...w }; delete x.purchasedOn; delete x.boughtRef; delete x.boughtKind; put.wish(x); closeSheet(); render(); toast("已改回未購入，購買紀錄保留在明細"); });
+    unbuy && unbuy.addEventListener("click", () => { const x = { ...w }; delete x.purchasedOn; delete x.boughtRef; delete x.boughtKind; delete x.paid; put.wish(x); closeSheet(); render(); toast("已改回未購入，購買紀錄保留在明細"); });
     $("[data-save]", sheet).addEventListener("click", () => {
       const name = $("#w-name", sheet).value.trim(); if(!name){ toast("請輸入名稱"); return; }
       put.wish({ ...w, name, url: $("#w-url", sheet).value.trim(), price: intOf($("#w-price", sheet).value), need: $("#w-need", sheet).value,
