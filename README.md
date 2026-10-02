@@ -33,6 +33,8 @@
 - `index.html`：整個 App
 - `manifest.json`、`icons/`：安裝到主畫面用的名稱與圖示
 - `sw.js`：離線快取
+- `TECHNICAL.md`：計算方式、判斷規則與資料結構
+- `DEVNOTES.md`：開發流程、使用者偏好、做過的決定與未定案的問題
 
 ## v0.2 功能
 
