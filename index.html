@@ -1800,7 +1800,11 @@ function overSubject(c, p){
   const [a, b] = periodRange(p); const inP = s => s.date >= a && s.date <= b;
   const pend = pendingOverspends().find(s => s.categoryId === c.id && inP(s)); if(pend) return pend;
   const t = realTx().filter(t => t.categoryId === c.id && t.type === "expense" && inP(t)).sort((x,y) => y.date.localeCompare(x.date) || (y.createdAt||0) - (x.createdAt||0))[0];
-  return t ? subjectOf("tx", t.id) : null;
+  if(t) return subjectOf("tx", t.id);
+  // nothing recorded by hand this period: the overspend can come from an installment's portion alone
+  const v = allTx().filter(x => x.virtual && x.categoryId === c.id && inP(x)).sort((x, y) => y.amount - x.amount)[0];
+  const i = v && state.installments[v.installmentId];
+  return i ? { kind: "inst", id: i.id, categoryId: c.id, date: v.date, title: i.title, amount: v.amount } : null;
 }
 function openOverspend(s, byCategory){
   const c = state.categories[s.categoryId]; const p = periodOf(s.date); const L = periodLabel(p);
