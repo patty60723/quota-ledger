@@ -2047,6 +2047,16 @@ function openCatList(c, p){
     sheet.querySelectorAll("[data-inst]").forEach(x => x.addEventListener("click", () => { const i = state.installments[x.dataset.inst]; i && openInstallment(i); }));
   });
 }
+// expand/collapse one row in place: redrawing the whole page made some phones jump
+function toggleBudRow(bx){
+  const id = bx.dataset.budx, c = state.categories[id]; budOpen.has(id) ? budOpen.delete(id) : budOpen.add(id);
+  if(!c){ render(); return; }
+  const y = window.scrollY, nx = bx.nextElementSibling;
+  if(nx && nx.classList.contains("bcfix")) nx.remove();
+  bx.insertAdjacentHTML("afterend", budgetCompactRows(viewPeriod, [c])); bx.remove();
+  $(`[data-budx="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
+  if(window.scrollY !== y) window.scrollTo(0, y);
+}
 function budgetCompactRows(p, list){
   return list.map(c => {
     const open = budOpen.has(c.id);
@@ -3690,7 +3700,7 @@ document.addEventListener("click", e => {
   const cl = e.target.closest("[data-catlist]");
   if(cl && !cl.closest(".sheet")){ const c = state.categories[cl.dataset.catlist]; c && openCatList(c, fromKey(cl.dataset.p)); return; }
   const bx = e.target.closest("[data-budx]");
-  if(bx){ const id = bx.dataset.budx; budOpen.has(id) ? budOpen.delete(id) : budOpen.add(id); render(); return; }
+  if(bx){ toggleBudRow(bx); return; }
   const tp = e.target.closest("[data-theme-pick]");
   if(tp && !tp.closest(".sheet")){ state.settings.theme = tp.dataset.themePick; put.settings(); render(); return; }
   const el = e.target.closest("[data-set],[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-jar],[data-inst],[data-over],[data-pool],[data-favq],[data-favedit],[data-favmove],[data-wishedit],[data-wishbuy]");
