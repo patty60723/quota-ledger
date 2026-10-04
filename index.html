@@ -698,7 +698,14 @@ button.r:hover{background:var(--sunk)}
 .nwleg button small{grid-column:1 / -1}
 .nwcard .nwleg{grid-template-columns:repeat(auto-fit,minmax(72px,1fr))}
 .nwleg button{white-space:nowrap}
-@media (max-width:350px){.nwleg button{padding:var(--space-2) 6px var(--space-2) var(--space-2);gap:0 4px}.nwleg button b{font-size:15px}.nwcard .nwleg{gap:6px}}
+/* too narrow for three tiles: stack them as rows */
+@media (max-width:359px){.nwcard .nwleg{grid-template-columns:1fr;gap:6px}
+  .nwleg button{grid-template-columns:auto 1fr auto auto auto;gap:0 var(--space-2);padding:var(--space-2) var(--space-2) var(--space-2) var(--space-3);font-size:13px}
+  .nwleg button .sw{grid-column:1;grid-row:1}
+  .nwleg button b{grid-column:3;grid-row:1;margin:0}
+  .nwleg button small{grid-column:4;grid-row:1}
+  .nwleg button small{min-width:3em;text-align:right}
+  .nwleg button .chev{grid-column:5}}
 .nwfilter{display:flex;gap:var(--space-2);overflow-x:auto;padding-bottom:2px}
 .nwf{flex:0 0 auto;border:0;border-radius:999px;padding:var(--space-2) var(--space-3);background:var(--sunk);color:var(--muted);font-weight:600;font-size:13px;display:flex;gap:var(--space-2);align-items:center}
 .nwf .num{font-weight:500;opacity:.8}
