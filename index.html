@@ -1975,7 +1975,7 @@ const budgetCats = () => cats("expense").filter(c => c.monthlyLimit || c.yearlyL
 // a category whose spending this period is all fixed items (房貸, 網路…) and still within its limit is simply paid:
 // judged from this period's records each time, so any other spending there brings the usual warnings back
 function paidOnly(c, p){
-  if(!c.monthlyLimit) return false; const b = budgetOf(c, p); if(b.avail < 0 || b.used <= 0 || b.occupied) return false;
+  if(!c.monthlyLimit) return false; const b = budgetOf(c, p); if(b.avail !== 0 || b.used <= 0 || b.occupied) return false;   // only when fixed payments used up the whole limit
   const isFixed = fixedTester(); const list = txIn(p).filter(t => t.categoryId === c.id && outAmt(t));
   return list.length > 0 && list.every(t => t.type === "expense" && !t.virtual && isFixed(t));
 }
@@ -1993,7 +1993,7 @@ function budgetRows(p, list){
     if(c.monthlyLimit){
       const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1;
       const cls = paidOnly(c, p) ? "" : pct > 1 ? "over" : b.avail === 0 ? "full" : pct >= warnAt() ? "warn" : "";
-      const tag = paidOnly(c, p) ? `<span class="tag paid">已繳</span>` : !c.warn ? `<span class="tag">不提醒</span>` : pct > 1 ? `<span class="tag over">超支</span>` : pct >= warnAt() ? (b.avail === 0 ? `<span class="tag full">已用完</span>` : `<span class="tag warn">快用完</span>`) : "";
+      const tag = paidOnly(c, p) ? `<span class="tag paid">已繳清</span>` : !c.warn ? `<span class="tag">不提醒</span>` : pct > 1 ? `<span class="tag over">超支</span>` : pct >= warnAt() ? (b.avail === 0 ? `<span class="tag full">已用完</span>` : `<span class="tag warn">快用完</span>`) : "";
       const parts = [];
       if(b.inst || b.occupied || b.received){
         parts.push(`實際 ${moneyShort(b.actual)}`);
@@ -2054,7 +2054,7 @@ function budgetCompactRows(p, list){
     if(c.monthlyLimit){
       const b = budgetOf(c, p); const pct = b.cap ? b.used / b.cap : 1;
       const cls = paidOnly(c, p) ? "" : pct > 1 ? "over" : b.avail === 0 ? "full" : pct >= warnAt() ? "warn" : "";
-      const tag = paidOnly(c, p) ? `<span class="tag paid">已繳</span>` : !c.warn ? "" : pct > 1 ? `<span class="tag over">超支</span>` : pct >= warnAt() ? (b.avail === 0 ? `<span class="tag full">已用完</span>` : `<span class="tag warn">快用完</span>`) : "";
+      const tag = paidOnly(c, p) ? `<span class="tag paid">已繳清</span>` : !c.warn ? "" : pct > 1 ? `<span class="tag over">超支</span>` : pct >= warnAt() ? (b.avail === 0 ? `<span class="tag full">已用完</span>` : `<span class="tag warn">快用完</span>`) : "";
       main = `<span class="n"><span class="t">${esc(c.name)}</span>${tag}</span><span class="v num">${moneyShort(b.used)}<small> / ${moneyShort(b.cap)}</small></span>`;
       bar = `<span class="bar ${cls}" role="img" aria-label="已用 ${Math.round(pct*100)}%"><i style="width:${Math.min(100,pct*100)}%"></i></span>`;
       meta = `已用 ${Math.round(pct*100)}% · ${b.avail>=0 ? "還剩 NT$"+moneyShort(b.avail) : "超出 NT$"+moneyShort(-b.avail)}`;
