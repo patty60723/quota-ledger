@@ -648,13 +648,21 @@ button.r:hover{background:var(--sunk)}
 .budsum p{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
 .budsum b{color:var(--ink)}
 .bad,.bad b{color:var(--stamp)}
-.ysav{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}
+/* one row per card: name and note on the left, amount on the right */
+.ysav{display:grid;grid-template-columns:1fr;gap:var(--space-2)}
+.ysav .ys{align-items:center}
+.ysav .ys > div{display:grid;grid-template-columns:1fr auto;gap:0 var(--space-3);flex:1;align-items:center}
+.ysav .ys > div > span{grid-column:1;grid-row:1}
+.ysav .ys > div > small{grid-column:1;grid-row:2}
+.ysav .ys > div > b{grid-column:2;grid-row:1 / span 2;font-size:18px}
+.ytotal b{display:block}
+.ysav div.ys::after{content:"";width:20px;flex-shrink:0}   /* same right edge as the cards with a chevron */
 .ys{display:flex;align-items:flex-start;gap:var(--space-3);background:var(--surface);border:0;border-radius:16px;padding:var(--space-3);box-shadow:var(--card-shadow);min-width:0;text-align:left;color:var(--ink)}
 .ys > div{display:flex;flex-direction:column;min-width:0}
 .ys span{font-size:12px;color:var(--muted)}
 .ys b{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ys small{font-size:11px;color:var(--muted);line-height:1.4}
-@media (max-width:400px){ .ys > .mic{display:none} }
+
 .ytotal{margin:0;padding:var(--space-3) var(--space-4);border-radius:14px;background:var(--accent-soft);font-size:14px;color:var(--ink)}
 .ytotal b{font-weight:700}
 .ytotal small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
