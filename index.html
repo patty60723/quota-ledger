@@ -593,6 +593,8 @@ select{appearance:none;-webkit-appearance:none;padding-right:var(--space-8);back
 .tx{padding:var(--space-3) var(--space-4)}
 .setrow{padding:var(--space-4) var(--space-4)}
 .setrow .k b{font-weight:500}
+.setrow .k span b{font-weight:700;color:var(--ink)}
+.setrow .k span b.bad{color:var(--stamp)}
 .catrow{padding:var(--space-4) var(--space-4)}
 .favitem{padding:var(--space-3) var(--space-3) var(--space-3) 2px}
 .budfoot{font-size:13px}
@@ -2758,10 +2760,10 @@ function viewSettings(){
       ${imp}
       <div class="setrow"><div class="k"><b>資料存放</b><span>${db ? (syncOn ? "雲端，電腦和手機同步" : "雲端（目前連不上，先存在這個瀏覽器）") : "只存在這個瀏覽器，不會同步"}</span></div></div>
       <div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原 · ${backupText()}</span></div><button class="btn small" data-act="export">匯出</button></div>
-      <div class="setrow"><div class="k"><b>從備份還原</b><span>會取代目前所有資料</span></div><label class="btn small" for="f-json">選擇檔案</label><input type="file" id="f-json" accept=".json,application/json" hidden></div>
-      <div class="setrow"><div class="k"><b>貼上備份內容還原</b><span>選不了檔案時用：打開備份檔，全選複製後貼上</span></div><button class="btn small" data-act="paste-restore">貼上</button></div>
+      <div class="setrow"><div class="k"><b>從備份還原</b><span><b class="bad">取代</b>目前所有資料</span></div><label class="btn small" for="f-json">選擇檔案</label><input type="file" id="f-json" accept=".json,application/json" hidden></div>
+      <div class="setrow"><div class="k"><b>貼上備份內容還原</b><span>選不了檔案時用，一樣會<b class="bad">取代</b>目前所有資料</span></div><button class="btn small" data-act="paste-restore">貼上</button></div>
       <div id="exportBox"></div>
-      <div class="setrow"><div class="k"><b>從 Google Sheet 匯入</b><span>第一次搬家用：在 Google Sheet 選「檔案 → 下載 → .xlsx」</span></div><label class="btn small" for="f-xlsx">選擇檔案</label><input type="file" id="f-xlsx" accept=".xlsx" hidden></div>
+      <div class="setrow"><div class="k"><b>從 Google Sheet 匯入</b><span><b>加進</b>目前資料。從 Google Sheet 搬過來時用一次；再次匯入會覆蓋同一列的紀錄（下載方式：檔案 → 下載 → .xlsx）</span></div><label class="btn small" for="f-xlsx">選擇檔案</label><input type="file" id="f-xlsx" accept=".xlsx" hidden></div>
       <div class="setrow"><div class="k"><b class="bad">清除所有資料</b><span>刪除這裡的全部紀錄和設定，重新開始</span></div><button class="btn small danger" data-act="wipe">清除</button></div>
     </div></div>`
   };
