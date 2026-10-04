@@ -2051,6 +2051,7 @@ function openCatList(c, p){
 function toggleBudRow(bx){
   const id = bx.dataset.budx, c = state.categories[id]; budOpen.has(id) ? budOpen.delete(id) : budOpen.add(id);
   if(!c){ render(); return; }
+  app.classList.remove("anim");   // the tab-switch grow animation shouldn't replay on the redrawn row
   const y = window.scrollY, nx = bx.nextElementSibling;
   if(nx && nx.classList.contains("bcfix")) nx.remove();
   bx.insertAdjacentHTML("afterend", budgetCompactRows(viewPeriod, [c])); bx.remove();
