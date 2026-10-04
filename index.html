@@ -2590,7 +2590,7 @@ function viewSettings(){
   const instHtml = insts.length ? insts.map(i => `<button class="catrow${i.status==="active"?"":" arch"}" data-inst="${esc(i.id)}">
       <b>${esc(i.title)}</b><span class="num small">${moneyShort(i.total)}</span>
       <span class="sub">${esc(catName(i.categoryId))} · ${i.n} 期 · ${instStatus(i)}${i.skip ? ` · 從第 ${i.skip + 1} 期開始記` : ""}</span></button>`).join("")
-    : `<div class="empty">還沒有分期。記帳時打開「分期付款」就會出現在這裡。</div>`;
+    : `<div class="empty">還沒有分期。記帳時打開「分期／分攤」就會出現在這裡。</div>`;
   const imp = importPreview ? `<div class="note" style="border-top:0">
       <b style="color:var(--ink)">匯入預覽：${esc(importPreview.fileName)}</b>
       <ul class="issues"><li>類別 ${importPreview.cats.length} 個</li><li>固定收支 ${importPreview.recs.length} 筆</li><li>分期 ${importPreview.insts.length} 筆</li><li>慾望清單 ${importPreview.wishes.length} 個</li><li>交易 ${importPreview.txs.length} 筆（${esc(importPreview.sheets.join("、")||"無月表")}）</li></ul>
@@ -2624,7 +2624,7 @@ function viewSettings(){
       <button role="tab" data-fseg="rec" aria-pressed="${fixSeg==="rec"}" aria-selected="${fixSeg==="rec"}">固定收支 <small class="num">${recs.length}</small></button>
       <button role="tab" data-fseg="inst" aria-pressed="${fixSeg==="inst"}" aria-selected="${fixSeg==="inst"}">分期 <small class="num">${insts.filter(i => i.status==="active").length}</small></button></div>
     ${fixSeg === "rec" ? `<div class="section"><div class="section-head"><h2>固定收支${infoBtn("rec", "固定收支怎麼運作")}</h2><button class="btn small" data-act="rec-new">新增</button></div>${infoPop("rec", "到了每月收支日，會出現在首頁「需要注意」等你確認。確認後才算進帳；金額不同可以先改再確認，這個月沒有就按略過。")}<div class="card setlist">${recHtml}</div></div>`
-    : `<div class="section"><h2>分期</h2><div class="card setlist">${instHtml}</div></div>`}
+    : `<div class="section"><h2>分期</h2><p class="small muted" style="margin:0 0 var(--space-2)">也可以用來分攤預付的費用，例如一次繳兩個月的課程</p><div class="card setlist">${instHtml}</div></div>`}
 `,
     fav: `<div class="section" id="fav-section"><div class="section-head"><h2>項目</h2><button class="btn small" data-act="fav-new">新增</button></div><div class="card setlist">${favHtml}
       <div class="note">排序：${s.favManual ? `手動 <button class="btn ghost small" data-act="fav-auto">改回依使用次數</button>` : "依使用次數（按箭頭可手動排）"}。首頁「快速記帳」依這個順序排列，可左右滑。</div></div></div>
@@ -2705,7 +2705,7 @@ function openEntry(existing, refundOf, prefill){
       ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+"].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq" data-k="=">＝ 填入金額</button></div></div>` : ""}
       ${t.wishId && !existing && state.wishes[t.wishId]?.price ? `<div class="hint">清單上的價格是 <b class="num">NT$${moneyShort(state.wishes[t.wishId].price)}</b>，實際價格不同可以直接改金額</div>` : ""}
       ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}"><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${esc(c.name)}</button>`).join("")}</div>`}
-      ${(!existing || canInst) && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期付款</label>
+      ${(!existing || canInst) && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期／分攤</label>${inst ? "" : `<span class="small muted" style="flex-basis:100%">也能把一次付清的費用（如兩個月課程）攤到之後幾期</span>`}
         ${inst ? `<div class="seg mini" role="radiogroup" aria-label="怎麼輸入分期">${[["total","輸入總額"],["per","輸入每期"]].map(([k,l]) => `<button type="button" role="radio" data-imode="${k}" aria-pressed="${instMode===k}" aria-checked="${instMode===k}">${l}</button>`).join("")}</div>
         <label class="field" style="flex-direction:row;align-items:center;gap:8px">${instMode === "per" ? "總期數" : "期數"}<input class="inp num" id="e-n" inputmode="numeric" value="${n}" style="width:70px;text-align:right"></label>
         ${instMode === "per" ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">這期是第<input class="inp num" id="e-at" inputmode="numeric" value="${instAt}" style="width:60px;text-align:right">期</label>` : ""}` : ""}</div>` : ""}
@@ -3889,7 +3889,7 @@ function openGuide(afterSetup, onDone){
     { v: V.flex, h: "預算有彈性，超支也不慌", lead: "某一類超支時，可以這樣補：", pts: ["跟<b>其他類別</b>借，或跟<b>下個月</b>借", "動用<b>已節省結餘</b>：每期沒用完的預算會存進來", "都不夠時，才動用<b>存錢罐</b>這期該存的錢"], where: ["首頁 → 需要注意", "看懂 → 預算進度"] },
     { v: V.wish, h: "想買的，先放 7 天", pts: ["想買的先放著冷靜幾天", "App 會告訴你<b>可以買</b>、<b>再等等</b>，還是會影響本期預算", "決定買了，按<b>「買了」</b>就直接記帳"], where: ["下方「想買」分頁"] },
     { v: V.jar, h: "存錢罐：分開存，存到就能用", pts: ["依用途分開存，<b>每週、每月或每年</b>自動存一筆", "可以設<b>目標金額</b>，算出大概什麼時候存到", "<b>使用這筆錢</b>由存錢罐支付，不動到預算", "也能<b>存一筆</b>、轉到其他存錢罐，每筆進出都有<b>紀錄</b>"], where: ["{gear}設定 → 預算與儲蓄 → 儲蓄"] },
-    { v: V.fixed, h: "固定收支與分期", pts: ["房租、電信、薪資這類固定的，到期會提醒你<b>確認</b>", "<b>分期付款</b>會先占用之後每一期的額度", "「今天可以花」會先扣掉這期<b>還沒付的</b>"], where: ["{gear}設定 → 固定收支與分期", "{plus}記一筆 → 分期付款"] },
+    { v: V.fixed, h: "固定收支與分期", pts: ["房租、電信、薪資這類固定的，到期會提醒你<b>確認</b>", "<b>分期付款</b>會先占用之後每一期的額度", "一次付清的課程、年費，也能用分期<b>攤到之後幾期</b>，每期預算比較平均", "「今天可以花」會先扣掉這期<b>還沒付的</b>"], where: ["{gear}設定 → 固定收支與分期", "{plus}記一筆 → 分期／分攤"] },
     { v: V.nw, h: "必要、需要、想要", pts: ["記帳時標記這筆是<b>必要、需要還是想要</b>", "「看懂」會算出<b>想要占多少</b>", "用必要支出推算<b>緊急預備金</b>該存多少"], where: ["{plus}記一筆 → 這筆是", "看懂 → 收支分析"] },
     { v: V.data, h: local ? "資料只存在這台手機" : "記得偶爾備份", pts: local
         ? ["沒有雲端帳號，<b>換手機或清除瀏覽器資料就會不見</b>", "記得定期<b>匯出備份</b>，App 每兩週提醒一次", "設定過的每一項，都能在右上角<b>設定</b>裡改"]
