@@ -2687,6 +2687,8 @@ function openEntry(existing, refundOf, prefill){
     : refundOf ? { id: uid(), date: todayStr(), type: "refund", categoryId: refundOf.categoryId, amount: refundOf.amount, title: `退款：${refundOf.title || catName(refundOf.categoryId)}`, note: "", refOf: refundOf.id, jarId: refundOf.jarId }
     : prefill ? { id: uid(), date: todayStr(), type: prefill.type || "expense", categoryId: prefill.categoryId || null, amount: prefill.amount ?? null, title: prefill.title || "", note: prefill.note || "", favoriteId: prefill.favoriteId, wishId: prefill.wishId, nw: prefill.nw }
     : { id: uid(), date: todayStr(), type: "expense", categoryId: null, amount: null, title: "", note: "" };
+  // an existing expense can be turned into an installment, except ones tied to a fixed item or paid by a jar
+  const canInst = !!existing && existing.type === "expense" && !existing.recurringId && !existing.jarId;
   let type = t.type, catId = t.categoryId, confirmDel = false, delMode = false, inst = false, n = 3, nwPick = t.nw || null, fixedPick = typeof t.fixed === "boolean" ? t.fixed : null, calcOpen = false, calcExpr = "", instMode = "total", instAt = 1;
   const draw = sheet => {
     const list = usageOrder(type === "refund" ? "expense" : type);
@@ -2703,7 +2705,7 @@ function openEntry(existing, refundOf, prefill){
       ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+"].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq" data-k="=">＝ 填入金額</button></div></div>` : ""}
       ${t.wishId && !existing && state.wishes[t.wishId]?.price ? `<div class="hint">清單上的價格是 <b class="num">NT$${moneyShort(state.wishes[t.wishId].price)}</b>，實際價格不同可以直接改金額</div>` : ""}
       ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}"><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${esc(c.name)}</button>`).join("")}</div>`}
-      ${!existing && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期付款</label>
+      ${(!existing || canInst) && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期付款</label>
         ${inst ? `<div class="seg mini" role="radiogroup" aria-label="怎麼輸入分期">${[["total","輸入總額"],["per","輸入每期"]].map(([k,l]) => `<button type="button" role="radio" data-imode="${k}" aria-pressed="${instMode===k}" aria-checked="${instMode===k}">${l}</button>`).join("")}</div>
         <label class="field" style="flex-direction:row;align-items:center;gap:8px">${instMode === "per" ? "總期數" : "期數"}<input class="inp num" id="e-n" inputmode="numeric" value="${n}" style="width:70px;text-align:right"></label>
         ${instMode === "per" ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">這期是第<input class="inp num" id="e-at" inputmode="numeric" value="${instAt}" style="width:60px;text-align:right">期</label>` : ""}` : ""}</div>` : ""}
@@ -2822,7 +2824,10 @@ function openEntry(existing, refundOf, prefill){
         if(instMode === "per"){ const at = Math.max(1, Math.min(nn, intOf($("#e-at", sheet).value) || 1));
           Object.assign(rec, { total: v * nn, per: v, first: v, startPeriod: pkey(shift(periodOf(date), -(at - 1))), skip: at - 1 }); }
         if(nwPick) rec.nw = nwPick;
-        put.inst(rec); if(t.wishId) markWishBought(t.wishId, rec); closeSheet(); render(); toast(`已記下 ${nn} 期分期`);
+        put.inst(rec); if(t.wishId) markWishBought(t.wishId, rec);
+        // converting a recorded expense: drop it with its overspend adjustments, and move a wishlist link to the installment
+        if(existing){ const w = Object.values(state.wishes).find(x => x.boughtRef === existing.id); removeTx(existing, true); if(w) markWishBought(w.id, rec); }
+        closeSheet(); render(); toast(existing ? `已改成 ${nn} 期分期` : `已記下 ${nn} 期分期`);
         checkOverspend(subjectOf("inst", rec.id));
         return;
       }
