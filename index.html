@@ -645,6 +645,18 @@ button.r:hover{background:var(--sunk)}
 .bs1 span{font-size:13px;color:var(--muted)}
 .bs1 b{font-size:22px;font-weight:700}
 .bs1 small{font-size:12px;color:var(--muted)}
+.bsrows{display:flex;flex-direction:column;gap:4px;padding-top:var(--space-3);margin-top:var(--space-1);border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.bsrows > div{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3)}
+.bsrows small{margin-left:var(--space-2);font-size:11px}
+.bsrows .num{color:var(--ink)}
+.bsrows .tot{padding-top:4px;margin-top:2px;border-top:1px dashed var(--line);color:var(--ink);font-weight:600}
+.bsbtns{display:flex;gap:var(--space-2);margin-top:var(--space-1)}
+/* 已節省結餘 categories: a filled circle with a check = on, an empty ring = off */
+[data-pool]{gap:6px}
+[data-pool] .pchk{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--muted);display:inline-grid;place-items:center;flex-shrink:0}
+[data-pool] .pchk .ic{width:12px;height:12px;stroke-width:3}
+.chip[data-pool][aria-pressed="true"]{background:var(--accent-soft);color:var(--ink)}
+.chip[data-pool][aria-pressed="true"] .pchk{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .budsum p{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
 .budsum b{color:var(--ink)}
 .bad,.bad b{color:var(--stamp)}
@@ -1298,6 +1310,7 @@ const ICON = {
   report: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   settings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   jar: '<path d="M5 8h14v11H5z"/><path d="M8 8V6h8v2M9 13h6M12 10v6"/>',
   bolt: '<path d="M13 2 6.5 13H12l-1 9 6.5-11H12l1-9Z"/>',
   calendar: '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
@@ -1742,7 +1755,12 @@ function budgetSummary(){
     <div class="bs1"><span>可分配預算</span><b class="num">NT$ ${moneyShort(room)}</b></div>
     <div class="bs2"><span>已分配<b class="num">${moneyShort(total)}</b></span><span>${room - total >= 0 ? `未分配<b class="num">${moneyShort(room - total)}</b>` : `<span class="bad">超出<b class="num">${moneyShort(total - room)}</b></span>`}</span></div>
     <div class="bar ${pct > 1 ? "over" : pct >= .95 ? "warn" : ""}" role="img" aria-label="已分配 ${Math.round(pct*100)}%"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
-    <p><button class="inlink" data-set="fixed" data-fseg-go="rec">預估月收入 ${moneyShort(inc.amount)}（${inc.source}）${icon("chev","sm")}</button>${savingsMonthly() ? ` − 存錢罐每月 ${moneyShort(savingsMonthly())}` : ""} ＝ 可分配 ${moneyShort(room)}</p>
+    <div class="bsrows">
+      <div><span>預估月收入<small>${inc.source}</small></span><span class="num">${moneyShort(inc.amount)}</span></div>
+      ${savingsMonthly() ? `<div><span>存錢罐每月</span><span class="num">−${moneyShort(savingsMonthly())}</span></div>` : ""}
+      <div class="tot"><span>可分配預算</span><span class="num">${moneyShort(room)}</span></div>
+    </div>
+    <div class="bsbtns"><button class="btn small" data-set="fixed" data-fseg-go="rec">調整收入</button>${savingsMonthly() ? `<button class="btn small" data-bseg="save">調整存錢罐</button>` : ""}</div>
     ${inc.source === "上一期收入" ? `<p>收入不固定，所以先用上一期實際記到的收入估算。想用固定的數字，可以在固定收支加一筆收入。</p>` : ""}
   </div>`;
   return `<div class="budsum">
@@ -2257,7 +2275,7 @@ function viewHome(){
       ${t.unbOver > 0 ? infoPop("left", leftText, true) : ""}
     </section>`;
   const quickFavs = favList();
-  const quick = `<section class="hsec"><div class="hhead"><h2>快速記帳</h2><button class="link" data-act="fav-manage">管理</button></div>
+  const quick = `<section class="hsec"><div class="hhead"><h2>快速記帳</h2><button class="link" data-act="fav-manage">管理${icon("chev","sm")}</button></div>
       ${quickFavs.length ? `<div class="quickrow" role="group" aria-label="快速記帳">${quickFavs.map(f => { const c = state.categories[f.categoryId];
         return `<button class="qchip${favUsable(f)?"":" off"}" data-favq="${esc(f.id)}"><span class="qic ${catTint(c)}">${catMark(c, f.name)}</span><span class="qt"><b>${esc(f.name)}</b><span class="num">${f.amount ? (f.type==="income"?"+":"")+moneyShort(f.amount) : "輸入金額"}</span></span></button>`; }).join("")}</div>`
         : `<p class="hint-empty">記帳時按「存成常用」，常記的項目就會出現在這裡，點一下就記好。</p>`}</section>`;
@@ -2689,7 +2707,7 @@ function viewSettings(){
       + `<div class="note">本期合計 <b class="num">${moneyShort(savingsMonthly())}</b>，預估月收入會先扣掉這筆，剩下的才是「可分配預算」。</div>`
     : `<div class="empty">還沒有存錢罐。可以依用途分開存，例如旅行、緊急預備金，每週、每月或每年存一筆。</div>`;
   const limited = cats("expense").filter(c => c.monthlyLimit);
-  const poolChips = limited.length ? `<div class="chips" role="group" aria-label="可以轉入已節省結餘的類別">${limited.map(c => `<button class="chip" data-pool="${esc(c.id)}" aria-pressed="${toPool(c)}">${esc(c.name)}</button>`).join("")}</div>`
+  const poolChips = limited.length ? `<div class="chips" role="group" aria-label="可以轉入已節省結餘的類別">${limited.map(c => `<button class="chip" data-pool="${esc(c.id)}" aria-pressed="${toPool(c)}"><span class="pchk" aria-hidden="true">${toPool(c) ? icon("check") : ""}</span>${esc(c.name)}</button>`).join("")}</div>`
     : `<span class="small muted">先幫類別設每月上限，才能選。</span>`;
   const pages = {
     budget: `<div class="seg fseg" role="tablist" aria-label="預算與儲蓄">
@@ -2703,7 +2721,7 @@ function viewSettings(){
       <div class="card setlist">${jarHtml}</div></div>
       <div class="section"><div class="card setlist">
       <div class="setrow"><div class="k"><b>已節省結餘</b><span>從開始記帳開始累積，儲蓄以外的小金庫</span></div><span class="num">${money(poolBalance())}</span></div>
-      <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>可以轉入已節省結餘的類別</b><span>只列出有設每月上限的類別。深色的會轉入，點一下切換</span></div>${poolChips}</div>
+      <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>可以轉入已節省結餘的類別</b><span>只列出有設每月上限的類別 · 已選 <b class="num">${limited.filter(toPool).length}</b> / ${limited.length}</span></div>${poolChips}</div>
     </div></div></div>`}
 `,
     fixed: `<div class="seg fseg" role="tablist" aria-label="固定收支與分期">
@@ -3037,6 +3055,8 @@ function openCategory(c){
     <div class="fields">
       <label>名稱<input class="inp" id="c-name" value="${esc(c.name)}"></label>
       <label>收支<select id="c-type"><option value="expense" ${c.type==="expense"?"selected":""}>支出</option><option value="income" ${c.type==="income"?"selected":""}>收入</option></select></label>
+    </div>
+    <div class="fields" data-exp>
       ${lim("c-tx","每筆上限（NT$）",c.perTxLimit)}${lim("c-day","單日上限",c.dailyLimit)}
       ${lim("c-limit","每月上限",c.monthlyLimit)}${lim("c-year","每年上限",c.yearlyLimit)}
     </div>
@@ -3045,11 +3065,11 @@ function openCategory(c){
       <button type="button" class="ipk" data-ic="text" role="radio" aria-checked="${c.icon==="text"}" title="顯示第一個字"><span class="ipk-text">${esc((c.name||"字").slice(0,1))}</span><small>文字</small></button>
       ${CAT_PICK.map(k => `<button type="button" class="ipk" data-ic="${k}" role="radio" aria-checked="${c.icon===k}">${icon(k)}</button>`).join("")}
     </div></div>
-    <p class="small muted" id="c-total" style="margin:-4px 2px 0"></p>
-    ${ref ? `<p class="small muted" style="margin:0">今年已花 <b class="num">${money(ref.spent)}</b>，照這個速度全年約 <b class="num">${money(ref.est)}</b>${ref.n<12?`（今年記錄了 ${ref.n} 個月，僅供參考）`:""}。</p>` : ""}
-    <div class="setrow flat"><div class="k"><b>預設是必要、需要還是想要</b><span>記帳時自動帶入；「每次問」會請你每筆選一下</span></div><select id="c-nw" aria-label="預設必要、需要或想要">${[...NW_KEYS,"ask"].map(k => `<option value="${k}" ${catNw(c)===k?"selected":""}>${NW_LABEL[k]}</option>`).join("")}</select></div>
-    <label class="toggle"><input type="checkbox" id="c-warn" ${c.warn?"checked":""}>快用完或超支時提醒我</label>
-    <label class="toggle" id="c-pool-row"><input type="checkbox" id="c-pool" ${c.monthlyLimit && (c.toPool ?? !!c.warn)?"checked":""} ${c.monthlyLimit?"":"disabled"}><span>每期沒用完的額度轉入已節省結餘<span class="small muted" id="c-pool-note">${c.monthlyLimit?"":"（先設每月上限才能勾選）"}</span></span></label>
+    <p class="small muted" id="c-total" style="margin:-4px 2px 0" data-exp></p>
+    ${ref ? `<p class="small muted" style="margin:0" data-exp>今年已花 <b class="num">${money(ref.spent)}</b>，照這個速度全年約 <b class="num">${money(ref.est)}</b>${ref.n<12?`（今年記錄了 ${ref.n} 個月，僅供參考）`:""}。</p>` : ""}
+    <div class="setrow flat" data-exp><div class="k"><b>預設是必要、需要還是想要</b><span>記帳時自動帶入；「每次問」會請你每筆選一下</span></div><select id="c-nw" aria-label="預設必要、需要或想要">${[...NW_KEYS,"ask"].map(k => `<option value="${k}" ${catNw(c)===k?"selected":""}>${NW_LABEL[k]}</option>`).join("")}</select></div>
+    <label class="toggle" data-exp><input type="checkbox" id="c-warn" ${c.warn?"checked":""}>快用完或超支時提醒我</label>
+    <label class="toggle" id="c-pool-row" data-exp><input type="checkbox" id="c-pool" ${c.monthlyLimit && (c.toPool ?? !!c.warn)?"checked":""} ${c.monthlyLimit?"":"disabled"}><span>每期沒用完的額度轉入已節省結餘<span class="small muted" id="c-pool-note">${c.monthlyLimit?"":"（先設每月上限才能勾選）"}</span></span></label>
     <label class="toggle"><input type="checkbox" id="c-arch" ${c.archived?"checked":""}>停用這個類別（舊紀錄保留）</label>
     <div class="rowbtns"><button class="btn primary" data-save>儲存</button></div>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", closeSheet);
@@ -3072,6 +3092,9 @@ function openCategory(c){
         : `改完後，每月預算合計 <b class="num">${moneyShort(before)} → ${moneyShort(after)}</b>${line ? `。${line}` : ""}`;
     };
     showTotal();
+    // income categories have no budget, limits or 必要/需要/想要: hide those fields
+    const syncType = () => { const inc = $("#c-type", sheet).value === "income"; sheet.querySelectorAll("[data-exp]").forEach(x => { x.style.display = inc ? "none" : ""; }); };
+    syncType(); $("#c-type", sheet).addEventListener("change", syncType);
     ["#c-type","#c-arch"].forEach(sel => $(sel, sheet).addEventListener("change", showTotal));
     limitIn.addEventListener("input", showTotal);
     limitIn.addEventListener("input", () => {
@@ -3083,6 +3106,7 @@ function openCategory(c){
       const name = $("#c-name", sheet).value.trim(); if(!name){ toast("請輸入類別名稱"); return; }
       Object.assign(c, { name, type: $("#c-type", sheet).value, perTxLimit: intOf($("#c-tx", sheet).value), dailyLimit: intOf($("#c-day", sheet).value),
         monthlyLimit: intOf($("#c-limit", sheet).value), yearlyLimit: intOf($("#c-year", sheet).value), nw: c.type === "expense" || $("#c-type", sheet).value === "expense" ? $("#c-nw", sheet).value : undefined, nw3: true, warn: $("#c-warn", sheet).checked, toPool: !!intOf($("#c-limit", sheet).value) && $("#c-pool", sheet).checked, archived: $("#c-arch", sheet).checked, icon: pickedIcon });
+      if(c.type === "income") Object.assign(c, { perTxLimit: null, dailyLimit: null, monthlyLimit: null, yearlyLimit: null, warn: false, toPool: false });
       put.cat(c); closeSheet(); render(); toast("已儲存");
     });
   });
