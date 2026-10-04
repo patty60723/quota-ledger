@@ -2035,6 +2035,18 @@ function budgetCompact(p){
     + (hot.length ? `<div class="bgh">需要注意 ${hot.length}</div>` + budgetCompactRows(p, hot) : "")
     + (rest.length ? `<div class="bgh">${hot.length || over.length ? "其他類別" : "都在預算內"} ${rest.length}</div>` + budgetCompactRows(p, rest) : "");
 }
+// this period's records in one category (installment portions included)
+const catTx = (c, p) => txIn(p).filter(t => t.categoryId === c.id && outAmt(t));
+function openCatList(c, p){
+  const list = catTx(c, p);
+  openSheet(`<div class="hd"><h2>${esc(c.name)}</h2><button class="btn ghost" data-x>關閉</button></div>
+    <p class="small muted srchsum">${periodLabel(p).title} · <b class="num">${list.length}</b> 筆 · <span class="num">NT$${moneyShort(sumOut(list))}</span></p>
+    <div class="card txlist cdlist">${txRows(list, true)}</div>`, sheet => {
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    sheet.querySelectorAll("[data-edit]").forEach(x => x.addEventListener("click", () => { const t = findTx(x.dataset.edit); t && openEntry(t); }));
+    sheet.querySelectorAll("[data-inst]").forEach(x => x.addEventListener("click", () => { const i = state.installments[x.dataset.inst]; i && openInstallment(i); }));
+  });
+}
 function budgetCompactRows(p, list){
   return list.map(c => {
     const open = budOpen.has(c.id);
@@ -2048,17 +2060,18 @@ function budgetCompactRows(p, list){
       meta = `已用 ${Math.round(pct*100)}% · ${b.avail>=0 ? "還剩 NT$"+moneyShort(b.avail) : "超出 NT$"+moneyShort(-b.avail)}`;
       if(b.inst || b.occupied || b.received) detail.push([`實際 ${moneyShort(b.actual)}`, b.inst && `分期 ${moneyShort(b.inst)}`, b.occupied && `被占用 ${moneyShort(b.occupied)}`, b.received && `借入 ${moneyShort(b.received)}`].filter(Boolean).join(" · "));
       if(!c.warn) detail.push("這個類別不提醒");
-      if(b.avail < 0 && overSubject(c, p)) fix = `<div class="bcfix"><button class="btn small" data-overcat="${esc(c.id)}">處理超支</button></div>`;
+      if(b.avail < 0 && overSubject(c, p)) fix = `<button class="btn small" data-overcat="${esc(c.id)}" data-p="${pkey(p)}">處理超支</button>`;
     } else {
       main = `<span class="n">${esc(c.name)}</span><span class="v small muted">只設每年預算</span>`;
     }
     if(c.yearlyLimit){ const yu = yearUsed(c, p.y); detail.push(`${p.y} 年 ${moneyShort(yu)} / ${moneyShort(c.yearlyLimit)}${yu > c.yearlyLimit ? "（超過年度上限）" : ""}`); }
+    const nrec = catTx(c, p).length;
+    if(!nrec) detail.push("這期還沒有紀錄");
+    const list = open && nrec ? `<button class="btn small" data-catlist="${esc(c.id)}" data-p="${pkey(p)}">看這期 ${nrec} 筆</button>` : "";
     const body = `<span class="dot sm ${catTint(c)}">${catMark(c)}</span>${main}${bar}${meta ? `<span class="bm num">${meta}</span>` : ""}`;
-    // only rows with something more to show expand (and get the chevron)
-    if(!detail.length) return `<div class="bc">${body}</div>${fix}`;
     return `<button class="bc${open ? " open" : ""}" data-budx="${esc(c.id)}" aria-expanded="${open}">
       <span class="bchev" aria-hidden="true">${icon("chev")}</span>${body}
-      ${open ? `<span class="bd num">${detail.map(d => `<span>${d}</span>`).join("")}</span>` : ""}</button>${fix}`;
+      ${open && detail.length ? `<span class="bd num">${detail.map(d => `<span>${d}</span>`).join("")}</span>` : ""}</button>${fix || list ? `<div class="bcfix">${fix}${list}</div>` : ""}`;
   }).join("");
 }
 function homeBudget(p){ return homeBudgetInner(p); }
@@ -3674,6 +3687,8 @@ document.addEventListener("click", e => {
   if(ix){ hideInsight(insKeys[+ix.dataset.insx]); return; }
   const oc = e.target.closest("[data-overcat]");
   if(oc && !oc.closest(".sheet")){ const c = state.categories[oc.dataset.overcat]; const s = c && overSubject(c, oc.dataset.p ? fromKey(oc.dataset.p) : viewPeriod); if(s) openOverspend(s, true); return; }
+  const cl = e.target.closest("[data-catlist]");
+  if(cl && !cl.closest(".sheet")){ const c = state.categories[cl.dataset.catlist]; c && openCatList(c, fromKey(cl.dataset.p)); return; }
   const bx = e.target.closest("[data-budx]");
   if(bx){ const id = bx.dataset.budx; budOpen.has(id) ? budOpen.delete(id) : budOpen.add(id); render(); return; }
   const tp = e.target.closest("[data-theme-pick]");
