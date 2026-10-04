@@ -2113,14 +2113,15 @@ function toggleBudRow(bx){
   $(`[data-budx="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
   if(window.scrollY !== y) window.scrollTo(0, y);
 }
-// one sentence under the 想要 trend: this period vs the last one with data
-function nwTake(hist, want){
+// one sentence under the 想要 trend: this period beside the last one with data
+function nwTake(hist){
   const pc = h => Math.round(h.pct * 100); const cur = hist[hist.length-1];
   const prev = hist.slice(0, -1).reverse().find(h => h.pct !== null);
-  const now = `這期 <b class="num">${pc(cur)}%</b>（NT$${moneyShort(want)}）`;
+  const now = `這期 <b class="num">${pc(cur)}%</b>（NT$${moneyShort(cur.want)}）`;
   if(!prev) return `${now}。之後每期都會記下來，方便比較。`;
-  const d = pc(cur) - pc(prev), when = prev === hist[hist.length-2] ? "上期" : `${prev.p.m} 月`;
-  return `${now}，${d === 0 ? `和${when}一樣` : `比${when}${d > 0 ? "多" : "少"} ${Math.abs(d)} 個百分點`}。`;
+  const when = prev === hist[hist.length-2] ? "上期" : `${prev.p.m} 月`;
+  // amounts are listed, not compared: this period is usually still running
+  return `${now}，${when} ${pc(prev)}%（NT$${moneyShort(prev.want)}）。`;
 }
 function budgetCompactRows(p, list){
   return list.map(c => {
@@ -2389,7 +2390,7 @@ function viewReport(){
   const rank = rows.length ? `<div class="rank">${rows.map(([id,v]) => `<button class="r${overIds.has(id) ? " over" : ""}" data-rank="${esc(id)}" aria-label="看${esc(catName(id))}的所有支出"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="v">${moneyShort(v)}<small>${rOut>0?Math.round(v/rOut*100):0}%</small></span><span class="rchev" aria-hidden="true">${icon("chev")}</span></button>`).join("")}</div>`
     : `<div class="empty">這一期沒有支出。</div>`;
   const ns = nwSplit(list); const pctOf = v => ns.total ? Math.round(v / ns.total * 100) : 0;
-  const nwHist = []; for(let i=5;i>=0;i--){ const pp = shift(viewPeriod,-i); const sp = nwSplit(txIn(pp)); nwHist.push({ p: pp, pct: sp.total ? sp.want / sp.total : null }); }
+  const nwHist = []; for(let i=5;i>=0;i--){ const pp = shift(viewPeriod,-i); const sp = nwSplit(txIn(pp)); nwHist.push({ p: pp, pct: sp.total ? sp.want / sp.total : null, want: sp.want }); }
   const nwMax = Math.max(0.01, ...nwHist.map(h => h.pct || 0));   // tallest bar fills the chart so small changes stay visible
   const nwHtml = ns.total ? `<div class="nwcard">
       <div class="nwbar" role="img" aria-label="必要 ${pctOf(ns.must)}%，需要 ${pctOf(ns.need)}%，想要 ${pctOf(ns.want)}%">
@@ -2401,7 +2402,7 @@ function viewReport(){
       ${ns.noneCount ? `<button class="btn small" data-act="nw-tag">補標 ${ns.noneCount} 筆未標記的支出</button>` : ""}
       <div class="nwtrend">
         <h3>「想要」占支出的比例・近 6 期</h3>
-        <p class="nwtake">${nwTake(nwHist, ns.want)}</p>
+        <p class="nwtake">${nwTake(nwHist)}</p>
         <div class="nwhist" role="img" aria-label="近 6 期想要占比：${nwHist.map(h => `${h.p.m} 月 ${h.pct===null ? "沒有資料" : Math.round(h.pct*100)+"%"}`).join("、")}">${nwHist.map((h, i) => `<div class="${i === nwHist.length-1 ? "cur" : ""}"><span class="num">${h.pct===null ? "—" : Math.round(h.pct*100)+"%"}</span><i style="height:${h.pct===null ? 0 : Math.max(3, h.pct / nwMax * 100)}%"></i><small>${h.p.m} 月</small></div>`).join("")}</div>
       </div>
       ${ns.must ? `<p class="nwfund">必要支出 <b class="num">${moneyShort(ns.must)}</b>，是這一期維持生活的底線；緊急預備金建議準備 6 個月，約 <b class="num">NT$ ${moneyShort(ns.must * 6)}</b>。</p>` : ""}
