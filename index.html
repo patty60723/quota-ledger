@@ -654,6 +654,7 @@ button.r:hover{background:var(--sunk)}
 .bsrows small{margin-left:var(--space-2);font-size:11px}
 .bsrows .num{color:var(--ink)}
 .bsrows .tot{padding-top:4px;margin-top:2px;border-top:1px dashed var(--line);color:var(--ink);font-weight:600}
+.rowbtns2{display:flex;gap:var(--space-2);flex-shrink:0}
 .addbtn{display:inline-flex;align-items:center;gap:4px}
 .addbtn .ic{width:16px;height:16px;stroke-width:2.4}
 .bsbtns{display:flex;gap:var(--space-2);margin-top:var(--space-1)}
@@ -1939,6 +1940,7 @@ function goSet(page){
 try{ const t = localStorage.getItem("ledger.tab"); if(TABS.some(x=>x[0]===t) || t==="settings") tab = t; }catch(e){}
 let viewPeriod = curPeriod();
 let importPreview = null;
+let storeKept = null;   // whether the browser agreed not to evict local data (null: unknown)
 
 // actions: [[label, fn], ...] shown as buttons inside the toast
 function toast(msg, actions, ms){
@@ -2217,8 +2219,12 @@ function todayPlan(p){
 }
 function daysSince(ms){ return ms ? Math.floor((Date.now() - ms) / 86400000) : null; }
 // remind when there are records and the last backup is missing or two weeks old
-function backupDue(){ if(!realTx().length) return false; const d = daysSince(state.settings.lastBackupAt); return d === null || d >= 14; }
-function backupText(){ const d = daysSince(state.settings.lastBackupAt); return d === null ? "還沒備份過" : d === 0 ? "今天備份過" : `上次備份是 ${d} 天前`; }
+// records added since the last backup
+function sinceBackup(){ const at = state.settings.lastBackupAt || 0; return realTx().filter(t => (t.createdAt || 0) > at).length; }
+// remind after 14 days, or sooner (3+ days) once 30 records would be lost
+function backupDue(){ if(!realTx().length) return false; const d = daysSince(state.settings.lastBackupAt); return d === null || d >= 14 || (d >= 3 && sinceBackup() >= 30); }
+function backupText(){ const d = daysSince(state.settings.lastBackupAt), n = sinceBackup();
+  return d === null ? "還沒備份過" : (d === 0 ? "今天備份過" : `上次備份是 ${d} 天前`) + (n ? `，之後新增了 ${n} 筆` : ""); }
 // next 14 days: recurring items not due yet, installment portions and wishes with a deadline
 function upcoming(){
   const today = todayStr(); const end = new Date(parseYmd(today)); end.setDate(end.getDate() + 14); const lim = ymd(end);
@@ -2308,7 +2314,7 @@ function viewHome(){
         <input class="amtin num" id="pa-${esc(x.key)}" inputmode="numeric" value="${x.r.amount}" aria-label="${esc(x.r.title)} 金額">
         <button class="okbtn" data-confirm="${esc(x.key)}" aria-label="確認 ${esc(x.r.title)}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button><button class="link sm" data-skip="${esc(x.key)}" aria-label="這個月略過 ${esc(x.r.title)}">略過</button></div>`; }).join("")}
       ${pend.length > 3 ? `<button class="budfoot" data-act="pend-toggle">${pendOpen ? "收起" : `還有 ${pend.length - 3} 筆固定收支`}</button>` : ""}
-      ${bk ? `<div class="trow"><span class="qic tint6">${icon("shield")}</span><div class="meta"><b>備份資料</b><span>${backupText()}，資料只存在這台裝置</span></div><button class="btn small" data-act="export">匯出</button></div>` : ""}
+      ${bk ? `<div class="trow"><span class="qic tint6">${icon("shield")}</span><div class="meta"><b>備份資料</b><span>${backupText()}，資料只存在這台裝置</span></div><button class="btn small" data-act="${BK_SHARE ? "share-backup" : "export"}">${BK_SHARE ? "備份" : "匯出"}</button></div>` : ""}
       </div></section>` : "";
   const upAll = upcoming(); const up = upOpen ? upAll : upAll.slice(0, 5);
   const md = s => { const x = parseYmd(s); return `${x.getMonth()+1}/${x.getDate()}`; };
@@ -2761,9 +2767,10 @@ function viewSettings(){
 `,
     data: `<div class="section"><h2>資料</h2><div class="card setlist">
       ${imp}
-      <div class="setrow"><div class="k"><b>資料存放</b><span>${db ? (syncOn ? "雲端，電腦和手機同步" : "雲端（目前連不上，先存在這個瀏覽器）") : "只存在這個瀏覽器，不會同步"}</span></div></div>
-      <div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原 · ${backupText()}</span></div><button class="btn small" data-act="export">匯出</button></div>
-      <div class="setrow"><div class="k"><b>從備份還原</b><span><b class="bad">取代</b>目前所有資料</span></div><label class="btn small" for="f-json">選擇檔案</label><input type="file" id="f-json" accept=".json,application/json" hidden></div>
+      <div class="setrow"><div class="k"><b>資料存放</b><span>${db ? (syncOn ? "雲端，電腦和手機同步" : "雲端（目前連不上，先存在這個瀏覽器）") : "只存在這個瀏覽器，不會同步"}${!db && storeKept !== null ? (storeKept ? "；瀏覽器已同意不自動清除" : "；空間不足時瀏覽器可能清除資料，建議安裝到主畫面並定期備份") : ""}</span></div></div>
+      ${BK_SHARE ? `<div class="setrow"><div class="k"><b>備份</b><span>建議傳到雲端硬碟、LINE 或寄給自己；只存在手機裡，手機遺失會一起不見 · ${backupText()}</span></div><div class="rowbtns2"><button class="btn small" data-act="export">下載</button><button class="btn small primary" data-act="share-backup">分享</button></div></div>`
+      : `<div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原；建議另外存到雲端硬碟 · ${backupText()}</span></div><button class="btn small" data-act="export">匯出</button></div>`}
+      <div class="setrow"><div class="k"><b>從備份還原</b><span><b class="bad">取代</b>目前所有資料</span></div><label class="btn small" for="f-json">選擇檔案</label><input type="file" id="f-json" accept=".json,.txt,application/json,text/plain" hidden></div>
       <div class="setrow"><div class="k"><b>貼上備份內容還原</b><span>選不了檔案時用，一樣會<b class="bad">取代</b>目前所有資料</span></div><button class="btn small" data-act="paste-restore">貼上</button></div>
       <div id="exportBox"></div>
       <div class="setrow"><div class="k"><b>從 Google Sheet 匯入</b><span><b>加進</b>目前資料。從 Google Sheet 搬過來時用一次；再次匯入會覆蓋同一列的紀錄（下載方式：檔案 → 下載 → .xlsx）</span></div><label class="btn small" for="f-xlsx">選擇檔案</label><input type="file" id="f-xlsx" accept=".xlsx" hidden></div>
@@ -3741,6 +3748,13 @@ async function wipeAll(){
   try{ [LS_KEY, "ledger.tab", "ledger.setpage", "ledger.rankview"].forEach(k => localStorage.removeItem(k)); }catch(e){}
   location.reload();
 }
+// phones can hand the backup to Drive, LINE or mail; Chrome only shares some file types, so it goes as .txt
+const BK_SHARE = (() => { try{ return !window.claude && !!navigator.canShare && navigator.canShare({ files: [new File(["{}"], "t.txt", { type: "text/plain" })] }); }catch(e){ return false; } })();
+async function shareBackup(){
+  const file = new File([backupJson()], `額度帳本備份-${todayStr()}.txt`, { type: "text/plain" });
+  try{ await navigator.share({ files: [file], title: "額度帳本備份" }); markBackup(); toast("已備份"); }
+  catch(e){ if(e && e.name === "AbortError") return; doExport(); }
+}
 function backupJson(){ return JSON.stringify({ app: "額度帳本", version: 2, exportedAt: new Date().toISOString(), data: state }, null, 1); }
 async function doExport(){
   const name = `額度帳本備份-${todayStr()}.json`; const data = backupJson();
@@ -3761,7 +3775,7 @@ async function doExport(){
 // some in-app browsers can't open a file picker, so the backup's text can be pasted instead
 function openPasteRestore(){
   openSheet(`<div class="hd"><h2>貼上備份內容</h2><button class="btn ghost" data-x>關閉</button></div>
-    <p class="small muted" style="margin:0">用檔案 App 打開「額度帳本備份-日期.json」，全選、複製，再貼到下面。還原會取代這裡目前所有的資料。</p>
+    <p class="small muted" style="margin:0">用檔案 App 打開「額度帳本備份-日期」那個檔案（.json 或 .txt），全選、複製，再貼到下面。還原會取代這裡目前所有的資料。</p>
     <textarea class="backup" id="pr-text" placeholder='{"app":"額度帳本", ...}' aria-label="備份內容"></textarea>
     <div class="rowbtns"><button class="btn primary" data-go>還原</button></div>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", closeSheet);
@@ -3861,6 +3875,7 @@ document.addEventListener("click", e => {
     render(); toast(`已確認 ${n} 筆固定收支`);
   }
   else if(a==="export") doExport();
+  else if(a==="share-backup") shareBackup();
   else if(a==="paste-restore") openPasteRestore();
   else if(a==="back"){ tab = prevTab || "home"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
   else if(a==="more") openMore();
@@ -3892,7 +3907,7 @@ document.addEventListener("change", e => {
   }
   else if(id==="f-json" && e.target.files[0]){
     const rd = new FileReader();
-    rd.onload = () => { try{ restoreBackup(JSON.parse(rd.result)); }catch(err){ toast("這個檔案不是有效的 JSON"); } };
+    rd.onload = () => { try{ restoreBackup(JSON.parse(rd.result)); }catch(err){ toast("這不是額度帳本的備份檔"); } };
     rd.readAsText(e.target.files[0]);
   }
 });
@@ -4074,7 +4089,7 @@ connectDb();
 /* ---------- standalone PWA: offline cache + keep local data ---------- */
 if(!window.claude && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")){
   window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
-  if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  if(navigator.storage && navigator.storage.persist) navigator.storage.persist().then(v => { storeKept = !!v; if(tab === "settings" && setPage === "data") render(); }).catch(() => {});
 }
 })();
 </script>
