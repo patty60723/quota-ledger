@@ -2779,23 +2779,34 @@ function openSheet(html, onMount){
 function closeSheet(){ $("#overlay").innerHTML = ""; }
 document.addEventListener("keydown", e => { if(e.key==="Escape" && $("#scrim")){ closeSheet(); render(); } });
 
-// phone back button: keep one extra history entry so back steps out inside the app
-// (sheet → explanation popup → settings page → other tab → home) and only leaves from the home tab
-try{
-  history.replaceState({ ledger: "base" }, "");
-  history.pushState({ ledger: "app" }, "");
-  window.addEventListener("popstate", () => {
-    const stay = () => history.pushState({ ledger: "app" }, "");
-    if(document.getElementById("onboard")){ stay(); return; }                 // setup and guide close with their own buttons
-    if($("#scrim")){ closeSheet(); render(); stay(); return; }
-    if(document.querySelector(".pop:not([hidden])")){ closePops(); stay(); return; }
-    if(tab === "settings"){ tab = prevTab || "home"; }
-    else if(tab !== "home"){ tab = "home"; }
-    else { history.back(); return; }                                         // home with nothing open: leave the app
+// phone back button. Chrome skips history entries a page adds before the user has tapped anything,
+// so the one extra entry is only added right after a tap that leaves the "root" view
+// (home tab, nothing open). Back then pops it and steps out one level inside the app;
+// from the root view back leaves the app as usual.
+const backNav = { guarded: false, ignore: false };
+function atRoot(){ return tab === "home" && !$("#scrim") && !document.querySelector(".pop:not([hidden])"); }
+function syncBackGuard(){
+  try{
+    if(window.claude || document.getElementById("onboard")) return;          // inside claude.ai the host page owns history
+    if(!atRoot() && !backNav.guarded){ history.pushState({ ledger: "app" }, ""); backNav.guarded = true; }
+    else if(atRoot() && backNav.guarded){ backNav.ignore = true; backNav.guarded = false; history.back(); }   // closed with an on-screen button: drop the spare entry
+  }catch(e){}
+}
+["click", "keyup"].forEach(t => document.addEventListener(t, () => setTimeout(syncBackGuard, 0)));
+window.addEventListener("popstate", () => {
+  if(window.claude) return;
+  if(backNav.ignore){ backNav.ignore = false; return; }
+  backNav.guarded = false;
+  if(document.getElementById("onboard")) return;                            // setup and guide close with their own buttons
+  if($("#scrim")){ closeSheet(); render(); }
+  else if(document.querySelector(".pop:not([hidden])")) closePops();
+  else if(tab === "settings" || tab !== "home"){
+    tab = tab === "settings" ? (prevTab || "home") : "home";
     try{ localStorage.setItem("ledger.tab", tab); }catch(err){}
-    render(); window.scrollTo(0,0); stay();
-  });
-}catch(e){}
+    render(); window.scrollTo(0,0);
+  }
+  // still not at the root: the next tap adds the entry again
+});
 
 // existing: a stored transaction to edit; refundOf: an expense to refund
 // prefill: {type, categoryId, amount, title, note, favoriteId, wishId} for a new entry started from a favorite or wish
