@@ -243,6 +243,8 @@ h2{font-family:var(--f-body);font-weight:700;font-size:17px;margin:0;text-wrap:b
 .tag{font-size:11px;padding:2px var(--space-2);border-radius:999px;background:var(--sunk);color:var(--muted);white-space:nowrap}
 .tag.inc{background:var(--accent-soft);color:var(--accent)}
 .tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.later{background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--muted)}
+.tag .ic{width:11px;height:11px;stroke-width:3;vertical-align:-1px;margin-right:2px}
 .recgo{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);width:100%;margin:0 0 var(--space-3);padding:var(--space-3) var(--space-4);border:0;border-radius:var(--r-ctl, 12px);background:var(--warn-soft);color:var(--warn);font-size:14px;text-align:left}
 .recgo b{font-weight:700}
 .recgo > span:last-child{display:inline-flex;align-items:center;gap:2px;font-weight:600;flex-shrink:0}
@@ -1814,13 +1816,14 @@ function closePeriods(){
 function recStatus(r){
   if(!r.active) return null;
   const now = new Date(), ym = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
-  if(r.startMonth && r.startMonth > ym) return ["", `${+r.startMonth.slice(5)} 月開始`];
+  // three looks: needs doing (yellow), done this month (grey, ✓ when confirmed), not yet (outline only)
+  if(r.startMonth && r.startMonth > ym) return ["later", `${+r.startMonth.slice(5)} 月開始`];
   const owed = pendingRecurring().filter(x => x.r.id === r.id).length;   // earlier months count too, so the banner and tags agree
   if(owed) return ["warn", owed > 1 ? `待確認 ${owed} 筆` : "待確認"];
   const run = state.runs[`${r.id}_${ym}`];
-  if(run) return run.status === "skipped" ? ["", "本月略過"] : ["paid", "本月已確認"];
+  if(run) return run.status === "skipped" ? ["paid", "本月略過"] : ["paid", `${icon("check")}本月已確認`];
   const due = ymd(new Date(now.getFullYear(), now.getMonth(), Math.min(r.day || 1, dim(now.getFullYear(), now.getMonth()+1))));
-  return ["", `${+due.slice(5,7)}/${+due.slice(8)} 到期`];
+  return ["later", `${+due.slice(5,7)}/${+due.slice(8)} 到期`];
 }
 function pendingRecurring(){
   const out = []; const today = todayStr(); const now = new Date();

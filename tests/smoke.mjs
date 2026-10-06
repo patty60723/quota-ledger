@@ -162,13 +162,16 @@ await test("固定收支：每一種本月狀態都標對、顏色對", async ()
   await p.click('[data-act="more"]'); await p.click('[data-m="fixed"]'); await p.waitForTimeout(150);
   const rows = await p.$$eval("[data-rec]", l => Object.fromEntries(l.map(e => { const t = e.querySelector(".tag"); return [e.querySelector(".t").innerText, t ? `${t.innerText}|${t.className}` : `無|${e.querySelector(".sub").innerText}`]; })));
   const want = {
-    "房租": "本月已確認|tag paid", "薪水": "本月已確認|tag paid",          // confirmed: grey
+    "房租": "本月已確認|tag paid", "薪水": "本月已確認|tag paid",          // done: grey fill (with ✓)
+    "健身房": "本月略過|tag paid",                                         // done: grey fill, no ✓
     "電信": "待確認|tag warn",                                             // due 9/10, not confirmed: yellow
     "水費": "待確認|tag warn",                                             // August not confirmed, September not due yet
-    "健身房": "本月略過|tag", "保險": "9/20 到期|tag", "串流平台": "10 月開始|tag"
+    "保險": "9/20 到期|tag later", "串流平台": "10 月開始|tag later"        // not yet: outline only
   };
   for(const [name, v] of Object.entries(want)) ok(rows[name] === v, `${name}：預期「${v}」，實際「${rows[name]}」`);
   ok(/^無\|.*已關閉/.test(rows["舊健保補充"] || ""), `已關閉的項目不該有標籤：「${rows["舊健保補充"]}」`);
+  const ticks = await p.$$eval("[data-rec] .tag", l => l.filter(t => t.querySelector("svg")).map(t => t.innerText));
+  ok(ticks.length === 2 && ticks.every(t => t === "本月已確認"), `只有「本月已確認」該有 ✓：${JSON.stringify(ticks)}`);
   return p;
 });
 
