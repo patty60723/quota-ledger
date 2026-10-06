@@ -243,8 +243,8 @@ h2{font-family:var(--f-body);font-weight:700;font-size:17px;margin:0;text-wrap:b
 .tag{font-size:11px;padding:2px var(--space-2);border-radius:999px;background:var(--sunk);color:var(--muted);white-space:nowrap}
 .tag.inc{background:var(--accent-soft);color:var(--accent)}
 .tag.warn{background:var(--warn-soft);color:var(--warn)}
-.tag.later{background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--muted)}
-.tag .ic{width:11px;height:11px;stroke-width:3;vertical-align:-1px;margin-right:2px}
+.recst{white-space:nowrap}
+.recst .ic{width:12px;height:12px;stroke-width:3;vertical-align:-1px;margin-right:2px}
 .recgo{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);width:100%;margin:0 0 var(--space-3);padding:var(--space-3) var(--space-4);border:0;border-radius:var(--r-ctl, 12px);background:var(--warn-soft);color:var(--warn);font-size:14px;text-align:left}
 .recgo b{font-weight:700}
 .recgo > span:last-child{display:inline-flex;align-items:center;gap:2px;font-weight:600;flex-shrink:0}
@@ -1816,7 +1816,7 @@ function closePeriods(){
 function recStatus(r){
   if(!r.active) return null;
   const now = new Date(), ym = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
-  // three looks: needs doing (yellow), done this month (grey, ✓ when confirmed), not yet (outline only)
+  // only "warn" becomes a badge; everything else is quiet text in the row's second line
   if(r.startMonth && r.startMonth > ym) return ["later", `${+r.startMonth.slice(5)} 月開始`];
   const owed = pendingRecurring().filter(x => x.r.id === r.id).length;   // earlier months count too, so the banner and tags agree
   if(owed) return ["warn", owed > 1 ? `待確認 ${owed} 筆` : "待確認"];
@@ -2715,8 +2715,8 @@ function viewSettings(){
   const recs = Object.values(state.recurring).sort((a,b)=>(a.day||0)-(b.day||0));
   const recRow = r => { const st = recStatus(r);
     return `<button class="catrow${r.active?"":" arch"}" data-rec="${esc(r.id)}">
-      <b class="nmrow"><span class="t">${esc(r.title)}</span>${st ? `<span class="tag${st[0] ? " " + st[0] : ""}">${st[1]}</span>` : ""}</b><span class="num small">${r.type==="income"?"+":"−"}${moneyShort(r.amount)}</span>
-      <span class="sub">每月 ${r.day} 日 · ${esc(catName(r.categoryId))}${r.active?"":" · 已關閉"}</span></button>`; };
+      <b class="nmrow"><span class="t">${esc(r.title)}</span>${st && st[0] === "warn" ? `<span class="tag warn">${st[1]}</span>` : ""}</b><span class="num small">${r.type==="income"?"+":"−"}${moneyShort(r.amount)}</span>
+      <span class="sub">每月 ${r.day} 日 · ${esc(catName(r.categoryId))}${r.active?"":" · 已關閉"}${st && st[0] !== "warn" ? ` · <span class="recst">${st[1]}</span>` : ""}</span></button>`; };
   const recPend = pendingRecurring().length;
   // many fixed items: group by expense / income, each with its monthly total
   const recGroup = (type, label) => { const l = recs.filter(r => r.type === type); if(!l.length) return "";
