@@ -1,0 +1,8 @@
+{
+  "name": "manmanhua-tests",
+  "private": true,
+  "description": "慢慢花手帳的自動測試，只在本機跑，不會部署。",
+  "type": "module",
+  "scripts": { "test": "node smoke.mjs" },
+  "devDependencies": { "playwright": "^1.47.0" }
+}

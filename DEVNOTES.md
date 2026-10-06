@@ -19,6 +19,13 @@
 
 ## 測試方式
 
+- **上線前一定要跑**：`cd tests && npm install && npx playwright install chromium && npm test`（第一次要裝，之後只要 `npm test`）。
+  - 用 `tests/fixture.json` 的虛構資料（2026 年 9 月期），日期固定在 2026-09-15，所以數字不會因為時間改變。
+  - 涵蓋：開啟各分頁、預算數字、記一筆、分期、超支借用、想買「不買了」與復原、備份下載與還原、月曆補記、返回鍵、設定各頁、深色與 320 寬度。
+  - 新功能上線時，在 `tests/smoke.mjs` 補一個對應的測試。
+  - 測試放在 `tests/` 自己的 package.json，不放根目錄，避免 Cloudflare 部署時去安裝測試工具。
+  - 真實備份檔不能放進 tests/，repo 是公開可見的。
+
 - 用 Playwright 開 `python3 -m http.server` 起的本機頁面，把資料寫進 `localStorage["ledger.v1"]` 測試。
 - 使用者的真實備份檔不放在 repo 裡（含個人資料）。
 - 資料跟日期有關的測試要把 `Date` 固定在資料的期間內（例如 2026-09-29），否則換月後會看到空的一期。

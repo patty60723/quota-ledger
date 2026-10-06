@@ -1,0 +1,167 @@
+// 慢慢花手帳 smoke tests: open the app with a made-up ledger (fixture.json), walk through the key flows,
+// and fail loudly if a number is off or the page throws. Run before every release:
+//   cd tests && npm install && npx playwright install chromium && npm test
+// The date is pinned to 2026-09-15 so the numbers below never drift.
+import { createServer } from "node:http";
+import { readFile, writeFile, mkdtemp } from "node:fs/promises";
+import { extname, join, dirname } from "node:path";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+import { chromium } from "playwright";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const FIXTURE = JSON.parse(await readFile(join(ROOT, "tests", "fixture.json"), "utf8")).data;
+const NOW = new Date("2026-09-15T12:00:00").getTime();
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml" };
+
+// a tiny static server for the repo root
+const server = createServer(async (req, res) => {
+  const path = decodeURIComponent(new URL(req.url, "http://x").pathname);
+  try{ const body = await readFile(join(ROOT, path === "/" ? "index.html" : path)); res.writeHead(200, { "content-type": TYPES[extname(path)] || "application/octet-stream" }); res.end(body); }
+  catch{ res.writeHead(404); res.end(); }
+});
+await new Promise(r => server.listen(0, r));
+const BASE = `http://localhost:${server.address().port}`;
+
+const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
+const results = [];
+
+// a fresh page with the fixture loaded and the clock pinned
+async function openApp({ width = 390, theme, data = FIXTURE, tab = "home" } = {}){
+  const ctx = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block", acceptDownloads: true });
+  await ctx.addInitScript(T => { const D = Date; class F extends D{ constructor(...a){ super(...(a.length ? a : [T])); } static now(){ return T; } } globalThis.Date = F; }, NOW);
+  const d = structuredClone(data); if(theme) d.settings.theme = theme;
+  await ctx.addInitScript(([x, t]) => { try{ if(!sessionStorage.seeded){ localStorage.setItem("ledger.v1", x); localStorage.setItem("ledger.tab", t); sessionStorage.seeded = 1; } }catch(e){} }, [JSON.stringify(d), tab]);
+  const page = await ctx.newPage(); page.errors = [];
+  page.on("pageerror", e => page.errors.push(e.message));
+  await page.goto(`${BASE}/index.html`); await page.waitForTimeout(500);
+  return page;
+}
+const stored = page => page.evaluate(() => JSON.parse(localStorage.getItem("ledger.v1")));
+const text = (page, sel) => page.$eval(sel, e => e.innerText.replace(/\s+/g, " ").trim());
+async function budgetRow(page, name){
+  await page.click('[data-tab="report"]'); await page.click('[data-rseg="budget"]'); await page.waitForTimeout(150);
+  return page.$$eval(".bc", (l, n) => (l.find(e => (e.querySelector(".n .t") || e.querySelector(".n"))?.innerText.trim() === n) || {}).innerText?.replace(/\s+/g, " ") || "", name);
+}
+function ok(cond, msg){ if(!cond) throw new Error(msg); }
+
+async function test(name, fn){
+  let page;
+  try{ page = await fn(); if(page && page.errors.length) throw new Error("頁面錯誤：" + page.errors.join(" / ")); results.push([true, name]); }
+  catch(e){ results.push([false, name, e.message.split("\n")[0]]); }
+  finally{ if(page) await page.context().close(); }
+}
+
+await test("開啟：四個分頁都能顯示，沒有錯誤", async () => {
+  const p = await openApp();
+  ok(await p.$(".hero"), "首頁沒有「今天可以花」");
+  for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }
+  return p;
+});
+
+await test("預算進度：餐飲 2,000 / 6,000，娛樂超支 500", async () => {
+  const p = await openApp();
+  const food = await budgetRow(p, "餐飲"), fun = await budgetRow(p, "娛樂");
+  ok(/2,000 \/ 6,000/.test(food), `餐飲顯示「${food}」`);
+  ok(/超出 NT\$500/.test(fun), `娛樂顯示「${fun}」`);
+  return p;
+});
+
+await test("記一筆：餐飲 100 存檔後變成 2,100", async () => {
+  const p = await openApp();
+  await p.click("#fab"); await p.fill("#e-amt", "100"); await p.click('.sheet [data-cat="c-food"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(200);
+  const s = await stored(p); ok(s.months["2026-09"].some(t => t.amount === 100 && t.categoryId === "c-food"), "紀錄沒有存進去");
+  const food = await budgetRow(p, "餐飲"); ok(/2,100 \/ 6,000/.test(food), `餐飲顯示「${food}」`);
+  return p;
+});
+
+await test("分期：3,000 分 3 期，明細出現「分期 1/3」", async () => {
+  const p = await openApp();
+  await p.click("#fab"); await p.fill("#e-amt", "3000"); await p.fill("#e-title", "課程").catch(() => {});
+  await p.click('.sheet [data-cat="c-med"]'); await p.check("#e-inst"); await p.waitForTimeout(100); await p.fill("#e-n", "3");
+  await p.click(".sheet [data-save]"); await p.waitForTimeout(200);
+  const s = await stored(p); const inst = Object.values(s.installments)[0];
+  ok(inst && inst.n === 3 && inst.total === 3000, "分期沒有建立");
+  await p.click('[data-tab="list"]'); await p.waitForTimeout(150);
+  ok((await p.content()).includes("分期 1/3"), "明細沒有分期的第 1 期");
+  return p;
+});
+
+await test("超支：娛樂跟餐飲借 500 後不再超支", async () => {
+  const p = await openApp();
+  await budgetRow(p, "娛樂");
+  await p.$eval('[data-overcat="c-fun"]', e => e.click()); await p.waitForTimeout(200);   // the ＋ button can sit on top of it
+  await p.selectOption("#o-cat", "c-food"); await p.click('.sheet [data-o="cat"]'); await p.waitForTimeout(200);
+  ok(/餐飲 本期還剩/.test(await text(p, ".sheet")), "沒有顯示重新分配的結果");
+  await p.click(".sheet [data-x]"); await p.waitForTimeout(150);
+  const s = await stored(p); ok(Object.values(s.adjustments).some(a => a.kind === "borrow-cat"), "沒有借用紀錄");
+  const fun = await budgetRow(p, "娛樂"); ok(!/超出/.test(fun), `娛樂還是「${fun}」`);
+  return p;
+});
+
+await test("想買：不買了 → 省下 3,000，按復原放回清單", async () => {
+  const p = await openApp({ tab: "wish" });
+  await p.click('[data-wishdrop="w1"]'); await p.waitForTimeout(150);
+  ok(/省下 NT\$3,000/.test(await text(p, "#toastHost")), "提示沒有省下的金額");
+  ok((await stored(p)).wishes.w1.droppedOn === "2026-09-15", "沒有記下不買的日期");
+  await p.click(".toastbtn"); await p.waitForTimeout(150);
+  ok(!(await stored(p)).wishes.w1.droppedOn, "復原後還是不買");
+  return p;
+});
+
+await test("備份：下載的檔案可以還原回同樣的資料", async () => {
+  const p = await openApp();
+  await p.click('[data-act="more"]'); await p.click('[data-m="data"]'); await p.waitForTimeout(150);
+  const [dl] = await Promise.all([p.waitForEvent("download"), p.click('[data-act="export"]')]);
+  const file = join(await mkdtemp(join(tmpdir(), "mmh-")), "backup.json"); await dl.saveAs(file);
+  const bk = JSON.parse(await readFile(file, "utf8"));
+  ok(bk.app === "慢慢花手帳" && bk.data.months["2026-09"].length === 7, "備份內容不對");
+  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem("ledger.v1")); s.months["2026-09"] = []; localStorage.setItem("ledger.v1", JSON.stringify(s)); });
+  await p.setInputFiles("#f-json", file); await p.waitForTimeout(300);
+  ok((await stored(p)).months["2026-09"].length === 7, "還原後筆數不對");
+  return p;
+});
+
+await test("月曆：點 9/3 後「記一筆 9/3 的帳」會帶入日期", async () => {
+  const p = await openApp({ tab: "list" });
+  await p.evaluate(() => [...document.querySelectorAll("button")].find(e => e.innerText.trim() === "月曆")?.click()); await p.waitForTimeout(100);
+  await p.click('[data-calday="2026-09-03"]'); await p.click('[data-act="cal-add"]'); await p.waitForTimeout(150);
+  ok(await p.$eval("#e-date", e => e.value) === "2026-09-03", "日期沒有帶入");
+  return p;
+});
+
+await test("返回鍵：關掉彈出畫面 → 離開設定 → 回到今天", async () => {
+  const p = await openApp();
+  const where = () => p.evaluate(() => ({ sheet: !!document.getElementById("scrim"), tab: document.querySelector("[data-tab][aria-current]")?.dataset.tab || "settings" }));
+  const back = async () => { await p.evaluate(() => history.back()); await p.waitForTimeout(200); };
+  await p.click('[data-act="more"]'); await p.click('[data-m="budget"]'); await p.waitForTimeout(150);
+  await p.click("[data-cat]"); await p.waitForTimeout(150);
+  await back(); let w = await where(); ok(!w.sheet && w.tab === "settings", `第 1 次返回後：${JSON.stringify(w)}`);
+  await p.mouse.click(5, 300); await p.waitForTimeout(100);
+  await back(); w = await where(); ok(w.tab === "home", `第 2 次返回後：${JSON.stringify(w)}`);
+  return p;
+});
+
+await test("設定的五個頁面都能打開", async () => {
+  const p = await openApp();
+  for(const m of ["budget", "fixed", "fav", "prefs", "data"]){
+    await p.click('[data-act="more"]').catch(async () => { await p.click('[data-act="back"]'); await p.click('[data-act="more"]'); });
+    await p.click(`[data-m="${m}"]`); await p.waitForTimeout(100);
+    if(m === "budget"){ await p.click('[data-bseg="save"]'); }
+    if(m === "fixed"){ await p.click('[data-fseg="inst"]'); }
+    await p.click('[data-act="back"]'); await p.waitForTimeout(100);
+  }
+  return p;
+});
+
+await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {
+  const p = await openApp({ width: 320, theme: "dark" });
+  for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }
+  return p;
+});
+
+await browser.close(); server.close();
+const failed = results.filter(r => !r[0]);
+for(const [pass, name, why] of results) console.log(`${pass ? "✓" : "✗"} ${name}${why ? `\n    ${why}` : ""}`);
+console.log(`\n${results.length - failed.length} / ${results.length} 通過`);
+process.exit(failed.length ? 1 : 0);

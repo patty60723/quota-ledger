@@ -1,0 +1,191 @@
+{
+ "note": "虛構的測試資料：2026 年 9 月期，週期從 1 號開始。測試時把日期固定在 2026-09-15。",
+ "data": {
+  "settings": {
+   "onboarded": true,
+   "startedOn": "2026-09-01",
+   "cycleStartDay": 1,
+   "weekStart": 1,
+   "warnPct": 80,
+   "theme": "light",
+   "palette": "blush",
+   "lastBackupAt": 1789000000000
+  },
+  "categories": {
+   "c-food": {
+    "id": "c-food",
+    "name": "餐飲",
+    "type": "expense",
+    "monthlyLimit": 6000,
+    "warn": true,
+    "toPool": true,
+    "sort": 0,
+    "archived": false
+   },
+   "c-fun": {
+    "id": "c-fun",
+    "name": "娛樂",
+    "type": "expense",
+    "monthlyLimit": 2000,
+    "warn": true,
+    "toPool": true,
+    "sort": 1,
+    "archived": false
+   },
+   "c-rent": {
+    "id": "c-rent",
+    "name": "房租",
+    "type": "expense",
+    "monthlyLimit": 15000,
+    "warn": true,
+    "sort": 2,
+    "archived": false
+   },
+   "c-med": {
+    "id": "c-med",
+    "name": "醫療",
+    "type": "expense",
+    "monthlyLimit": null,
+    "warn": false,
+    "sort": 3,
+    "archived": false
+   },
+   "c-salary": {
+    "id": "c-salary",
+    "name": "薪資",
+    "type": "income",
+    "sort": 10,
+    "archived": false
+   }
+  },
+  "recurring": {
+   "r-rent": {
+    "id": "r-rent",
+    "title": "房租",
+    "amount": 15000,
+    "type": "expense",
+    "categoryId": "c-rent",
+    "day": 1,
+    "active": true,
+    "startMonth": "2026-09"
+   },
+   "r-salary": {
+    "id": "r-salary",
+    "title": "薪水",
+    "amount": 40000,
+    "type": "income",
+    "categoryId": "c-salary",
+    "day": 5,
+    "active": true,
+    "startMonth": "2026-09"
+   }
+  },
+  "months": {
+   "2026-09": [
+    {
+     "id": "t1",
+     "date": "2026-09-01",
+     "type": "expense",
+     "categoryId": "c-rent",
+     "amount": 15000,
+     "title": "房租",
+     "note": "",
+     "recurringId": "r-rent",
+     "createdAt": 1788200000000
+    },
+    {
+     "id": "t2",
+     "date": "2026-09-05",
+     "type": "income",
+     "categoryId": "c-salary",
+     "amount": 40000,
+     "title": "薪水",
+     "note": "",
+     "recurringId": "r-salary",
+     "createdAt": 1788500000000
+    },
+    {
+     "id": "t3",
+     "date": "2026-09-02",
+     "type": "expense",
+     "categoryId": "c-food",
+     "amount": 300,
+     "title": "早餐",
+     "note": "",
+     "nw": "must",
+     "createdAt": 1788300000000
+    },
+    {
+     "id": "t4",
+     "date": "2026-09-10",
+     "type": "expense",
+     "categoryId": "c-food",
+     "amount": 1200,
+     "title": "聚餐",
+     "note": "",
+     "nw": "want",
+     "createdAt": 1788900000000
+    },
+    {
+     "id": "t5",
+     "date": "2026-09-14",
+     "type": "expense",
+     "categoryId": "c-food",
+     "amount": 500,
+     "title": "午餐",
+     "note": "",
+     "nw": "need",
+     "createdAt": 1789200000000
+    },
+    {
+     "id": "t6",
+     "date": "2026-09-12",
+     "type": "expense",
+     "categoryId": "c-fun",
+     "amount": 2500,
+     "title": "演唱會",
+     "note": "",
+     "nw": "want",
+     "createdAt": 1789000000000
+    },
+    {
+     "id": "t7",
+     "date": "2026-09-08",
+     "type": "expense",
+     "categoryId": "c-med",
+     "amount": 800,
+     "title": "看醫生",
+     "note": "",
+     "nw": "must",
+     "createdAt": 1788700000000
+    }
+   ]
+  },
+  "wishes": {
+   "w1": {
+    "id": "w1",
+    "name": "藍牙耳機",
+    "url": "",
+    "categoryId": "c-fun",
+    "need": "want",
+    "price": 3000,
+    "deadline": "",
+    "note": "",
+    "addedOn": "2026-09-03",
+    "createdAt": 1788400000000
+   }
+  },
+  "runs": {
+   "r-rent_2026-09": {
+    "status": "confirmed",
+    "transactionId": "t1",
+    "at": 1788200000000
+   },
+   "r-salary_2026-09": {
+    "status": "confirmed",
+    "transactionId": "t2",
+    "at": 1788500000000
+   }
+  }
+ }
+}
