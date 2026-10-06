@@ -243,6 +243,9 @@ h2{font-family:var(--f-body);font-weight:700;font-size:17px;margin:0;text-wrap:b
 .tag{font-size:11px;padding:2px var(--space-2);border-radius:999px;background:var(--sunk);color:var(--muted);white-space:nowrap}
 .tag.inc{background:var(--accent-soft);color:var(--accent)}
 .tag.warn{background:var(--warn-soft);color:var(--warn)}
+.recgo{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);width:100%;margin:0 0 var(--space-3);padding:var(--space-3) var(--space-4);border:0;border-radius:var(--r-ctl, 12px);background:var(--warn-soft);color:var(--warn);font-size:14px;text-align:left}
+.recgo b{font-weight:700}
+.recgo > span:last-child{display:inline-flex;align-items:center;gap:2px;font-weight:600;flex-shrink:0}
 .tag.over{background:var(--stamp-soft);color:var(--stamp)}
 
 /* budgets */
@@ -1807,6 +1810,16 @@ function closePeriods(){
 }
 
 /* ---------- recurring ---------- */
+// this calendar month for one fixed item: [tag class, label], or null when it's switched off
+function recStatus(r){
+  if(!r.active) return null;
+  const now = new Date(), ym = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+  if(r.startMonth && r.startMonth > ym) return ["", `${+r.startMonth.slice(5)} 月開始`];
+  const run = state.runs[`${r.id}_${ym}`];
+  if(run) return run.status === "skipped" ? ["", "本月略過"] : ["paid", "本月已確認"];
+  const due = ymd(new Date(now.getFullYear(), now.getMonth(), Math.min(r.day || 1, dim(now.getFullYear(), now.getMonth()+1))));
+  return due <= todayStr() ? ["warn", "待確認"] : ["", `${+due.slice(5,7)}/${+due.slice(8)} 到期`];
+}
 function pendingRecurring(){
   const out = []; const today = todayStr(); const now = new Date();
   const curYm = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
@@ -2695,9 +2708,11 @@ function viewSettings(){
   const catGroup = (type, label) => { const l = allCats.filter(c => c.type === type); return l.length ? `<div class="recgrp"><span>${label} ${l.length} 個</span>${type === "expense" ? `<span>${l.filter(c => c.monthlyLimit).length} 個有設每月上限</span>` : ""}</div>${l.map(catRow).join("")}` : ""; };
   const catHtml = catGroup("expense", "支出類別") + catGroup("income", "收入類別");
   const recs = Object.values(state.recurring).sort((a,b)=>(a.day||0)-(b.day||0));
-  const recRow = r => `<button class="catrow${r.active?"":" arch"}" data-rec="${esc(r.id)}">
-      <b>${esc(r.title)}</b><span class="num small">${r.type==="income"?"+":"−"}${moneyShort(r.amount)}</span>
-      <span class="sub">每月 ${r.day} 日 · ${esc(catName(r.categoryId))}${r.active?"":" · 已關閉"}</span></button>`;
+  const recRow = r => { const st = recStatus(r);
+    return `<button class="catrow${r.active?"":" arch"}" data-rec="${esc(r.id)}">
+      <b class="nmrow"><span class="t">${esc(r.title)}</span>${st ? `<span class="tag${st[0] ? " " + st[0] : ""}">${st[1]}</span>` : ""}</b><span class="num small">${r.type==="income"?"+":"−"}${moneyShort(r.amount)}</span>
+      <span class="sub">每月 ${r.day} 日 · ${esc(catName(r.categoryId))}${r.active?"":" · 已關閉"}</span></button>`; };
+  const recPend = pendingRecurring().length;
   // many fixed items: group by expense / income, each with its monthly total
   const recGroup = (type, label) => { const l = recs.filter(r => r.type === type); if(!l.length) return "";
     const sum = l.filter(r => r.active).reduce((a, r) => a + r.amount, 0);
@@ -2746,7 +2761,7 @@ function viewSettings(){
     fixed: `<div class="seg fseg" role="tablist" aria-label="固定收支與分期">
       <button role="tab" data-fseg="rec" aria-pressed="${fixSeg==="rec"}" aria-selected="${fixSeg==="rec"}">固定收支 <small class="num">${recs.length}</small></button>
       <button role="tab" data-fseg="inst" aria-pressed="${fixSeg==="inst"}" aria-selected="${fixSeg==="inst"}">分期 <small class="num">${insts.filter(i => i.status==="active").length}</small></button></div>
-    ${fixSeg === "rec" ? `<div class="section"><div class="section-head"><h2>固定收支${infoBtn("rec", "固定收支怎麼運作")}</h2><button class="btn small addbtn" data-act="rec-new">${icon("plus")}新增</button></div>${infoPop("rec", "到了每月收支日，會出現在首頁「需要注意」等你確認。確認後才算進帳；金額不同可以先改再確認，這個月沒有就按略過。")}<div class="card setlist">${recHtml}</div></div>`
+    ${fixSeg === "rec" ? `<div class="section"><div class="section-head"><h2>固定收支${infoBtn("rec", "固定收支怎麼運作")}</h2><button class="btn small addbtn" data-act="rec-new">${icon("plus")}新增</button></div>${infoPop("rec", "到了每月收支日，會出現在首頁「需要注意」等你確認。確認後才算進帳；金額不同可以先改再確認，這個月沒有就按略過。")}${recPend ? `<button class="recgo" data-tab="home"><span>有 <b class="num">${recPend}</b> 筆固定收支待確認</span><span>到首頁確認${icon("chev","sm")}</span></button>` : ""}<div class="card setlist">${recHtml}</div></div>`
     : `<div class="section"><h2>分期</h2>${instSum.now || instSum.later ? `<p class="small muted" style="margin:0 0 var(--space-2)">這期要付 <b class="num" style="color:var(--ink)">NT$${moneyShort(instSum.now)}</b> · 之後還有 <span class="num">NT$${moneyShort(instSum.later)}</span></p>` : ""}<div class="card setlist">${instHtml}</div><p class="small muted" style="margin:var(--space-2) 0 0">也可以用來分攤預付的費用，例如一次繳兩個月的課程</p></div>`}
 `,
     fav: `<div class="section" id="fav-section"><div class="section-head"><h2>項目</h2><button class="btn small addbtn" data-act="fav-new">${icon("plus")}新增</button></div><div class="card setlist">${favHtml}

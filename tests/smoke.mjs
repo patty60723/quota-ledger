@@ -157,6 +157,17 @@ await test("返回鍵：關掉彈出畫面 → 離開設定 → 回到今天", a
   return p;
 });
 
+await test("固定收支：列表標出本月狀態，待確認可以跳回首頁", async () => {
+  const p = await openApp();
+  await p.click('[data-act="more"]'); await p.click('[data-m="fixed"]'); await p.waitForTimeout(150);
+  const tags = await p.$$eval("[data-rec]", l => Object.fromEntries(l.map(e => [e.querySelector(".t").innerText, e.querySelector(".tag")?.innerText || ""])));
+  ok(tags["房租"] === "本月已確認" && tags["電信"] === "待確認" && tags["保險"] === "9/20 到期", `狀態是 ${JSON.stringify(tags)}`);
+  ok(/有 1 筆固定收支待確認/.test(await text(p, ".recgo")), "沒有待確認的提示");
+  await p.click(".recgo"); await p.waitForTimeout(150);
+  ok(await p.$('[data-confirm]'), "首頁沒有可以確認的固定收支");
+  return p;
+});
+
 await test("設定的五個頁面都能打開", async () => {
   const p = await openApp();
   for(const m of ["budget", "fixed", "fav", "prefs", "data"]){

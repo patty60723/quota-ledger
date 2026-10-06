@@ -78,6 +78,26 @@
     "day": 5,
     "active": true,
     "startMonth": "2026-09"
+   },
+   "r-phone": {
+    "id": "r-phone",
+    "title": "電信",
+    "amount": 499,
+    "type": "expense",
+    "categoryId": "c-med",
+    "day": 10,
+    "active": true,
+    "startMonth": "2026-09"
+   },
+   "r-ins": {
+    "id": "r-ins",
+    "title": "保險",
+    "amount": 1200,
+    "type": "expense",
+    "categoryId": "c-med",
+    "day": 20,
+    "active": true,
+    "startMonth": "2026-09"
    }
   },
   "months": {
