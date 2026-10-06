@@ -437,6 +437,8 @@ details.bought summary{padding:var(--space-3) var(--space-4);cursor:pointer}
 .prow .amtin{max-width:none;padding:var(--space-2) var(--space-2)}
 .prow .btn.ok{padding:var(--space-2) var(--space-3)}
 .prow .btn.ghost{padding:var(--space-2) var(--space-2)}
+.budfoot.caladd{display:flex;align-items:center;justify-content:center;gap:4px;color:var(--ink);font-weight:600}
+.budfoot.caladd .ic{width:16px;height:16px;stroke-width:2.4}
 .budfoot{display:block;width:100%;padding:var(--space-3) var(--space-4);border:0;border-top:1px solid var(--line);background:none;color:var(--muted);font-size:13px;text-align:center}
 .budgets .budfoot:first-child{border-top:0}
 .section-head h2 .label{font-family:var(--f-body);font-weight:400;margin-left:var(--space-2)}
@@ -2367,7 +2369,8 @@ function calendarView(list){
   const dayHead = `${sd.getMonth()+1} 月 ${sd.getDate()} 日（${WEEK[sd.getDay()]}）`;
   return `<div class="card cal"><div class="calh" aria-hidden="true">${heads}</div><div class="calg">${cells}</div>
       <div class="calleg"><span><i class="ci"></i>有收入</span><span class="calscale" aria-label="顏色代表當天支出的多寡">少<i class="cd l1"></i><i class="cd l2"></i><i class="cd l3"></i><i class="cd l4"></i>多</span></div></div>
-    <div class="section"><div class="card txlist">${dayList.length ? txRows(dayList, true) : `<div class="daygrp"><span>${dayHead}</span></div><div class="empty">這天沒有紀錄。</div>`}</div></div>`;
+    <div class="section"><div class="card txlist">${dayList.length ? txRows(dayList, true) : `<div class="daygrp"><span>${dayHead}</span></div><div class="empty">這天沒有紀錄。</div>`}
+      <button class="budfoot caladd" data-act="cal-add">${icon("plus")}記一筆 ${sd.getMonth()+1}/${sd.getDate()} 的帳</button></div></div>`;
 }
 
 // a record counts as fixed if it came from a fixed item, or looks like one (same category, same name ignoring spaces, or same amount)
@@ -2824,7 +2827,7 @@ function openEntry(existing, refundOf, prefill){
   const isRefund = refundOf || existing?.type==="refund";
   const t = existing ? {...existing}
     : refundOf ? { id: uid(), date: todayStr(), type: "refund", categoryId: refundOf.categoryId, amount: refundOf.amount, title: `退款：${refundOf.title || catName(refundOf.categoryId)}`, note: "", refOf: refundOf.id, jarId: refundOf.jarId }
-    : prefill ? { id: uid(), date: todayStr(), type: prefill.type || "expense", categoryId: prefill.categoryId || null, amount: prefill.amount ?? null, title: prefill.title || "", note: prefill.note || "", favoriteId: prefill.favoriteId, wishId: prefill.wishId, nw: prefill.nw }
+    : prefill ? { id: uid(), date: prefill.date || todayStr(), type: prefill.type || "expense", categoryId: prefill.categoryId || null, amount: prefill.amount ?? null, title: prefill.title || "", note: prefill.note || "", favoriteId: prefill.favoriteId, wishId: prefill.wishId, nw: prefill.nw }
     : { id: uid(), date: todayStr(), type: "expense", categoryId: null, amount: null, title: "", note: "" };
   // an existing expense can be turned into an installment, except ones tied to a fixed item or paid by a jar
   const canInst = !!existing && existing.type === "expense" && !existing.recurringId && !existing.jarId;
@@ -3863,6 +3866,7 @@ document.addEventListener("click", e => {
   else if(a==="more") openMore();
   else if(a==="search") openSearch();
   else if(a==="guide") openGuide();
+  else if(a==="cal-add") openEntry(null, null, { date: calDay });
   else if(a==="wipe") openWipe();
   else if(a==="ob-dry") openOnboarding(true);
   else if(a==="info") togglePop(el.dataset.pop, el);
