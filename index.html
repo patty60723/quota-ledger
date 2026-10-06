@@ -1815,10 +1815,12 @@ function recStatus(r){
   if(!r.active) return null;
   const now = new Date(), ym = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
   if(r.startMonth && r.startMonth > ym) return ["", `${+r.startMonth.slice(5)} 月開始`];
+  const owed = pendingRecurring().filter(x => x.r.id === r.id).length;   // earlier months count too, so the banner and tags agree
+  if(owed) return ["warn", owed > 1 ? `待確認 ${owed} 筆` : "待確認"];
   const run = state.runs[`${r.id}_${ym}`];
   if(run) return run.status === "skipped" ? ["", "本月略過"] : ["paid", "本月已確認"];
   const due = ymd(new Date(now.getFullYear(), now.getMonth(), Math.min(r.day || 1, dim(now.getFullYear(), now.getMonth()+1))));
-  return due <= todayStr() ? ["warn", "待確認"] : ["", `${+due.slice(5,7)}/${+due.slice(8)} 到期`];
+  return ["", `${+due.slice(5,7)}/${+due.slice(8)} 到期`];
 }
 function pendingRecurring(){
   const out = []; const today = todayStr(); const now = new Date();
@@ -3829,17 +3831,26 @@ function demoLedger(){
   const recurring = {
     "d-r-rent": { id: "d-r-rent", title: "房租", amount: 15000, type: "expense", categoryId: "d-rent", day: 1, active: true },
     "d-r-pay": { id: "d-r-pay", title: "薪水", amount: 45000, type: "income", categoryId: "d-pay", day: 5, active: true },
-    "d-r-phone": { id: "d-r-phone", title: "電信月租", amount: 499, type: "expense", categoryId: "d-phone", day: 10, active: true },
-    "d-r-nf": { id: "d-r-nf", title: "Netflix", amount: 390, type: "expense", categoryId: "d-fun", day: 20, active: true }
+    "d-r-phone": { id: "d-r-phone", title: "電信月租", amount: 499, type: "expense", categoryId: "d-phone", day: Math.max(1, now.getDate() - 2), active: true },
+    "d-r-nf": { id: "d-r-nf", title: "Netflix", amount: 390, type: "expense", categoryId: "d-fun", day: Math.min(28, now.getDate() + 5), active: true },
+    "d-r-gym": { id: "d-r-gym", title: "健身房", amount: 988, type: "expense", categoryId: "d-fun", day: 1, active: true },
+    "d-r-water": { id: "d-r-water", title: "水費", amount: 320, type: "expense", categoryId: "d-home", day: 28, active: true },
+    "d-r-old": { id: "d-r-old", title: "舊的雲端空間", amount: 90, type: "expense", categoryId: "d-tech", day: 15, active: false }
   };
   const start = new Date(now.getFullYear(), now.getMonth() - 3, 1);
   Object.values(recurring).forEach(r => r.startMonth = ym(start.getFullYear(), start.getMonth() + 1));
+  const nextM = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  recurring["d-r-music"] = { id: "d-r-music", title: "音樂串流", amount: 149, type: "expense", categoryId: "d-fun", day: 1, active: true, startMonth: ym(nextM.getFullYear(), nextM.getMonth() + 1) };
   let n = 0; const add = (date, type, categoryId, amount, title, nw, extra) => { const t = { id: `d-t${++n}`, date, type, categoryId, amount, title, note: "", nw, createdAt: stamp(date) + n, ...extra }; (months[date.slice(0, 7)] ||= []).push(t); };
   for(let k = 3; k >= 0; k--){
     const y = now.getFullYear(), m0 = now.getMonth() - k, d0 = new Date(y, m0, 1), Y = d0.getFullYear(), M = d0.getMonth() + 1, last = k ? dim(Y, M) : now.getDate();
     const day = d => `${ym(Y, M)}-${pad(d)}`;
-    Object.values(recurring).forEach(r => {   // fixed items: the current month leaves the phone bill unconfirmed
-      if(r.day > last || (k === 0 && r.id === "d-r-phone")) return;
+    // fixed items, showing every status this month: phone bill waiting, gym skipped, last month's water bill
+    // never confirmed, Netflix due in a few days, music starting next month, an old plan switched off
+    Object.values(recurring).forEach(r => {
+      if(!r.active || r.startMonth > ym(Y, M)) return;
+      if(k === 0 && r.id === "d-r-gym"){ runs[`${r.id}_${ym(Y, M)}`] = { status: "skipped", at: stamp(day(1)) }; return; }
+      if(r.day > last || (k === 0 && r.id === "d-r-phone") || (k === 1 && r.id === "d-r-water")) return;
       add(day(r.day), r.type, r.categoryId, r.amount, r.title, r.type === "income" ? undefined : r.id === "d-r-nf" ? "want" : "must", { recurringId: r.id });
       runs[`${r.id}_${ym(Y, M)}`] = { status: "confirmed", transactionId: `d-t${n}`, at: stamp(day(r.day)) };
     });

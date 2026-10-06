@@ -1,5 +1,5 @@
 {
- "note": "虛構的測試資料：2026 年 9 月期，週期從 1 號開始。測試時把日期固定在 2026-09-15。",
+ "note": "虛構的測試資料：2026 年 9 月期，週期從 1 號開始。測試時把日期固定在 2026-09-15。固定收支涵蓋每一種狀態：房租／薪水已確認、電信待確認（本月）、水費待確認（上個月沒確認，本月還沒到期）、健身房本月略過、保險 9/20 到期、串流平台 10 月開始、舊健保補充已關閉。",
  "data": {
   "settings": {
    "onboarded": true,
@@ -98,6 +98,46 @@
     "day": 20,
     "active": true,
     "startMonth": "2026-09"
+   },
+   "r-gym": {
+    "id": "r-gym",
+    "title": "健身房",
+    "amount": 988,
+    "type": "expense",
+    "categoryId": "c-fun",
+    "day": 3,
+    "active": true,
+    "startMonth": "2026-09"
+   },
+   "r-new": {
+    "id": "r-new",
+    "title": "串流平台",
+    "amount": 390,
+    "type": "expense",
+    "categoryId": "c-fun",
+    "day": 1,
+    "active": true,
+    "startMonth": "2026-10"
+   },
+   "r-old": {
+    "id": "r-old",
+    "title": "舊健保補充",
+    "amount": 200,
+    "type": "expense",
+    "categoryId": "c-med",
+    "day": 1,
+    "active": false,
+    "startMonth": "2026-09"
+   },
+   "r-water": {
+    "id": "r-water",
+    "title": "水費",
+    "amount": 300,
+    "type": "expense",
+    "categoryId": "c-med",
+    "day": 25,
+    "active": true,
+    "startMonth": "2026-08"
    }
   },
   "months": {
@@ -205,6 +245,10 @@
     "status": "confirmed",
     "transactionId": "t2",
     "at": 1788500000000
+   },
+   "r-gym_2026-09": {
+    "status": "skipped",
+    "at": 1788400000000
    }
   }
  }

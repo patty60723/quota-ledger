@@ -157,14 +157,59 @@ await test("返回鍵：關掉彈出畫面 → 離開設定 → 回到今天", a
   return p;
 });
 
-await test("固定收支：列表標出本月狀態，待確認可以跳回首頁", async () => {
+await test("固定收支：每一種本月狀態都標對、顏色對", async () => {
   const p = await openApp();
   await p.click('[data-act="more"]'); await p.click('[data-m="fixed"]'); await p.waitForTimeout(150);
-  const tags = await p.$$eval("[data-rec]", l => Object.fromEntries(l.map(e => [e.querySelector(".t").innerText, e.querySelector(".tag")?.innerText || ""])));
-  ok(tags["房租"] === "本月已確認" && tags["電信"] === "待確認" && tags["保險"] === "9/20 到期", `狀態是 ${JSON.stringify(tags)}`);
-  ok(/有 1 筆固定收支待確認/.test(await text(p, ".recgo")), "沒有待確認的提示");
+  const rows = await p.$$eval("[data-rec]", l => Object.fromEntries(l.map(e => { const t = e.querySelector(".tag"); return [e.querySelector(".t").innerText, t ? `${t.innerText}|${t.className}` : `無|${e.querySelector(".sub").innerText}`]; })));
+  const want = {
+    "房租": "本月已確認|tag paid", "薪水": "本月已確認|tag paid",          // confirmed: grey
+    "電信": "待確認|tag warn",                                             // due 9/10, not confirmed: yellow
+    "水費": "待確認|tag warn",                                             // August not confirmed, September not due yet
+    "健身房": "本月略過|tag", "保險": "9/20 到期|tag", "串流平台": "10 月開始|tag"
+  };
+  for(const [name, v] of Object.entries(want)) ok(rows[name] === v, `${name}：預期「${v}」，實際「${rows[name]}」`);
+  ok(/^無\|.*已關閉/.test(rows["舊健保補充"] || ""), `已關閉的項目不該有標籤：「${rows["舊健保補充"]}」`);
+  return p;
+});
+
+await test("固定收支：上方提示的筆數跟待確認的項目一致，點了回首頁", async () => {
+  const p = await openApp();
+  await p.click('[data-act="more"]'); await p.click('[data-m="fixed"]'); await p.waitForTimeout(150);
+  const tagged = await p.$$eval("[data-rec] .tag.warn", l => l.length);
+  ok(/有 2 筆固定收支待確認/.test(await text(p, ".recgo")) && tagged === 2, `提示是「${await text(p, ".recgo")}」，待確認標籤 ${tagged} 個`);
   await p.click(".recgo"); await p.waitForTimeout(150);
-  ok(await p.$('[data-confirm]'), "首頁沒有可以確認的固定收支");
+  ok(await p.$eval("[data-tab][aria-current]", e => e.dataset.tab) === "home", "沒有回到首頁");
+  ok(await p.$$eval("[data-confirm]", l => l.length) === 2, "首頁可以確認的筆數不是 2");
+  return p;
+});
+
+await test("固定收支：點列表是編輯，不會直接確認", async () => {
+  const p = await openApp();
+  await p.click('[data-act="more"]'); await p.click('[data-m="fixed"]'); await p.waitForTimeout(150);
+  await p.click('[data-rec="r-phone"]'); await p.waitForTimeout(150);
+  ok(/編輯固定收支/.test(await text(p, ".sheet h2")), "點了沒有打開編輯");
+  ok(!(await stored(p)).runs["r-phone_2026-09"], "點列表就被確認了");
+  return p;
+});
+
+await test("固定收支：在首頁確認後，列表改成已確認、提示筆數減少", async () => {
+  const p = await openApp();
+  await p.click('[data-confirm="r-phone_2026-09"]'); await p.waitForTimeout(200);
+  ok((await stored(p)).runs["r-phone_2026-09"]?.status === "confirmed", "首頁確認沒有記下來");
+  await p.click('[data-act="more"]'); await p.click('[data-m="fixed"]'); await p.waitForTimeout(150);
+  const tag = await p.$eval('[data-rec="r-phone"] .tag', e => e.innerText);
+  ok(tag === "本月已確認", `電信顯示「${tag}」`);
+  ok(/有 1 筆固定收支待確認/.test(await text(p, ".recgo")), `提示是「${await text(p, ".recgo")}」`);
+  return p;
+});
+
+await test("固定收支：全部處理完，上方提示消失", async () => {
+  const d = structuredClone(FIXTURE);
+  d.runs["r-phone_2026-09"] = { status: "confirmed", at: 1 }; d.runs["r-water_2026-08"] = { status: "skipped", at: 1 };
+  const p = await openApp({ data: d });
+  await p.click('[data-act="more"]'); await p.click('[data-m="fixed"]'); await p.waitForTimeout(150);
+  ok(!(await p.$(".recgo")), "沒有待確認卻還有提示");
+  ok(await p.$eval('[data-rec="r-water"] .tag', e => e.innerText) === "9/25 到期", "水費處理完上個月後，應該顯示本月到期日");
   return p;
 });
 
