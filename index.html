@@ -4011,7 +4011,13 @@ document.addEventListener("click", e => {
   else if(a==="cal-add") openEntry(null, null, { date: calDay });
   else if(a==="wipe") openWipe();
   else if(a==="ob-dry") openOnboarding(true);
-  else if(a==="demo-load"){ if(confirm("載入示範資料會取代這裡目前所有的資料，確定嗎？")){ restoreBackup({ data: demoLedger() }); toast("已載入示範資料"); tab = "home"; render(); window.scrollTo(0,0); } }
+  else if(a==="demo-load"){   // in-app sheet: claude.ai blocks the browser's confirm()
+    openSheet(`<div class="hd"><h2>載入示範資料</h2><button class="btn ghost" data-x>取消</button></div>
+      <p class="small muted" style="margin:0">會用示範資料<b class="bad">取代</b>這裡目前所有的資料。</p>
+      <div class="rowbtns"><button class="btn primary" data-go>載入</button></div>`, sheet => {
+      $("[data-x]", sheet).addEventListener("click", closeSheet);
+      $("[data-go]", sheet).addEventListener("click", () => { closeSheet(); restoreBackup({ data: demoLedger() }); toast("已載入示範資料"); tab = "home"; render(); window.scrollTo(0,0); });
+    }); }
   else if(a==="info") togglePop(el.dataset.pop, el);
   else if(a==="imp-cancel"){ importPreview = null; render(); }
   else if(a==="imp-go"){ const pv = importPreview; importPreview = null; applyImport(pv); render(); }
