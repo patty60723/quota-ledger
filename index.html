@@ -420,7 +420,11 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .wmain{display:flex;flex-direction:column;min-width:0}
 .wmain b{font-weight:600;font-size:16px}
 .wprice{font-weight:600}
-.wacts{display:flex;gap:var(--space-2);justify-content:flex-end;flex-wrap:wrap}
+.wacts{display:flex;gap:var(--space-2);justify-content:flex-end;flex-wrap:wrap;align-items:center}
+.wdrop{margin-right:auto;border:0;background:none;padding:var(--space-2) var(--space-1);font-size:14px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.wsaved{margin:0;font-size:13px;color:var(--muted)}
+.wsaved b{color:var(--ink)}
+.catrow .wsave{color:var(--muted)}
 .wacts a.btn{text-decoration:none;color:var(--ink)}
 .wish .hint{font-size:13px;padding:var(--space-2) var(--space-3)}
 details.bought summary{padding:var(--space-3) var(--space-4);cursor:pointer}
@@ -2241,7 +2245,7 @@ function upcoming(){
   Object.values(state.installments).filter(i => i.status==="active").forEach(i => instPortions(i).forEach(t => {
     if(t.date > today && t.date <= lim) out.push({ date: t.date, title: i.title, sub: `分期 ${t.k+1}/${i.n}`, amount: t.amount, cat: state.categories[i.categoryId] });
   }));
-  Object.values(state.wishes).filter(w => !w.purchasedOn && w.deadline && w.deadline >= today && w.deadline <= lim).forEach(w =>
+  Object.values(state.wishes).filter(w => !wishDone(w) && w.deadline && w.deadline >= today && w.deadline <= lim).forEach(w =>
     out.push({ date: w.deadline, title: w.name, sub: "想買的最晚購買日", amount: w.price, wish: true, cat: state.categories[w.categoryId] }));
   // each jar's next automatic deposit (only the next one, so a weekly jar doesn't fill the list)
   const tmr = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
@@ -3469,7 +3473,8 @@ function wishStatus(w, s){
 }
 function markWishBought(wishId, rec){
   const w = state.wishes[wishId]; if(!w) return;
-  put.wish({ ...w, purchasedOn: rec.date || todayStr(), boughtRef: rec.id, boughtKind: rec.n ? "inst" : "tx", paid: rec.n ? rec.total : rec.amount });
+  const { droppedOn, ...keep } = w;
+  put.wish({ ...keep, purchasedOn: rec.date || todayStr(), boughtRef: rec.id, boughtKind: rec.n ? "inst" : "tx", paid: rec.n ? rec.total : rec.amount });
 }
 // what a bought wish really cost: saved at purchase, else read from its record; and how that compares with the listed price
 function wishPaid(w){
@@ -3484,9 +3489,14 @@ function wishPaidLine(w){
 }
 function viewWish(){
   const RANK = { ok: 0, wait: 1, impact: 2 };
-  const open = Object.values(state.wishes).filter(w => !w.purchasedOn).map(w => { const s = wishScore(w); return { w, s, st: wishStatus(w, s) }; })
+  const open = Object.values(state.wishes).filter(w => !wishDone(w)).map(w => { const s = wishScore(w); return { w, s, st: wishStatus(w, s) }; })
     .sort((a,b) => RANK[a.st[0]] - RANK[b.st[0]] || b.s.total - a.s.total);
-  const bought = Object.values(state.wishes).filter(w => w.purchasedOn).sort((a,b) => b.purchasedOn.localeCompare(a.purchasedOn));
+  // 已決定: bought or decided not to buy, newest first
+  const doneOn = w => w.purchasedOn || w.droppedOn;
+  const decided = Object.values(state.wishes).filter(wishDone).sort((a,b) => doneOn(b).localeCompare(doneOn(a)));
+  const nBought = decided.filter(w => w.purchasedOn).length, dropped = decided.filter(w => !w.purchasedOn);
+  const savedAll = dropped.reduce((a, w) => a + (w.price || 0), 0);
+  const yr = String(new Date().getFullYear()); const savedYear = dropped.filter(w => w.droppedOn.startsWith(yr)).reduce((a, w) => a + (w.price || 0), 0);
   // dates outside this year carry the year, so "6/30" can't be mistaken for this June
   const md = s => { const d = parseYmd(s); const y = d.getFullYear() !== new Date().getFullYear() ? `${d.getFullYear()}/` : ""; return `${y}${d.getMonth()+1}/${d.getDate()}`; };
   const due = s => { const d = dayDiff(todayStr(), s);
@@ -3506,15 +3516,18 @@ function viewWish(){
         <div class="hint ${cls}">${line}</div>
         <p class="small muted num">參考分數 ${s.total}：需要 ${s.parts.need} · 冷靜期 ${s.parts.wait} · 預算 ${s.parts.budget} · 期限 ${s.parts.deadline}</p>
       </details>
-      <div class="wacts">${w.url ? `<a class="btn small" href="${esc(w.url)}" target="_blank" rel="noopener">看商品</a>` : ""}<button class="btn small" data-wishedit="${esc(w.id)}">編輯</button><button class="btn small primary" data-wishbuy="${esc(w.id)}">買了</button></div>
+      <div class="wacts"><button class="wdrop" data-wishdrop="${esc(w.id)}">不買了</button>${w.url ? `<a class="btn small" href="${esc(w.url)}" target="_blank" rel="noopener">看商品</a>` : ""}<button class="btn small" data-wishedit="${esc(w.id)}">編輯</button><button class="btn small primary" data-wishbuy="${esc(w.id)}">買了</button></div>
     </div>`;
   }).join("") : `<div class="card"><div class="empty">想買的東西先放這裡，過幾天還想要再買。按「新增」加第一個。</div></div>`;
   const cnt = k => open.filter(o => o.st[0] === k).length;
   return `<div class="section" style="margin-top:8px"><div class="section-head"><h2>想買清單</h2><button class="btn small addbtn" data-act="wish-new">${icon("plus")}新增</button></div>
       ${open.length ? `<p class="small muted" style="margin:0">可以買 ${cnt("ok")} · 再等等 ${cnt("wait")} · 會影響本期預算 ${cnt("impact")}</p>` : ""}
+      ${savedYear ? `<p class="wsaved">今年冷靜後不買，省下 <b class="num">NT$${moneyShort(savedYear)}</b></p>` : ""}
       <div class="wishes">${cards}</div></div>
-    ${bought.length ? `<div class="section"><details class="card bought"><summary><b>已購入</b> <span class="muted small">${bought.length} 個</span></summary>
-      ${bought.map(w => `<button class="catrow" data-wishedit="${esc(w.id)}"><b>${esc(w.name)}</b><span class="num small">${wishPaid(w) || w.price ? moneyShort(wishPaid(w) || w.price) : ""}</span><span class="sub">${esc(catName(w.categoryId))} · ${md(w.purchasedOn)} 購入${wishPaidLine(w) ? ` · ${wishPaidLine(w)}` : ""}</span></button>`).join("")}</details></div>` : ""}`;
+    ${decided.length ? `<div class="section"><details class="card bought"><summary><b>已決定</b> <span class="muted small">${decided.length} 個 · 買了 ${nBought} · 不買了 ${dropped.length}${savedAll ? `，省下 NT$${moneyShort(savedAll)}` : ""}</span></summary>
+      ${decided.map(w => w.purchasedOn
+        ? `<button class="catrow" data-wishedit="${esc(w.id)}"><b>${esc(w.name)}</b><span class="num small">${wishPaid(w) || w.price ? moneyShort(wishPaid(w) || w.price) : ""}</span><span class="sub">${esc(catName(w.categoryId))} · ${md(w.purchasedOn)} 購入${wishPaidLine(w) ? ` · ${wishPaidLine(w)}` : ""}</span></button>`
+        : `<button class="catrow" data-wishedit="${esc(w.id)}"><b class="nmrow"><span class="t">${esc(w.name)}</span><span class="tag">不買了</span></b><span class="num small wsave">${w.price ? `省下 ${moneyShort(w.price)}` : ""}</span><span class="sub">${esc(catName(w.categoryId))} · ${md(w.droppedOn)} 決定不買</span></button>`).join("")}</details></div>` : ""}`;
 }
 function openWish(w){
   const isNew = !w;
@@ -3531,11 +3544,14 @@ function openWish(w){
         <label>最晚購買日<input class="inp" id="w-deadline" type="date" value="${esc(w.deadline || "")}"></label>
         <label class="full">備註<input class="inp" id="w-note" value="${esc(w.note)}" placeholder="選填"></label>
       </div>
+      ${w.droppedOn && !w.purchasedOn ? `<p class="small muted" style="margin:0">${w.droppedOn} 決定不買${w.price ? `，省下 NT$${moneyShort(w.price)}` : ""}。</p>` : ""}
       ${w.purchasedOn ? `<p class="small muted" style="margin:0">${w.purchasedOn} 已購入${wishPaidLine(w) ? `，${wishPaidLine(w)}` : ""}。</p>` : ""}
-      <div class="rowbtns">${isNew ? "" : `<button class="btn danger" data-del>${confirmDel ? "確定刪除" : "刪除"}</button>`}${w.purchasedOn ? `<button class="btn" data-unbuy>改回未購入</button>` : ""}<button class="btn primary" data-save>儲存</button></div>`;
+      <div class="rowbtns">${isNew ? "" : `<button class="btn danger" data-del>${confirmDel ? "確定刪除" : "刪除"}</button>`}${w.purchasedOn ? `<button class="btn" data-unbuy>改回未購入</button>` : ""}${w.droppedOn && !w.purchasedOn ? `<button class="btn" data-undrop>改回想買</button>` : ""}<button class="btn primary" data-save>儲存</button></div>`;
     $("[data-x]", sheet).addEventListener("click", closeSheet);
     const del = $("[data-del]", sheet);
     del && del.addEventListener("click", () => { if(!confirmDel){ confirmDel = true; del.textContent = "確定刪除"; return; } put.wishDel(w.id); closeSheet(); render(); toast("已刪除"); });
+    const undrop = $("[data-undrop]", sheet);
+    undrop && undrop.addEventListener("click", () => { const x = { ...w }; delete x.droppedOn; put.wish(x); closeSheet(); render(); toast("已放回想買清單"); });
     const unbuy = $("[data-unbuy]", sheet);
     unbuy && unbuy.addEventListener("click", () => { const x = { ...w }; delete x.purchasedOn; delete x.boughtRef; delete x.boughtKind; delete x.paid; put.wish(x); closeSheet(); render(); toast("已改回未購入，購買紀錄保留在明細"); });
     $("[data-save]", sheet).addEventListener("click", () => {
@@ -3546,6 +3562,12 @@ function openWish(w){
     });
   };
   openSheet("", draw);
+}
+const wishDone = w => !!(w.purchasedOn || w.droppedOn);
+// deciding not to buy is the list doing its job: keep the item, count what it saved, allow undo
+function dropWish(w){
+  put.wish({ ...w, droppedOn: todayStr() }); render();
+  toast(w.price ? `決定不買，省下 NT$${moneyShort(w.price)}` : "決定不買", [["復原", () => { const x = { ...state.wishes[w.id] }; delete x.droppedOn; put.wish(x); render(); }]], 5000);
 }
 function buyWish(w){
   if(!w.categoryId || !w.price){ openWish(w); toast("先填類別和價格"); return; }
@@ -3832,12 +3854,13 @@ document.addEventListener("click", e => {
   if(bx){ toggleBudRow(bx); return; }
   const tp = e.target.closest("[data-theme-pick]");
   if(tp && !tp.closest(".sheet")){ state.settings.theme = tp.dataset.themePick; put.settings(); render(); return; }
-  const el = e.target.closest("[data-set],[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-jar],[data-inst],[data-over],[data-pool],[data-favq],[data-favedit],[data-favmove],[data-wishedit],[data-wishbuy]");
+  const el = e.target.closest("[data-set],[data-tab],[data-act],[data-edit],[data-confirm],[data-skip],[data-cat],[data-rec],[data-jar],[data-inst],[data-over],[data-pool],[data-favq],[data-favedit],[data-favmove],[data-wishedit],[data-wishbuy],[data-wishdrop]");
   if(!el || el.closest(".sheet")) return;
   if(el.dataset.favq){ const f = state.favorites[el.dataset.favq]; f && quickRecord(f); return; }
   if(el.dataset.favedit){ const f = state.favorites[el.dataset.favedit]; f && openFavorite(f); return; }
   if(el.dataset.favmove){ const [id, d] = el.dataset.favmove.split(":"); moveFav(id, +d); return; }
   if(el.dataset.wishedit){ const w = state.wishes[el.dataset.wishedit]; w && openWish(w); return; }
+  if(el.dataset.wishdrop){ const w = state.wishes[el.dataset.wishdrop]; w && dropWish(w); return; }
   if(el.dataset.wishbuy){ const w = state.wishes[el.dataset.wishbuy]; w && buyWish(w); return; }
   if(el.dataset.pool){ const c = state.categories[el.dataset.pool]; if(c){ put.cat({...c, toPool: !toPool(c)}); render(); } return; }
   if(el.dataset.set){ budSeg = el.dataset.bsegGo || "cat"; if(el.dataset.fsegGo) fixSeg = el.dataset.fsegGo; goSet(el.dataset.set); return; }
@@ -4053,7 +4076,7 @@ function openGuide(afterSetup, onDone){
   const cards = [
     { v: V.rec, h: "記一筆，也能一點就記", pts: ["常記的東西<b>存成常用</b>，之後一點就記好", "同一筆記了 3 次，App 會問你要不要<b>存成常用</b>", "金額旁的<b>計算機</b>：拆帳、加總直接算"], where: ["{plus}記一筆", "首頁 → 快速記帳"] },
     { v: V.flex, h: "預算有彈性，超支也不慌", lead: "某一類超支時，可以這樣補：", pts: ["跟<b>其他類別</b>借，或跟<b>下個月</b>借", "動用<b>已節省結餘</b>：每期沒用完的預算會存進來", "都不夠時，才動用<b>存錢罐</b>這期該存的錢"], where: ["首頁 → 需要注意", "看懂 → 預算進度"] },
-    { v: V.wish, h: "想買的，先放 7 天", pts: ["想買的先放著冷靜幾天", "App 會告訴你<b>可以買</b>、<b>再等等</b>，還是會影響本期預算", "決定買了，按<b>「買了」</b>就直接記帳"], where: ["下方「想買」分頁"] },
+    { v: V.wish, h: "想買的，先放 7 天", pts: ["想買的先放著冷靜幾天", "App 會告訴你<b>可以買</b>、<b>再等等</b>，還是會影響本期預算", "決定買了，按<b>「買了」</b>就直接記帳", "冷靜後不想要了，按<b>「不買了」</b>，會記下省了多少"], where: ["下方「想買」分頁"] },
     { v: V.jar, h: "存錢罐：分開存，存到就能用", pts: ["依用途分開存，<b>每週、每月或每年</b>自動存一筆", "可以設<b>目標金額</b>，算出大概什麼時候存到", "<b>使用這筆錢</b>由存錢罐支付，不動到預算", "也能<b>存一筆</b>、轉到其他存錢罐，每筆進出都有<b>紀錄</b>"], where: ["{gear}設定 → 預算與儲蓄 → 儲蓄"] },
     { v: V.fixed, h: "固定收支與分期", pts: ["房租、電信、薪資這類固定的，到期會提醒你<b>確認</b>", "<b>分期付款</b>會先占用之後每一期的額度", "一次付清的課程、年費，也能用分期<b>攤到之後幾期</b>，每期預算比較平均", "「今天可以花」會先扣掉這期<b>還沒付的</b>"], where: ["{gear}設定 → 固定收支與分期", "{plus}記一筆 → 分期／分攤"] },
     { v: V.nw, h: "必要、需要、想要", pts: ["記帳時標記這筆是<b>必要、需要還是想要</b>", "「看懂」會算出<b>想要占多少</b>", "用必要支出推算<b>緊急預備金</b>該存多少"], where: ["{plus}記一筆 → 這筆是", "看懂 → 收支分析"] },
