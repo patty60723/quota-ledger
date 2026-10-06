@@ -122,6 +122,21 @@ await test("備份：下載的檔案可以還原回同樣的資料", async () =>
   return p;
 });
 
+await test("匯出 CSV：每筆一列，支出是負數，分期列出每一期", async () => {
+  const d = structuredClone(FIXTURE);
+  d.installments = { i1: { id: "i1", title: "課程", categoryId: "c-med", total: 3000, n: 3, per: 1000, first: 1000, date: "2026-09-10", startPeriod: "2026-09", status: "active", createdAt: 1 } };
+  const p = await openApp({ data: d });
+  await p.click('[data-act="more"]'); await p.click('[data-m="data"]'); await p.waitForTimeout(150);
+  const [dl] = await Promise.all([p.waitForEvent("download"), p.click('[data-act="export-csv"]')]);
+  const file = join(await mkdtemp(join(tmpdir(), "mmh-")), "x.csv"); await dl.saveAs(file);
+  const lines = (await readFile(file, "utf8")).replace(/^\ufeff/, "").split("\r\n");
+  ok(lines[0].startsWith("日期,收支,類別,名稱,金額"), "標題列不對");
+  ok(lines.length === 1 + 7 + 3, `應有 10 筆，實際 ${lines.length - 1} 筆`);
+  ok(lines.includes("2026-09-12,支出,娛樂,演唱會,-2500,想要,,,"), "演唱會那一列不對");
+  ok(lines.some(l => l.startsWith("2026-09-10,支出,醫療,課程,-1000,") && l.includes("分期 1/3")), "分期第 1 期不對");
+  return p;
+});
+
 await test("月曆：點 9/3 後「記一筆 9/3 的帳」會帶入日期", async () => {
   const p = await openApp({ tab: "list" });
   await p.evaluate(() => [...document.querySelectorAll("button")].find(e => e.innerText.trim() === "月曆")?.click()); await p.waitForTimeout(100);

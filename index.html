@@ -2774,6 +2774,7 @@ function viewSettings(){
       <div class="setrow"><div class="k"><b>資料存放</b><span>${db ? (syncOn ? "雲端，電腦和手機同步" : "雲端（目前連不上，先存在這個瀏覽器）") : "只存在這個瀏覽器，不會同步"}${!db && storeKept !== null ? (storeKept ? "；瀏覽器已同意不自動清除" : "；空間不足時瀏覽器可能清除資料，建議安裝到主畫面並定期備份") : ""}</span></div></div>
       ${BK_SHARE ? `<div class="setrow"><div class="k"><b>備份</b><span>建議傳到雲端硬碟、LINE 或寄給自己；只存在手機裡，手機遺失會一起不見 · ${backupText()}</span></div><div class="rowbtns2"><button class="btn small" data-act="export">下載</button><button class="btn small primary" data-act="share-backup">分享</button></div></div>`
       : `<div class="setrow"><div class="k"><b>匯出備份</b><span>JSON 檔，之後可以匯入還原；建議另外存到雲端硬碟 · ${backupText()}</span></div><button class="btn small" data-act="export">匯出</button></div>`}
+      <div class="setrow"><div class="k"><b>匯出明細（CSV）</b><span>所有紀錄，可以用 Excel 或 Google Sheet 打開分析；只能看，不能用來還原</span></div><button class="btn small" data-act="export-csv">匯出</button></div>
       <div class="setrow"><div class="k"><b>從備份還原</b><span><b class="bad">取代</b>目前所有資料</span></div><label class="btn small" for="f-json">選擇檔案</label><input type="file" id="f-json" accept=".json,.txt,application/json,text/plain" hidden></div>
       <div class="setrow"><div class="k"><b>貼上備份內容還原</b><span>選不了檔案時用，一樣會<b class="bad">取代</b>目前所有資料</span></div><button class="btn small" data-act="paste-restore">貼上</button></div>
       <div id="exportBox"></div>
@@ -3777,6 +3778,27 @@ async function shareBackup(){
   try{ await navigator.share({ files: [file], title: "慢慢花手帳備份" }); markBackup(); toast("已備份"); }
   catch(e){ if(e && e.name === "AbortError") return; doExport(); }
 }
+// every record (installment portions included) as a spreadsheet; for reading only, not for restoring
+function ledgerCsv(){
+  const isFixed = fixedTester(); const q = v => /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  const rows = allTx().sort((a,b) => a.date.localeCompare(b.date) || (a.createdAt||0) - (b.createdAt||0)).map(t => {
+    const kind = t.type === "income" ? "收入" : t.type === "refund" ? "退款" : "支出";
+    const src = t.virtual ? `分期 ${t.k+1}/${state.installments[t.installmentId]?.n || ""}` : t.jarId ? `存錢罐「${state.jars[t.jarId]?.name || ""}」` : t.recurringId ? "固定收支" : "";
+    const nw = t.type === "income" ? "" : (NW_LABEL[nwOf(t)] || "");
+    return [t.date, kind, catName(t.categoryId), String(t.title || "").replace(/（分期 \d+\/\d+）$/, ""), String(t.type === "expense" ? -t.amount : t.amount), nw, t.type === "expense" && isFixed(t) ? "是" : "", src, t.note || ""].map(v => q(String(v))).join(",");
+  });
+  return "\ufeff" + ["日期,收支,類別,名稱,金額,必要需要想要,固定,來源,備註", ...rows].join("\r\n");
+}
+async function exportCsv(){
+  const name = `慢慢花手帳-明細-${todayStr()}.csv`, data = ledgerCsv();
+  let dl = null; try{ dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null; }catch(e){}
+  if(dl){ try{ await dl.save({ filename: name, data }); }catch(e){} return; }
+  const file = new File([data], name, { type: "text/csv" });
+  try{ if(navigator.canShare && navigator.canShare({ files: [file] })){ await navigator.share({ files: [file], title: "慢慢花手帳明細" }); return; } }
+  catch(e){ if(e && e.name === "AbortError") return; }
+  const url = URL.createObjectURL(file); const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000); toast("已匯出明細");
+}
 function backupJson(){ return JSON.stringify({ app: "慢慢花手帳", version: 2, exportedAt: new Date().toISOString(), data: state }, null, 1); }
 async function doExport(){
   const name = `慢慢花手帳備份-${todayStr()}.json`; const data = backupJson();
@@ -3899,6 +3921,7 @@ document.addEventListener("click", e => {
   }
   else if(a==="export") doExport();
   else if(a==="share-backup") shareBackup();
+  else if(a==="export-csv") exportCsv();
   else if(a==="paste-restore") openPasteRestore();
   else if(a==="back"){ tab = prevTab || "home"; try{ localStorage.setItem("ledger.tab", tab); }catch(err){} render(); window.scrollTo(0,0); }
   else if(a==="more") openMore();
