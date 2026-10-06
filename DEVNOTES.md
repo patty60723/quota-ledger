@@ -14,7 +14,7 @@
 - 只改 README／文件時不用改版本號。
 - claude.ai artifact（只有擁有者能開）：
   - 正式版：<https://claude.ai/artifact/XMKGvqSFHY1mhPxUQnW71R>，內容是 `index.html` 的 `<body>` 部分。
-  - 預覽版：<https://claude.ai/artifact/3aD9v3EVYYyjoMxAZrvTA9>，同樣用 body，標題改成「慢慢花手帳 預覽」，並把 `<!--ob-extra-->` 換成「試跑完整引導（預覽版才有）」按鈕（`data-act="ob-dry"`）。
+  - 預覽版：<https://claude.ai/artifact/3aD9v3EVYYyjoMxAZrvTA9>，同樣用 body，標題改成「慢慢花手帳 預覽」，並把 `<!--ob-extra-->` 換成兩個預覽版才有的按鈕：「載入示範資料」（`data-act="demo-load"`，用 `demoLedger()` 以今天為準產生資料）與「試跑完整引導」（`data-act="ob-dry"`）。
   - 發佈時不要帶 capabilities，沿用原本的設定。
 
 ## 測試方式

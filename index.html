@@ -3814,6 +3814,72 @@ async function exportCsv(){
   const url = URL.createObjectURL(file); const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000); toast("已匯出明細");
 }
+// made-up ledger for the preview build: three past months plus this month up to today, so every screen has something
+function demoLedger(){
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const pick = a => a[Math.floor(rnd() * a.length)];
+  const now = new Date(), today = todayStr(), stamp = d => new Date(d + "T12:00:00").getTime();
+  const cat = (id, name, type, limit, extra) => [id, { id, name, type, monthlyLimit: limit, warn: !!limit, toPool: !!limit, sort: 0, archived: false, ...extra }];
+  const categories = Object.fromEntries([
+    cat("d-food", "餐飲", "expense", 8000), cat("d-move", "交通", "expense", 2000), cat("d-fun", "娛樂", "expense", 2500),
+    cat("d-home", "日常用品", "expense", 2000), cat("d-rent", "房租", "expense", 15000, { toPool: false }), cat("d-phone", "電信", "expense", 499, { toPool: false }),
+    cat("d-cloth", "服飾", "expense", 3000), cat("d-tech", "3C 用品", "expense", 2000), cat("d-med", "醫療", "expense", null), cat("d-pay", "薪資", "income", null), cat("d-other", "其他收入", "income", null)
+  ].map(([id, c], i) => [id, { ...c, sort: i }]));
+  const ym = (y, m) => `${y}-${pad(m)}`, months = {}, runs = {};
+  const recurring = {
+    "d-r-rent": { id: "d-r-rent", title: "房租", amount: 15000, type: "expense", categoryId: "d-rent", day: 1, active: true },
+    "d-r-pay": { id: "d-r-pay", title: "薪水", amount: 45000, type: "income", categoryId: "d-pay", day: 5, active: true },
+    "d-r-phone": { id: "d-r-phone", title: "電信月租", amount: 499, type: "expense", categoryId: "d-phone", day: 10, active: true },
+    "d-r-nf": { id: "d-r-nf", title: "Netflix", amount: 390, type: "expense", categoryId: "d-fun", day: 20, active: true }
+  };
+  const start = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  Object.values(recurring).forEach(r => r.startMonth = ym(start.getFullYear(), start.getMonth() + 1));
+  let n = 0; const add = (date, type, categoryId, amount, title, nw, extra) => { const t = { id: `d-t${++n}`, date, type, categoryId, amount, title, note: "", nw, createdAt: stamp(date) + n, ...extra }; (months[date.slice(0, 7)] ||= []).push(t); };
+  for(let k = 3; k >= 0; k--){
+    const y = now.getFullYear(), m0 = now.getMonth() - k, d0 = new Date(y, m0, 1), Y = d0.getFullYear(), M = d0.getMonth() + 1, last = k ? dim(Y, M) : now.getDate();
+    const day = d => `${ym(Y, M)}-${pad(d)}`;
+    Object.values(recurring).forEach(r => {   // fixed items: the current month leaves the phone bill unconfirmed
+      if(r.day > last || (k === 0 && r.id === "d-r-phone")) return;
+      add(day(r.day), r.type, r.categoryId, r.amount, r.title, r.type === "income" ? undefined : r.id === "d-r-nf" ? "want" : "must", { recurringId: r.id });
+      runs[`${r.id}_${ym(Y, M)}`] = { status: "confirmed", transactionId: `d-t${n}`, at: stamp(day(r.day)) };
+    });
+    for(let d = 1; d <= last; d++){
+      if(rnd() < 0.85) add(day(d), "expense", "d-food", pick([65, 80, 95, 120]), pick(["早餐", "咖啡", "早午餐"]), "need");
+      if(rnd() < 0.9) add(day(d), "expense", "d-food", pick([110, 130, 160, 220, 280]), pick(["午餐", "晚餐", "便當", "麵店"]), pick(["must", "need", "need"]));
+      if(rnd() < 0.55) add(day(d), "expense", "d-move", pick([30, 45, 60, 120]), pick(["捷運", "公車", "YouBike", "計程車"]), "must");
+      if(rnd() < 0.12) add(day(d), "expense", "d-fun", pick([300, 450, 680]), pick(["電影", "桌遊", "展覽"]), "want");
+      if(rnd() < 0.1) add(day(d), "expense", "d-home", pick([180, 260, 420]), pick(["衛生紙", "洗衣精", "超市"]), "need");
+      if(rnd() < 0.05) add(day(d), "expense", "d-cloth", pick([590, 990, 1280]), pick(["T恤", "襪子", "外套"]), "want");
+      if(rnd() < 0.04) add(day(d), "expense", "d-food", pick([680, 950, 1200]), pick(["聚餐", "生日大餐"]), "want");
+    }
+    if(k === 2) add(day(18), "expense", "d-med", 450, "看診", "must");
+    if(k === 1) add(day(12), "income", "d-other", 3000, "接案");
+  }
+  // this month: a concert pushes 娛樂 over its limit, and 日常用品 is close to its limit
+  const yday = now.getDate() > 1 ? ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)) : today;
+  add(yday, "expense", "d-fun", 2200, "演唱會門票", "want"); add(yday, "expense", "d-home", 1500, "吸塵器濾網", "need");
+  const instStart = new Date(now.getFullYear(), now.getMonth() - 2, 8);
+  const installments = { "d-i1": { id: "d-i1", title: "換手機", categoryId: "d-tech", total: 18000, n: 12, per: 1500, first: 1500, date: ymd(instStart), startPeriod: ym(instStart.getFullYear(), instStart.getMonth() + 1), status: "active", createdAt: instStart.getTime(), nw: "need" } };
+  const since = ymd(start);
+  const jars = {
+    "d-j1": { id: "d-j1", name: "旅行", freq: "month", amount: 3000, day: 1, base: 0, since, goal: 30000, createdAt: start.getTime() },
+    "d-j2": { id: "d-j2", name: "緊急預備金", freq: "week", amount: 500, day: 1, base: 0, since, createdAt: start.getTime() }
+  };
+  const ago = k => ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - k));
+  const wishes = {
+    "d-w1": { id: "d-w1", name: "降噪耳機", url: "", categoryId: "d-fun", need: "want", price: 6990, deadline: "", note: "", addedOn: ago(2), createdAt: stamp(ago(2)) },
+    "d-w2": { id: "d-w2", name: "電動牙刷", url: "", categoryId: "d-home", need: "need", price: 1290, deadline: ago(-20), note: "", addedOn: ago(12), createdAt: stamp(ago(12)) },
+    "d-w3": { id: "d-w3", name: "登山鞋", url: "", categoryId: "d-cloth", need: "want", price: 2680, deadline: "", note: "", addedOn: ago(9), createdAt: stamp(ago(9)) },
+    "d-w4": { id: "d-w4", name: "咖啡機", url: "", categoryId: "d-home", need: "want", price: 4500, deadline: "", note: "", addedOn: ago(40), droppedOn: ago(25), createdAt: stamp(ago(40)) }
+  };
+  const favorites = {
+    "d-f1": { id: "d-f1", name: "早餐", type: "expense", categoryId: "d-food", amount: 80, title: "早餐", note: "", uses: 24, createdAt: 1, order: 0 },
+    "d-f2": { id: "d-f2", name: "捷運", type: "expense", categoryId: "d-move", amount: 30, title: "捷運", note: "", uses: 40, createdAt: 2, order: 1 },
+    "d-f3": { id: "d-f3", name: "午餐便當", type: "expense", categoryId: "d-food", amount: 110, title: "便當", note: "", uses: 15, createdAt: 3, order: 2 }
+  };
+  return { settings: { ...state.settings, onboarded: true, startedOn: since, cycleStartDay: 1, lastBackupAt: stamp(ago(20)) },
+    categories, recurring, runs, months, installments, jars, wishes, favorites, adjustments: {}, closings: {} };
+}
 function backupJson(){ return JSON.stringify({ app: "慢慢花手帳", version: 2, exportedAt: new Date().toISOString(), data: state }, null, 1); }
 async function doExport(){
   const name = `慢慢花手帳備份-${todayStr()}.json`; const data = backupJson();
@@ -3945,6 +4011,7 @@ document.addEventListener("click", e => {
   else if(a==="cal-add") openEntry(null, null, { date: calDay });
   else if(a==="wipe") openWipe();
   else if(a==="ob-dry") openOnboarding(true);
+  else if(a==="demo-load"){ if(confirm("載入示範資料會取代這裡目前所有的資料，確定嗎？")){ restoreBackup({ data: demoLedger() }); toast("已載入示範資料"); tab = "home"; render(); window.scrollTo(0,0); } }
   else if(a==="info") togglePop(el.dataset.pop, el);
   else if(a==="imp-cancel"){ importPreview = null; render(); }
   else if(a==="imp-go"){ const pv = importPreview; importPreview = null; applyImport(pv); render(); }
