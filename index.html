@@ -3751,13 +3751,13 @@ async function wipeAll(){
 // phones can hand the backup to Drive, LINE or mail; Chrome only shares some file types, so it goes as .txt
 const BK_SHARE = (() => { try{ return !window.claude && !!navigator.canShare && navigator.canShare({ files: [new File(["{}"], "t.txt", { type: "text/plain" })] }); }catch(e){ return false; } })();
 async function shareBackup(){
-  const file = new File([backupJson()], `額度帳本備份-${todayStr()}.txt`, { type: "text/plain" });
-  try{ await navigator.share({ files: [file], title: "額度帳本備份" }); markBackup(); toast("已備份"); }
+  const file = new File([backupJson()], `慢慢花手帳備份-${todayStr()}.txt`, { type: "text/plain" });
+  try{ await navigator.share({ files: [file], title: "慢慢花手帳備份" }); markBackup(); toast("已備份"); }
   catch(e){ if(e && e.name === "AbortError") return; doExport(); }
 }
-function backupJson(){ return JSON.stringify({ app: "額度帳本", version: 2, exportedAt: new Date().toISOString(), data: state }, null, 1); }
+function backupJson(){ return JSON.stringify({ app: "慢慢花手帳", version: 2, exportedAt: new Date().toISOString(), data: state }, null, 1); }
 async function doExport(){
-  const name = `額度帳本備份-${todayStr()}.json`; const data = backupJson();
+  const name = `慢慢花手帳備份-${todayStr()}.json`; const data = backupJson();
   let dl = null; try{ dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null; }catch(e){}
   if(dl){ try{ const r = await dl.save({ filename: name, data }); if(r && r.status==="saved"){ markBackup(); toast("已匯出備份"); } return; }catch(e){ if(e && e.code==="cancelled") return; } }
   if(!window.claude){
@@ -3775,19 +3775,19 @@ async function doExport(){
 // some in-app browsers can't open a file picker, so the backup's text can be pasted instead
 function openPasteRestore(){
   openSheet(`<div class="hd"><h2>貼上備份內容</h2><button class="btn ghost" data-x>關閉</button></div>
-    <p class="small muted" style="margin:0">用檔案 App 打開「額度帳本備份-日期」那個檔案（.json 或 .txt），全選、複製，再貼到下面。還原會取代這裡目前所有的資料。</p>
-    <textarea class="backup" id="pr-text" placeholder='{"app":"額度帳本", ...}' aria-label="備份內容"></textarea>
+    <p class="small muted" style="margin:0">用檔案 App 打開「慢慢花手帳備份-日期」那個檔案（.json 或 .txt），全選、複製，再貼到下面。還原會取代這裡目前所有的資料。</p>
+    <textarea class="backup" id="pr-text" placeholder='{"app":"慢慢花手帳", ...}' aria-label="備份內容"></textarea>
     <div class="rowbtns"><button class="btn primary" data-go>還原</button></div>`, sheet => {
     $("[data-x]", sheet).addEventListener("click", closeSheet);
     $("[data-go]", sheet).addEventListener("click", () => {
       let obj; try{ obj = JSON.parse($("#pr-text", sheet).value.trim()); }catch(err){ toast("內容不完整，請確認整份都有複製到"); return; }
-      if(!obj || !obj.data || !obj.data.categories){ toast("這不是額度帳本的備份"); return; }
+      if(!obj || !obj.data || !obj.data.categories){ toast("這不是慢慢花手帳的備份"); return; }
       closeSheet(); restoreBackup(obj);
     });
   });
 }
 function restoreBackup(obj){
-  const d = obj && obj.data; if(!d || !d.categories){ toast("這不是額度帳本的備份檔"); return; }
+  const d = obj && obj.data; if(!d || !d.categories){ toast("這不是慢慢花手帳的備份檔"); return; }
   const old = clone(state);
   state = normalize(d);
   usingDefaults = false;
@@ -3907,7 +3907,7 @@ document.addEventListener("change", e => {
   }
   else if(id==="f-json" && e.target.files[0]){
     const rd = new FileReader();
-    rd.onload = () => { try{ restoreBackup(JSON.parse(rd.result)); }catch(err){ toast("這不是額度帳本的備份檔"); } };
+    rd.onload = () => { try{ restoreBackup(JSON.parse(rd.result)); }catch(err){ toast("這不是慢慢花手帳的備份檔"); } };
     rd.readAsText(e.target.files[0]);
   }
 });
