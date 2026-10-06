@@ -2779,6 +2779,24 @@ function openSheet(html, onMount){
 function closeSheet(){ $("#overlay").innerHTML = ""; }
 document.addEventListener("keydown", e => { if(e.key==="Escape" && $("#scrim")){ closeSheet(); render(); } });
 
+// phone back button: keep one extra history entry so back steps out inside the app
+// (sheet → explanation popup → settings page → other tab → home) and only leaves from the home tab
+try{
+  history.replaceState({ ledger: "base" }, "");
+  history.pushState({ ledger: "app" }, "");
+  window.addEventListener("popstate", () => {
+    const stay = () => history.pushState({ ledger: "app" }, "");
+    if(document.getElementById("onboard")){ stay(); return; }                 // setup and guide close with their own buttons
+    if($("#scrim")){ closeSheet(); render(); stay(); return; }
+    if(document.querySelector(".pop:not([hidden])")){ closePops(); stay(); return; }
+    if(tab === "settings"){ tab = prevTab || "home"; }
+    else if(tab !== "home"){ tab = "home"; }
+    else { history.back(); return; }                                         // home with nothing open: leave the app
+    try{ localStorage.setItem("ledger.tab", tab); }catch(err){}
+    render(); window.scrollTo(0,0); stay();
+  });
+}catch(e){}
+
 // existing: a stored transaction to edit; refundOf: an expense to refund
 // prefill: {type, categoryId, amount, title, note, favoriteId, wishId} for a new entry started from a favorite or wish
 // small calculator for the amount: numbers with + − × ÷ (× ÷ first); null when the expression isn't complete
