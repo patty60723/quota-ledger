@@ -241,8 +241,8 @@ await test("導覽：每一步都能跟著走完，亮的是對的東西，點�
     else await p.mouse.click(s.x, s.y);
     await p.waitForTimeout(450);
   }
-  ok([...chapters].join() === "今天可以花,記一筆,明細,想買清單,看懂,設定", `段落：${[...chapters].join()}`);
-  ok(steps === 21 && acks === 7, `走了 ${steps} 步（${acks} 步是「知道了」）`);
+  ok([...chapters].join() === "今天可以花,記一筆,其他功能", `段落：${[...chapters].join()}`);
+  ok(steps === 8 && acks === 5, `走了 ${steps} 步（${acks} 步是「知道了」）`);
   ok(JSON.stringify((await stored(p)).months) === before, "導覽改到了資料");
   await p.click('[data-tg="go"]'); await p.waitForTimeout(200);
   ok(!(await p.$(".tour")) && await p.$eval("[data-tab][aria-current]", e => e.dataset.tab) === "home", "結束後沒有回到首頁");
@@ -266,6 +266,50 @@ await test("導覽：可以隨時跳過", async () => {
   await p.click('[data-act="more"]'); await p.click('[data-m="prefs"]'); await p.click('[data-act="tour"]'); await p.waitForTimeout(400);
   await p.click(".tskip"); await p.waitForTimeout(200);
   ok(!(await p.$(".tour")), "跳過後導覽還在");
+  return p;
+});
+
+// tips: shown once, the first time someone opens a screen on their own
+const NEW_USER = (() => { const d = structuredClone(FIXTURE); d.settings.tips = {}; return d; })();
+const tipText = p => p.evaluate(() => document.querySelector(".tour.ttip .ttx")?.innerText || "");
+const okTip = async p => { await p.click(".tour.ttip .tok button"); await p.waitForTimeout(200); };
+
+await test("提示：新使用者第一次打開各頁都會出現一次，看過就不再出現", async () => {
+  const p = await openApp({ data: NEW_USER });
+  const seen = [];
+  await p.click("#fab"); await p.waitForTimeout(600);
+  ok(/必要、需要或想要/.test(await tipText(p)), "第一次記帳沒有提示"); await okTip(p);
+  ok(/分期／分攤/.test(await tipText(p)), "記帳提示沒有第二步"); await okTip(p); seen.push("記帳");
+  await p.click(".sheet [data-x]"); await p.waitForTimeout(300);
+  for(const [tabName, re] of [["list", /月曆/], ["wish", /冷靜 7 天/], ["report", /預算進度/]]){
+    await p.click(`#tabs [data-tab="${tabName}"]`); await p.waitForTimeout(600);
+    ok(re.test(await tipText(p)), `第一次打開 ${tabName} 沒有提示`); await okTip(p); seen.push(tabName);
+  }
+  await p.click('[data-act="more"]'); await p.click('[data-m="budget"]'); await p.waitForTimeout(300); await p.click('[data-bseg="save"]'); await p.waitForTimeout(600);
+  ok(/存錢罐/.test(await tipText(p)), "第一次看儲蓄沒有提示"); await okTip(p);
+  await p.click('[data-act="back"]'); await p.click('[data-act="more"]'); await p.click('[data-m="data"]'); await p.waitForTimeout(600);
+  ok(/備份/.test(await tipText(p)), "第一次看資料與備份沒有提示"); await okTip(p);
+  ok(Object.keys((await stored(p)).settings.tips).length === 6, "看過的提示沒有全部記下來");
+  await p.click('[data-act="back"]'); await p.waitForTimeout(200);
+  for(const tabName of ["list", "wish", "report"]){ await p.click(`#tabs [data-tab="${tabName}"]`); await p.waitForTimeout(600); ok(!(await p.$(".tour")), `${tabName} 第二次打開又出現提示`); }
+  return p;
+});
+
+await test("提示：按「不再顯示提示」之後，其他頁也不會再出現", async () => {
+  const p = await openApp({ data: NEW_USER });
+  await p.click('#tabs [data-tab="list"]'); await p.waitForTimeout(600);
+  await p.click(".tour.ttip .tskip"); await p.waitForTimeout(200);
+  ok((await stored(p)).settings.tipsOff === true, "沒有記下不再顯示");
+  await p.click('#tabs [data-tab="wish"]'); await p.waitForTimeout(600);
+  ok(!(await p.$(".tour")), "關掉後還是出現提示");
+  return p;
+});
+
+await test("提示：已經在用的人（沒有提示紀錄）不會突然跳出提示", async () => {
+  const p = await openApp();
+  for(const tabName of ["list", "wish", "report"]){ await p.click(`#tabs [data-tab="${tabName}"]`); await p.waitForTimeout(600); ok(!(await p.$(".tour")), `${tabName} 跳出提示`); }
+  await p.click("#fab"); await p.waitForTimeout(600); ok(!(await p.$(".tour")), "記帳畫面跳出提示");
+  ok(!(await stored(p)).settings.tips, "沒看提示卻寫入了提示紀錄");
   return p;
 });
 
