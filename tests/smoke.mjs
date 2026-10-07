@@ -237,12 +237,18 @@ await test("導覽：每一步都能跟著走完，亮的是對的東西，點�
       const hit = await p.evaluate(([x, y]) => { const e = document.querySelector('.rseg [data-rseg="budget"]').getBoundingClientRect(); return x > e.left && x < e.right && y > e.top && y < e.bottom; }, [s.x, s.y]);
       ok(hit, "「預算進度」那一步亮錯地方");
     }
+    if(s.ack) ok(!/選一個|點一個|點「/.test(s.text), `說明步驟叫人去點，卻點不到：${s.text}`);   // text that asks for a tap must be a tap step
+    if(/類別試試/.test(s.text)){   // the category step really lets a chip be picked
+      const picked = await p.evaluate(() => { const c = [...document.querySelectorAll('.sheet .chips .chip[aria-pressed="false"]')].pop(); if(!c) return null; const r = c.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, c.dataset.cat]; });
+      ok(picked, "找不到可以選的類別"); await p.mouse.click(picked[0], picked[1]); await p.waitForTimeout(450);
+      ok(await p.$eval(`.sheet .chip[data-cat="${picked[2]}"]`, e => e.getAttribute("aria-pressed")) === "true", "導覽中點類別沒有選到"); continue;
+    }
     if(s.ack){ acks++; await p.mouse.click(s.x, s.y); await p.waitForTimeout(150); ok((await spot()).text === s.text, `說明步驟點亮處就前進了：${s.text}`); await p.click(".tok button"); }
     else await p.mouse.click(s.x, s.y);
     await p.waitForTimeout(450);
   }
   ok([...chapters].join() === "今天可以花,記一筆,其他功能", `段落：${[...chapters].join()}`);
-  ok(steps === 8 && acks === 5, `走了 ${steps} 步（${acks} 步是「知道了」）`);
+  ok(steps === 9 && acks === 5, `走了 ${steps} 步（${acks} 步是「知道了」）`);
   ok(JSON.stringify((await stored(p)).months) === before, "導覽改到了資料");
   await p.click('[data-tg="go"]'); await p.waitForTimeout(200);
   ok(!(await p.$(".tour")) && await p.$eval("[data-tab][aria-current]", e => e.dataset.tab) === "home", "結束後沒有回到首頁");

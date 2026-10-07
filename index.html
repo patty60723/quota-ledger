@@ -4283,9 +4283,10 @@ const TOUR = [
     ack: () => !$('[data-pop="today"]') },
   { ch: "今天可以花", when: () => $("#pop-today"), sel: "#pop-today", light: ".hero", ack: true, text: "今天多花，明天起每天就會少一點。App 裡看到 ⓘ，都可以點開看說明。" },
   { ch: "記一筆", sel: "#fab", text: "記帳從這裡開始。點 <b>＋</b> 打開記帳畫面。" },
-  { ch: "記一筆", sel: ".sheet label.amount", light: [".sheet label.amount", ".sheet .chips"], ack: true, text: "輸入<b>金額</b>、選一個<b>類別</b>，按「儲存」就記好了。金額旁的<b>計算機</b>可以拆帳、加總。" },
+  { ch: "記一筆", sel: ".sheet label.amount", ack: true, text: "先輸入<b>金額</b>。旁邊的<b>計算機</b>可以拆帳、加總。" },
+  { ch: "記一筆", sel: ".sheet .chips", text: "再選一個<b>類別</b>，按儲存就記好了。點一個類別試試。" },
   { ch: "記一筆", sel: ".sheet #e-nw", ack: true, text: "每一筆可以標記<b>必要、需要或想要</b>，「看懂」會算出想要占多少。" },
-  { ch: "記一筆", sel: ".sheet .instbox .toggle", ack: true, text: "一次付不完，或想把預付的費用攤到之後幾期，就打開<b>分期／分攤</b>。" },
+  { ch: "記一筆", sel: ".sheet .instbox .toggle", ack: true, text: "一次付不完，或想把預付的費用攤到之後幾期，可以用<b>分期／分攤</b>。" },
   { ch: "記一筆", sel: ".sheet [data-x]", text: "看完了，點「<b>關閉</b>」。導覽中不會存任何資料。" },
   { ch: "其他功能", sel: "#tabs", ack: true, text: "<b>明細、想買、看懂</b>和右上角的<b>設定</b>，第一次打開時會有簡短說明。" }
 ];
@@ -4293,7 +4294,7 @@ const TOUR = [
 const TIPS = {
   entry: { when: () => $(".sheet .instbox") && $(".sheet #e-nw"), steps: [
     { ch: "記一筆", sel: ".sheet #e-nw", ack: true, text: "每一筆可以標記<b>必要、需要或想要</b>，「看懂」會算出想要占多少。" },
-    { ch: "記一筆", sel: ".sheet .instbox .toggle", ack: true, text: "一次付不完，或想把預付的費用攤到之後幾期，就打開<b>分期／分攤</b>。" }] },
+    { ch: "記一筆", sel: ".sheet .instbox .toggle", ack: true, text: "一次付不完，或想把預付的費用攤到之後幾期，可以用<b>分期／分攤</b>。" }] },
   list: { when: () => tab === "list" && $('[data-lseg="cal"]'), steps: [
     { ch: "明細", sel: '[data-lseg="cal"]', ack: true, text: "可以切成<b>月曆</b>：顏色越深那天花越多；點日期會列出那天的紀錄，也能直接補記那天的帳。" }] },
   wish: { when: () => tab === "wish" && $('[data-act="wish-new"]'), steps: [
