@@ -244,6 +244,10 @@ await test("導覽：每一步都能跟著走完，亮的是對的東西，點�
       await p.mouse.click(s.x, s.y); await p.waitForTimeout(450);
       ok(await p.$eval("#e-amt", e => e.value) === "470", "計算結果沒有填進金額"); continue;
     }
+    if(/設定/.test(s.text) && s.ack){   // the settings gear is lit too, not left in the dark
+      const cls = await p.evaluate(() => { const r = document.querySelector('.top [data-act="more"]').getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2).className; });
+      ok(cls === "tcover", `說到設定，齒輪卻是暗的（${cls}）`);
+    }
     if(s.ack) ok(!/選一個|點一個|點「|先輸入/.test(s.text), `說明步驟叫人去點，卻點不到：${s.text}`);   // text that asks for a tap must be a tap step
     if(/類別試試/.test(s.text)){   // the category step really lets a chip be picked
       const picked = await p.evaluate(() => { const c = [...document.querySelectorAll('.sheet .chips .chip[aria-pressed="false"]')].pop(); if(!c) return null; const r = c.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, c.dataset.cat]; });
@@ -256,7 +260,7 @@ await test("導覽：每一步都能跟著走完，亮的是對的東西，點�
   }
   ok([...chapters].join() === "今天可以花,記一筆,其他功能", `段落：${[...chapters].join()}`);
   // the calculator step reads as two (closed, then open) in this loop
-  ok(steps === 10 && acks === 4, `走了 ${steps} 步（${acks} 步是「知道了」）`);
+  ok(steps === 8 && acks === 2, `走了 ${steps} 步（${acks} 步是「知道了」）`);
   ok(JSON.stringify((await stored(p)).months) === before, "導覽改到了資料");
   await p.click('[data-tg="go"]'); await p.waitForTimeout(200);
   ok(!(await p.$(".tour")) && await p.$eval("[data-tab][aria-current]", e => e.dataset.tab) === "home", "結束後沒有回到首頁");
@@ -306,6 +310,26 @@ await test("提示：新使用者第一次打開各頁都會出現一次，看�
   ok(Object.keys((await stored(p)).settings.tips).length === 6, "看過的提示沒有全部記下來");
   await p.click('[data-act="back"]'); await p.waitForTimeout(200);
   for(const tabName of ["list", "wish", "report"]){ await p.click(`#tabs [data-tab="${tabName}"]`); await p.waitForTimeout(600); ok(!(await p.$(".tour")), `${tabName} 第二次打開又出現提示`); }
+  return p;
+});
+
+await test("提示：第一次記帳不跳提示，存了第一筆之後才出現", async () => {
+  const d = structuredClone(NEW_USER); d.months = {};
+  const p = await openApp({ data: d });
+  await p.click("#fab"); await p.waitForTimeout(600); ok(!(await p.$(".tour")), "第一次記帳就跳出提示");
+  await p.fill("#e-amt", "100"); await p.click('.sheet [data-cat="c-food"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(300);
+  await p.click("#fab"); await p.waitForTimeout(600); ok(/必要、需要或想要/.test(await tipText(p)), "存了第一筆後沒有記帳提示");
+  return p;
+});
+
+await test("提示：直接點亮起來的按鈕，提示關掉、按鈕照常作用", async () => {
+  const p = await openApp({ data: NEW_USER });
+  await p.click('#tabs [data-tab="list"]'); await p.waitForTimeout(600);
+  ok(/月曆/.test(await tipText(p)), "沒有明細提示");
+  const r = await p.$eval('[data-lseg="cal"]', e => { const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; });
+  await p.mouse.click(r[0], r[1]); await p.waitForTimeout(400);
+  ok(!(await p.$(".tour")), "點了亮的按鈕，提示還在");
+  ok(await p.$eval('[data-lseg="cal"]', e => e.getAttribute("aria-pressed") === "true" || e.classList.contains("on") || e.getAttribute("aria-selected") === "true"), "點了月曆卻沒有切過去");
   return p;
 });
 

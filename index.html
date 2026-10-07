@@ -1137,7 +1137,6 @@ header.top .srch + .more{margin-left:0}
 .tour .tb{position:fixed;background:rgba(12,10,9,.62);pointer-events:auto}
 :root[data-theme="dark"] .tour .tb{background:rgba(0,0,0,.78)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tour .tb{background:rgba(0,0,0,.78)}}
-.tour.tmiss .tb[data-b="t"]{inset:0;width:auto!important;height:auto!important}
 .tour.tmiss .tring,.tour.tmiss .tbub{opacity:0}
 .tring{position:fixed;border-radius:14px;box-shadow:0 0 0 3px var(--surface),0 0 0 6px var(--accent);pointer-events:none;animation:tpulse 1.4s ease-in-out infinite}
 @keyframes tpulse{0%,100%{box-shadow:0 0 0 3px var(--surface),0 0 0 6px var(--accent)}50%{box-shadow:0 0 0 3px var(--surface),0 0 0 12px color-mix(in srgb,var(--accent) 35%,transparent)}}
@@ -1155,6 +1154,7 @@ header.top .srch + .more{margin-left:0}
 .tour.tack .tok{display:flex}
 .tcover{position:fixed;pointer-events:none}
 .tour.tack .tcover{pointer-events:auto}
+.tour.ttip .tcover{pointer-events:none}
 .tarr{position:absolute;width:12px;height:12px;background:var(--surface);transform:translateX(-50%) rotate(45deg);display:none}
 .tarr.up{display:block;top:-6px}
 .tarr.down{display:block;bottom:-6px}
@@ -4281,27 +4281,26 @@ const TOUR = [
   { ch: "今天可以花", sel: () => $('[data-pop="today"]') || $(".hero"), light: ".hero",
     text: () => $('[data-pop="today"]') ? "這是<b>今天還能花多少</b>。點 ⓘ 看看怎麼算。" : "設好每月預算後，這裡會算出<b>今天還能花多少</b>。",
     ack: () => !$('[data-pop="today"]') },
-  { ch: "今天可以花", when: () => $("#pop-today"), sel: "#pop-today", light: ".hero", ack: true, text: "今天多花，明天起每天就會少一點。App 裡看到 ⓘ，都可以點開看說明。" },
+  { ch: "今天可以花", when: () => $("#pop-today"), sel: "#pop-today", light: [".hero", ".firstnote"], ack: true,
+    text: () => "App 裡看到 <b>ⓘ</b>，都可以點開看說明。" + ($(".firstnote") ? "這是第一期，金額會<b>偏高</b>，原因寫在下面這段。" : "") },
   { ch: "記一筆", sel: "#fab", text: "記帳從這裡開始。點 <b>＋</b> 打開記帳畫面。" },
   // the calculator step stays until it was opened and closed again, so it can really be tried
   { ch: "記一筆", sel: () => $(".sheet .calc .eq") || $(".sheet [data-calc]"), light: [".sheet label.amount", ".sheet .calc"],
     text: () => $(".sheet .calc") ? "試著算算看，例如 350 + 120，算好按「<b>＝ 填入金額</b>」。" : "<b>金額</b>填在這裡；旁邊的<b>計算機</b>可以拆帳、加總。點計算機打開看看。",
     until: t => { if($(".sheet .calc")) t.opened = true; return t.opened && !$(".sheet .calc"); } },
-  { ch: "記一筆", sel: ".sheet .chips", text: "再選一個<b>類別</b>，按儲存就記好了。點一個類別試試。" },
-  { ch: "記一筆", sel: ".sheet #e-nw", ack: true, text: "每一筆可以標記<b>必要、需要或想要</b>，「看懂」會算出想要占多少。" },
-  { ch: "記一筆", sel: ".sheet .instbox .toggle", ack: true, text: "一次付不完，或想把預付的費用攤到之後幾期，可以用<b>分期／分攤</b>。" },
+  { ch: "記一筆", sel: ".sheet .chips", text: "再選一個<b>類別</b>，按最下面的儲存就記好了。點一個類別試試。" },
   { ch: "記一筆", sel: ".sheet [data-x]", text: "看完了，點「<b>關閉</b>」。導覽中不會存任何資料。" },
-  { ch: "其他功能", sel: "#tabs", ack: true, text: "<b>明細、想買、看懂</b>和右上角的<b>設定</b>，第一次打開時會有簡短說明。" }
+  { ch: "其他功能", sel: "#tabs", also: '.top [data-act="more"]', ack: true, text: "<b>明細、想買、看懂</b>第一次打開時會有簡短說明；右上角的<b>設定</b>可以改預算和類別。" }
 ];
 // one-step tips shown the first time someone gets to a screen on their own (no forced tap: they came here themselves)
 const TIPS = {
-  entry: { when: () => $(".sheet .instbox") && $(".sheet #e-nw"), steps: [
+  entry: { when: () => $(".sheet .instbox") && $(".sheet #e-nw") && Object.values(state.months).some(l => l && l.length), steps: [   // not on the very first record: let it be written first
     { ch: "記一筆", sel: ".sheet #e-nw", ack: true, text: "每一筆可以標記<b>必要、需要或想要</b>，「看懂」會算出想要占多少。" },
     { ch: "記一筆", sel: ".sheet .instbox .toggle", ack: true, text: "一次付不完，或想把預付的費用攤到之後幾期，可以用<b>分期／分攤</b>。" }] },
   list: { when: () => tab === "list" && $('[data-lseg="cal"]'), steps: [
     { ch: "明細", sel: '[data-lseg="cal"]', ack: true, text: "可以切成<b>月曆</b>：顏色越深那天花越多；點日期會列出那天的紀錄，也能直接補記那天的帳。" }] },
   wish: { when: () => tab === "wish" && $('[data-act="wish-new"]'), steps: [
-    { ch: "想買清單", sel: '[data-act="wish-new"]', ack: true, text: "想買的東西按<b>＋ 新增</b>先放進來，冷靜 7 天再決定；App 會告訴你可以買、再等等，還是會影響預算。決定不買，也會記下省了多少。" }] },
+    { ch: "想買清單", sel: '[data-act="wish-new"]', ack: true, text: "想買的先按<b>＋ 新增</b>放進來，冷靜 7 天再決定，App 會幫你判斷能不能買。" }] },
   report: { when: () => tab === "report" && $('.rseg [data-rseg="budget"]'), steps: [
     { ch: "看懂", sel: '.rseg [data-rseg="budget"]', ack: true, text: "這裡看錢花在哪裡；切到<b>預算進度</b>，可以看每個類別用了多少，超支也能在那裡處理。" }] },
   save: { when: () => tab === "settings" && setPage === "budget" && budSeg === "save" && $(".section-head h2"), steps: [
@@ -4324,13 +4323,27 @@ const TOUR_CH = [...new Set(TOUR.map(x => x.ch))];
 const tourAck = step => typeof step.ack === "function" ? step.ack() : !!step.ack;
 let tourState = null;
 function tourEl(step){ try{ return typeof step.sel === "function" ? step.sel() : $(step.sel); }catch(e){ return null; } }
+// every element that's lit in a step: the target, its light block(s) and any extra spot
+function tourLit(step){ return [tourEl(step), ...[].concat(step.light || [], step.also || []).map(q => $(q))].filter(Boolean); }
+// fill the screen minus the holes with blocks (cut into horizontal bands), reusing the elements in box
+function tourBlocks(box, cls, rects){
+  while(box.children.length < rects.length){ const d = document.createElement("div"); d.className = cls; box.appendChild(d); }
+  [...box.children].forEach((d, i) => { const r = rects[i]; d.style.display = r ? "" : "none"; if(r) Object.assign(d.style, { left: r.x + "px", top: r.y + "px", width: r.w + "px", height: r.h + "px" }); });
+}
+function tourDim(R, holes, W, H){
+  const ys = [...new Set([0, H, ...holes.flatMap(h => [h.y, h.y + h.h])])].sort((a, b) => a - b), out = [];
+  for(let i = 0; i < ys.length - 1; i++){ const y0 = ys[i], y1 = ys[i + 1];
+    const xs = holes.filter(h => h.y < y1 && h.y + h.h > y0).sort((a, b) => a.x - b.x); let x = 0;
+    for(const h of xs){ if(h.x > x) out.push({ x, y: y0, w: h.x - x, h: y1 - y0 }); x = Math.max(x, h.x + h.w); }
+    if(x < W) out.push({ x, y: y0, w: W - x, h: y1 - y0 }); }
+  tourBlocks($(".tdim", R), "tb", out); tourBlocks($(".tcovers", R), "tcover", holes);
+}
 function startTour(onDone, opts = {}){
   endTour(true);
   const tip = opts.tip || null;
   if(!tip){ closeSheet(); closePops(); tab = "home"; render(); window.scrollTo(0, 0); }
   const root = document.createElement("div"); root.className = "tour" + (tip ? " ttip" : ""); root.setAttribute("role", "dialog"); root.setAttribute("aria-label", "功能導覽");
-  root.innerHTML = `<div class="tb" data-b="t"></div><div class="tb" data-b="b"></div><div class="tb" data-b="l"></div><div class="tb" data-b="r"></div>
-    <div class="tcover"></div><div class="tring"></div>
+  root.innerHTML = `<div class="tdim"></div><div class="tcovers"></div><div class="tring"></div>
     <div class="tbub" aria-live="polite"><i class="tarr"></i><div class="thd"><span class="tdots"></span><span class="tch"></span><button class="tskip" type="button">${tip ? "不再顯示提示" : "跳過導覽"}</button></div>
       <p class="ttx"></p><div class="tok"><button class="btn small primary" type="button">知道了</button></div></div>`;
   document.body.appendChild(root);
@@ -4338,7 +4351,10 @@ function startTour(onDone, opts = {}){
   $(".tskip", root).addEventListener("click", () => { if(tip){ state.settings.tipsOff = true; put.settings(); endTour(true); toast("之後不會再顯示提示，可以在「設定 → 一般」重新打開"); } else endTour(); });
   $(".tok button", root).addEventListener("click", () => { const t = tourState; if(t && !t.advancing){ t.advancing = true; nextTourStep(); } });
   // a tap on the lit spot reaches the app (it sits in the gap between the four dimmed blocks); this only notices it
-  tourState.onTap = e => { const t = tourState; if(!t || t.advancing || t.done || tourAck(t.steps[t.i]) || t.steps[t.i].until) return; const el = tourEl(t.steps[t.i]); if(el && el.contains(e.target)){ t.advancing = true; setTimeout(nextTourStep, 380); } };
+  // in a tip, tapping the lit spot counts as 知道了 and still does what it does (they came here to use it)
+  tourState.onTap = e => { const t = tourState; if(!t || t.advancing || t.done) return; const st = t.steps[t.i];
+    if(t.tip){ if(tourLit(st).some(x => x.contains(e.target))){ t.advancing = true; setTimeout(nextTourStep, 0); } return; }
+    if(tourAck(st) || st.until) return; const el = tourEl(st); if(el && el.contains(e.target)){ t.advancing = true; setTimeout(nextTourStep, 380); } };
   document.addEventListener("click", tourState.onTap, true);
   showTourStep(); tourFrame();
 }
@@ -4368,22 +4384,18 @@ function tourFrame(){
   const el = tourEl(st); const R = t.root;
   if(!el || !el.getClientRects().length){
     if(!t.advancing && ++t.missing > 90){ nextTourStep(); }   // about 1.5s without the spot (e.g. no budget yet): skip it
-    R.classList.add("tmiss");
+    R.classList.add("tmiss"); tourDim(R, [], innerWidth, innerHeight);
   } else {
     R.classList.remove("tmiss");
     // the ring marks what to tap; the lit area can be a bigger block around it (e.g. the whole card it explains)
     const pad = 6, W = innerWidth, H = innerHeight;
-    const box = r => { const x = Math.max(0, r.left - pad), y = Math.max(0, r.top - pad); return { x, y, w: Math.min(W, r.right + pad) - x, h: Math.min(H, r.bottom + pad) - y }; };
+    const box = r => { const x = Math.max(0, Math.floor(r.left - pad)), y = Math.max(0, Math.floor(r.top - pad)); return { x, y, w: Math.min(W, Math.ceil(r.right + pad)) - x, h: Math.min(H, Math.ceil(r.bottom + pad)) - y }; };
     // light can be several blocks: the lit area is the box around all of them
     const lights = [].concat(t.steps[t.i].light || []).map(q => $(q)).filter(Boolean).map(e => e.getBoundingClientRect());
     const ring = box(el.getBoundingClientRect()), lit = lights.length ? box(lights.reduce((a, r) => ({ left: Math.min(a.left, r.left), top: Math.min(a.top, r.top), right: Math.max(a.right, r.right), bottom: Math.max(a.bottom, r.bottom) }))) : ring;
-    const set = (k, css) => Object.assign($(`[data-b="${k}"]`, R).style, css);
-    set("t", { left: 0, top: 0, width: W + "px", height: lit.y + "px" });
-    set("b", { left: 0, top: lit.y + lit.h + "px", width: W + "px", height: Math.max(0, H - lit.y - lit.h) + "px" });
-    set("l", { left: 0, top: lit.y + "px", width: lit.x + "px", height: lit.h + "px" });
-    set("r", { left: lit.x + lit.w + "px", top: lit.y + "px", width: Math.max(0, W - lit.x - lit.w) + "px", height: lit.h + "px" });
+    const extra = [].concat(t.steps[t.i].also || []).map(q => $(q)).filter(e => e && e.getClientRects().length).map(e => box(e.getBoundingClientRect()));
+    tourDim(R, [lit, ...extra].filter(h => h.w > 0 && h.h > 0), W, H);   // explanation steps: the lit spots aren't tappable (covers)
     Object.assign($(".tring", R).style, { left: ring.x + "px", top: ring.y + "px", width: ring.w + "px", height: ring.h + "px" });
-    Object.assign($(".tcover", R).style, { left: lit.x + "px", top: lit.y + "px", width: lit.w + "px", height: lit.h + "px" });   // explanation steps: the lit area isn't tappable
     // the text box goes beside the lit area so it never covers what it explains
     const bub = $(".tbub", R), bh = bub.offsetHeight, bw = Math.min(320, W - 32);
     const below = lit.y + lit.h + 14 + bh < H - 16 && (lit.y + lit.h / 2 < H / 2 || lit.y - 14 - bh < 16);
@@ -4401,7 +4413,6 @@ function tourFrame(){
 function finishTour(){
   const t = tourState; if(!t) return; t.done = true;
   closeSheet(); closePops(); tab = "home"; render(); window.scrollTo(0, 0);
-  if(!tipsSeen().entry) markTip("entry");
   t.root.classList.add("tend");
   t.root.innerHTML = `<div class="tendcard"><div class="tdone">${icon("check")}</div><h3>導覽完成</h3>
     <p>每天會用到的都看過了。其他功能第一次打開時會有簡短說明；想了解超支怎麼補、固定收支怎麼確認，可以看說明卡片。</p>
