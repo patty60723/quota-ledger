@@ -237,6 +237,13 @@ await test("導覽：每一步都能跟著走完，亮的是對的東西，點�
       const hit = await p.evaluate(([x, y]) => { const e = document.querySelector('.rseg [data-rseg="budget"]').getBoundingClientRect(); return x > e.left && x < e.right && y > e.top && y < e.bottom; }, [s.x, s.y]);
       ok(hit, "「預算進度」那一步亮錯地方");
     }
+    if(/填入金額/.test(s.text)){   // calculator stays open to be used; only 「＝ 填入金額」 moves on
+      ok(await p.$(".sheet .calc"), "點計算機後沒有停在計算機");
+      for(const k of ["3","5","0","+","1","2","0"]) await p.click(`.sheet .calc [data-k="${k}"]`);
+      await p.waitForTimeout(450); ok((await spot()).text === s.text, "按計算機的鍵就跳到下一步了");
+      await p.mouse.click(s.x, s.y); await p.waitForTimeout(450);
+      ok(await p.$eval("#e-amt", e => e.value) === "470", "計算結果沒有填進金額"); continue;
+    }
     if(s.ack) ok(!/選一個|點一個|點「|先輸入/.test(s.text), `說明步驟叫人去點，卻點不到：${s.text}`);   // text that asks for a tap must be a tap step
     if(/類別試試/.test(s.text)){   // the category step really lets a chip be picked
       const picked = await p.evaluate(() => { const c = [...document.querySelectorAll('.sheet .chips .chip[aria-pressed="false"]')].pop(); if(!c) return null; const r = c.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, c.dataset.cat]; });
@@ -246,10 +253,10 @@ await test("導覽：每一步都能跟著走完，亮的是對的東西，點�
     if(s.ack){ acks++; await p.mouse.click(s.x, s.y); await p.waitForTimeout(150); ok((await spot()).text === s.text, `說明步驟點亮處就前進了：${s.text}`); await p.click(".tok button"); }
     else await p.mouse.click(s.x, s.y);
     await p.waitForTimeout(450);
-    if(/點計算機/.test(s.text)) ok(await p.$(".sheet .calc"), "導覽中點計算機沒有打開");
   }
   ok([...chapters].join() === "今天可以花,記一筆,其他功能", `段落：${[...chapters].join()}`);
-  ok(steps === 9 && acks === 4, `走了 ${steps} 步（${acks} 步是「知道了」）`);
+  // the calculator step reads as two (closed, then open) in this loop
+  ok(steps === 10 && acks === 4, `走了 ${steps} 步（${acks} 步是「知道了」）`);
   ok(JSON.stringify((await stored(p)).months) === before, "導覽改到了資料");
   await p.click('[data-tg="go"]'); await p.waitForTimeout(200);
   ok(!(await p.$(".tour")) && await p.$eval("[data-tab][aria-current]", e => e.dataset.tab) === "home", "結束後沒有回到首頁");

@@ -4283,7 +4283,10 @@ const TOUR = [
     ack: () => !$('[data-pop="today"]') },
   { ch: "今天可以花", when: () => $("#pop-today"), sel: "#pop-today", light: ".hero", ack: true, text: "今天多花，明天起每天就會少一點。App 裡看到 ⓘ，都可以點開看說明。" },
   { ch: "記一筆", sel: "#fab", text: "記帳從這裡開始。點 <b>＋</b> 打開記帳畫面。" },
-  { ch: "記一筆", sel: ".sheet [data-calc]", light: [".sheet label.amount", ".sheet .calc"], text: "<b>金額</b>填在這裡；旁邊的<b>計算機</b>可以拆帳、加總。點計算機打開看看。" },
+  // the calculator step stays until it was opened and closed again, so it can really be tried
+  { ch: "記一筆", sel: () => $(".sheet .calc .eq") || $(".sheet [data-calc]"), light: [".sheet label.amount", ".sheet .calc"],
+    text: () => $(".sheet .calc") ? "試著算算看，例如 350 + 120，算好按「<b>＝ 填入金額</b>」。" : "<b>金額</b>填在這裡；旁邊的<b>計算機</b>可以拆帳、加總。點計算機打開看看。",
+    until: t => { if($(".sheet .calc")) t.opened = true; return t.opened && !$(".sheet .calc"); } },
   { ch: "記一筆", sel: ".sheet .chips", text: "再選一個<b>類別</b>，按儲存就記好了。點一個類別試試。" },
   { ch: "記一筆", sel: ".sheet #e-nw", ack: true, text: "每一筆可以標記<b>必要、需要或想要</b>，「看懂」會算出想要占多少。" },
   { ch: "記一筆", sel: ".sheet .instbox .toggle", ack: true, text: "一次付不完，或想把預付的費用攤到之後幾期，可以用<b>分期／分攤</b>。" },
@@ -4335,7 +4338,7 @@ function startTour(onDone, opts = {}){
   $(".tskip", root).addEventListener("click", () => { if(tip){ state.settings.tipsOff = true; put.settings(); endTour(true); toast("之後不會再顯示提示，可以在「設定 → 一般」重新打開"); } else endTour(); });
   $(".tok button", root).addEventListener("click", () => { const t = tourState; if(t && !t.advancing){ t.advancing = true; nextTourStep(); } });
   // a tap on the lit spot reaches the app (it sits in the gap between the four dimmed blocks); this only notices it
-  tourState.onTap = e => { const t = tourState; if(!t || t.advancing || t.done || tourAck(t.steps[t.i])) return; const el = tourEl(t.steps[t.i]); if(el && el.contains(e.target)){ t.advancing = true; setTimeout(nextTourStep, 380); } };
+  tourState.onTap = e => { const t = tourState; if(!t || t.advancing || t.done || tourAck(t.steps[t.i]) || t.steps[t.i].until) return; const el = tourEl(t.steps[t.i]); if(el && el.contains(e.target)){ t.advancing = true; setTimeout(nextTourStep, 380); } };
   document.addEventListener("click", tourState.onTap, true);
   showTourStep(); tourFrame();
 }
@@ -4347,7 +4350,7 @@ function showTourStep(){
   $(".tch", t.root).textContent = step.ch;
   $(".ttx", t.root).innerHTML = typeof step.text === "function" ? step.text() : step.text;
   t.root.classList.toggle("tack", tourAck(step));
-  t.missing = 0; t.advancing = false;
+  t.missing = 0; t.advancing = false; t.opened = false; t.txt = $(".ttx", t.root).innerHTML;
   const el = tourEl(step); if(el){ const r = el.getBoundingClientRect(); if(r.top < 60 || r.bottom > innerHeight - 90) el.scrollIntoView({ block: "center" }); }
 }
 function nextTourStep(){
@@ -4359,7 +4362,10 @@ function nextTourStep(){
 // follow the spot every frame: screens re-render and sheets slide in, so the target moves
 function tourFrame(){
   const t = tourState; if(!t || t.done) return;
-  const el = tourEl(t.steps[t.i]); const R = t.root;
+  const st = t.steps[t.i];
+  if(st.until && !t.advancing && st.until(t)){ t.advancing = true; setTimeout(nextTourStep, 380); }   // steps finished by doing something, not by one tap
+  if(typeof st.text === "function"){ const h = st.text(); if(h !== t.txt){ t.txt = h; $(".ttx", t.root).innerHTML = h; } }   // text follows what's on screen
+  const el = tourEl(st); const R = t.root;
   if(!el || !el.getClientRects().length){
     if(!t.advancing && ++t.missing > 90){ nextTourStep(); }   // about 1.5s without the spot (e.g. no budget yet): skip it
     R.classList.add("tmiss");
