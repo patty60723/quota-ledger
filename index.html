@@ -1133,6 +1133,29 @@ header.top .srch + .more{margin-left:0}
 .dl .v{font-weight:600}
 .dl small{color:var(--muted);text-align:right}
 /* ---------- onboarding & 使用說明 ---------- */
+.tour{position:fixed;inset:0;z-index:60;pointer-events:none}
+.tour .tb{position:fixed;background:rgba(12,10,9,.62);pointer-events:auto}
+.tour.tmiss .tb[data-b="t"]{inset:0;width:auto!important;height:auto!important}
+.tour.tmiss .tring,.tour.tmiss .tbub{opacity:0}
+.tring{position:fixed;border-radius:14px;box-shadow:0 0 0 3px var(--surface),0 0 0 6px var(--accent);pointer-events:none;animation:tpulse 1.4s ease-in-out infinite}
+@keyframes tpulse{0%,100%{box-shadow:0 0 0 3px var(--surface),0 0 0 6px var(--accent)}50%{box-shadow:0 0 0 3px var(--surface),0 0 0 12px color-mix(in srgb,var(--accent) 35%,transparent)}}
+@media (prefers-reduced-motion:reduce){.tring{animation:none}}
+.tbub{position:fixed;background:var(--surface);color:var(--ink);border-radius:16px;padding:var(--space-3) var(--space-4);box-shadow:0 10px 30px rgba(0,0,0,.25);pointer-events:auto;transition:top .2s,left .2s}
+.tch{font-size:12px;color:var(--muted)}
+.ttx{margin:0;font-size:15px;line-height:1.55}
+.ttx b{color:var(--accent)}
+.tbar{height:3px;border-radius:2px;background:var(--sunk);margin-top:var(--space-3);overflow:hidden}
+.tbar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.thd{display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);margin-bottom:4px}
+.thd .tch{margin:0}
+.tskip{border:0;background:none;padding:var(--space-1) 0 var(--space-1) var(--space-2);color:var(--muted);font-size:12px;text-decoration:underline;text-underline-offset:3px}
+.tour.tend{pointer-events:auto;background:rgba(12,10,9,.62);display:grid;place-items:center;padding:var(--space-4)}
+.tendcard{background:var(--surface);color:var(--ink);border-radius:20px;padding:var(--space-6) var(--space-5) var(--space-5);max-width:340px;width:100%;text-align:center}
+.tendcard h3{margin:var(--space-3) 0 var(--space-2);font-size:20px}
+.tendcard p{margin:0 0 var(--space-4);font-size:14px;color:var(--muted);line-height:1.6}
+.tendcard .rowbtns{justify-content:center}
+.tdone{width:48px;height:48px;margin:0 auto;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink)}
+.tdone .ic{width:26px;height:26px;stroke-width:2.6}
 .ob{position:fixed;inset:0;z-index:40;background:var(--paper);overflow-y:auto;-webkit-overflow-scrolling:touch}
 .obin{max-width:560px;min-height:100%;margin:0 auto;display:flex;flex-direction:column;gap:var(--space-4);padding:calc(var(--space-4) + env(safe-area-inset-top,0px)) var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom,0px))}
 .obtop{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--space-3);min-height:44px}
@@ -2786,7 +2809,8 @@ function viewSettings(){
       <div class="setrow"><div class="k"><b>配色</b><span>淺色、深色都有對應的版本</span></div><select id="set-palette" aria-label="配色">${Object.entries(PALETTES).map(([k,v]) => `<option value="${k}" ${(s.palette||"blush")===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
     </div></div>
     <div class="section"><h2>說明</h2><div class="card setlist menu">
-      <button class="setrow" data-act="guide"><div class="k"><b>重看使用說明</b><span>記帳、預算彈性、想買清單等功能介紹；不會改到任何資料</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button><!--ob-extra-->
+      <button class="setrow" data-act="tour"><div class="k"><b>重新導覽</b><span>在真的畫面上跟著點一遍主要功能；不會改到任何資料</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button>
+      <button class="setrow" data-act="guide"><div class="k"><b>說明卡片</b><span>超支怎麼補、固定收支與分期、存錢罐的規則</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button><!--ob-extra-->
     </div></div>
 `,
     data: `<div class="section"><h2>資料</h2><div class="card setlist">
@@ -4022,6 +4046,7 @@ document.addEventListener("click", e => {
   else if(a==="more") openMore();
   else if(a==="search") openSearch();
   else if(a==="guide") openGuide();
+  else if(a==="tour") startTour();
   else if(a==="cal-add") openEntry(null, null, { date: calDay });
   else if(a==="wipe") openWipe();
   else if(a==="ob-dry") openOnboarding(true);
@@ -4154,11 +4179,11 @@ function openOnboarding(dry){
   let skipped = false;
   const finish = () => {
     // dry run (preview only): nothing is saved; the home page shows the first-period note as a demo until reload
-    if(dry){ openGuide(true, () => { demoStart = todayStr() > periodRange(curPeriod())[0] ? todayStr() : null; tab = "home"; render(); window.scrollTo(0,0); toast("預覽模式：設定沒有儲存，首頁的第一期提示只是示範"); }); return; }
+    if(dry){ obClose(); offerTour(() => { demoStart = todayStr() > periodRange(curPeriod())[0] ? todayStr() : null; tab = "home"; render(); window.scrollTo(0,0); toast("預覽模式：設定沒有儲存，首頁的第一期提示只是示範"); }); return; }
     if(!skipped) apply();
     state.settings.onboarded = true; state.settings.startedOn = todayStr(); put.settings();
     tab = "home"; try{ localStorage.setItem("ledger.tab", tab); }catch(e){}
-    render(); openGuide(true);
+    obClose(); render(); offerTour();
   };
   const apply = () => {
     const lim = limitsNow();
@@ -4209,8 +4234,10 @@ function openGuide(afterSetup, onDone){
         ? ["沒有雲端帳號，<b>換手機或清除瀏覽器資料就會不見</b>", "記得定期<b>匯出備份</b>，App 每兩週提醒一次", "設定過的每一項，都能在右上角<b>設定</b>裡改"]
         : ["資料會在這個頁面同步", "還是建議偶爾<b>匯出備份</b>", "設定過的每一項，都能在右上角<b>設定</b>裡改"], where: ["{gear}設定 → 資料與備份"] }
   ];
+  // the walkthrough shows where things are; these cards keep only the rules it can't show on a new ledger
+  cards.splice(0, cards.length, ...cards.filter(c => c.v === V.flex || c.v === V.fixed || c.v === V.jar));
   const el = obShell(`<div class="obtop"><span></span><div class="obdots" id="gd-dots">${cards.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div><button class="link" data-gd="done">${afterSetup ? "略過" : "關閉"}</button></div>
-    <p class="gdtitle">${afterSetup ? "設定好了，看看還能怎麼用" : "使用說明"}</p>
+    <p class="gdtitle">${afterSetup ? "設定好了，看看還能怎麼用" : "說明卡片"}</p>
     <div class="gdcards" id="gd-cards">${cards.map((c, i) => `<section class="gdcard" aria-label="${i+1} / ${cards.length}：${c.h}">
       <div class="gdviz" aria-hidden="true">${c.v}</div><h3>${c.h}</h3>${c.lead ? `<p class="gdlead">${c.lead}</p>` : ""}<ul class="gdpts">${c.pts.map(x => `<li>${x}</li>`).join("")}</ul>
       <div class="gdpath"><span class="lbl">在哪裡</span>${c.where.map(w => `<span class="pth">${w.replace("{plus}", icon("plus")).replace("{gear}", icon("gear"))}</span>`).join("")}</div></section>`).join("")}</div>
@@ -4226,6 +4253,117 @@ function openGuide(afterSetup, onDone){
   el.querySelector('[data-gd="prev"]').addEventListener("click", () => box.scrollTo({ left: (at - 1) * box.clientWidth, behavior: "smooth" }));
   el.querySelector('[data-gd="next"]').addEventListener("click", () => { if(at === cards.length - 1) done(); else box.scrollTo({ left: (at + 1) * box.clientWidth, behavior: "smooth" }); });
   sync();
+}
+
+
+/* ---------- guided tour ---------- */
+// game-style walkthrough on the real screens: the page dims except one spot, the text sits beside it, and only
+// tapping that spot moves on. Nothing is saved: sheets opened along the way are closed without saving.
+const backupRow = () => ($('[data-act="share-backup"]') || $('[data-act="export"]'))?.closest(".setrow")?.querySelector(".k");
+const TOUR = [
+  { ch: "今天可以花", sel: () => $('[data-pop="today"]') || $(".hero"), light: ".hero",
+    text: () => $('[data-pop="today"]') ? "這是<b>今天還能花多少</b>。點 ⓘ 看看怎麼算。" : "設好每月預算後，這裡會算出<b>今天還能花多少</b>。點一下這張卡片繼續。" },
+  { ch: "今天可以花", when: () => $("#pop-today"), sel: "#pop-today", light: ".hero", text: "今天多花，明天起每天就會少一點。看完說明，<b>點一下說明框</b>繼續。" },
+  { ch: "記一筆", sel: "#fab", text: "記帳從這裡開始。點 <b>＋</b> 打開記帳畫面。" },
+  { ch: "記一筆", sel: ".sheet .calcbtn", text: "金額旁的<b>計算機</b>：拆帳、加總可以直接算。點一下試試。" },
+  { ch: "記一筆", sel: ".sheet #e-nw", text: "每一筆可以標記<b>必要、需要或想要</b>，「看懂」會算出想要占多少。點一個試試。" },
+  { ch: "記一筆", sel: ".sheet .instbox .toggle", text: "一次付不完，或想把預付的費用攤到之後幾期，就打開<b>分期／分攤</b>。點一下。" },
+  { ch: "記一筆", sel: ".sheet [data-x]", text: "看完了，點<b>關閉</b>。導覽中不會存任何資料。" },
+  { ch: "想買清單", sel: '[data-tab="wish"]', text: "想買的東西先放進<b>想買清單</b>，冷靜 7 天再決定。點「想買」。" },
+  { ch: "想買清單", sel: '[data-act="wish-new"]', text: "按<b>＋ 新增</b>放進想買的東西，App 會告訴你可以買、再等等，還是會影響預算。點一下看看。" },
+  { ch: "想買清單", sel: ".sheet [data-x]", text: "填名稱、價格和類別就能加入。這次先點<b>關閉</b>。" },
+  { ch: "看懂", sel: '[data-tab="report"]', text: "<b>看懂</b>告訴你錢花在哪裡、想要占多少。點「看懂」。" },
+  { ch: "看懂", sel: '[data-rseg="budget"]', text: "<b>預算進度</b>：每個類別用了多少，超支也可以在這裡處理。點一下。" },
+  { ch: "存錢罐", sel: '[data-act="more"]', text: "所有設定都在右上角。點<b>齒輪</b>。" },
+  { ch: "存錢罐", sel: '.sheet [data-m="budget"]', text: "存錢罐在<b>預算與儲蓄</b>裡。點一下。" },
+  { ch: "存錢罐", sel: '[data-bseg="save"]', text: "點<b>儲蓄</b>。" },
+  { ch: "存錢罐", sel: ".section-head h2", text: "<b>存錢罐</b>：依用途分開存，每週、每月或每年自動存一筆；可以設目標金額。點標題繼續。" },
+  { ch: "備份", sel: '[data-act="back"]', text: "點<b>返回</b>。" },
+  { ch: "備份", sel: '[data-act="more"]', text: "再點一次<b>齒輪</b>。" },
+  { ch: "備份", sel: '.sheet [data-m="data"]', text: "點<b>資料與備份</b>。" },
+  { ch: "備份", sel: backupRow, text: () => BK_SHARE ? "資料只存在這支手機。記得定期按<b>分享</b>，把備份存到雲端硬碟。點這一列繼續。" : "資料只存在這個瀏覽器。記得定期<b>匯出備份</b>，存到雲端硬碟。點這一列繼續。" }
+];
+let tourState = null;
+function tourEl(step){ try{ return typeof step.sel === "function" ? step.sel() : $(step.sel); }catch(e){ return null; } }
+function startTour(onDone){
+  endTour(true);
+  closeSheet(); closePops(); tab = "home"; render(); window.scrollTo(0, 0);
+  const root = document.createElement("div"); root.className = "tour"; root.setAttribute("role", "dialog"); root.setAttribute("aria-label", "功能導覽");
+  root.innerHTML = `<div class="tb" data-b="t"></div><div class="tb" data-b="b"></div><div class="tb" data-b="l"></div><div class="tb" data-b="r"></div>
+    <div class="tring"></div><div class="tbub" aria-live="polite"><div class="thd"><span class="tch"></span><button class="tskip" type="button">跳過導覽</button></div><p class="ttx"></p><div class="tbar"><i></i></div></div>`;
+  document.body.appendChild(root);
+  tourState = { i: 0, root, onDone, missing: 0, advancing: false };
+  $(".tskip", root).addEventListener("click", () => endTour());
+  // a tap on the lit spot reaches the app (it sits in the gap between the four dimmed blocks); this only notices it
+  tourState.onTap = e => { const t = tourState; if(!t || t.advancing || t.done) return; const el = tourEl(TOUR[t.i]); if(el && el.contains(e.target)){ t.advancing = true; setTimeout(nextTourStep, 380); } };
+  document.addEventListener("click", tourState.onTap, true);
+  showTourStep(); tourFrame();
+}
+function showTourStep(){
+  const t = tourState; if(!t) return; const step = TOUR[t.i];
+  $(".tch", t.root).textContent = `${step.ch} · ${t.i + 1} / ${TOUR.length}`;
+  $(".ttx", t.root).innerHTML = typeof step.text === "function" ? step.text() : step.text;
+  $(".tbar i", t.root).style.width = `${(t.i + 1) / TOUR.length * 100}%`;
+  t.missing = 0; t.advancing = false;
+  const el = tourEl(step); if(el){ const r = el.getBoundingClientRect(); if(r.top < 60 || r.bottom > innerHeight - 90) el.scrollIntoView({ block: "center" }); }
+}
+function nextTourStep(){
+  const t = tourState; if(!t) return;
+  t.i++; while(t.i < TOUR.length && TOUR[t.i].when && !TOUR[t.i].when()) t.i++;   // steps that don't apply (e.g. no budget yet) are skipped at once
+  if(t.i >= TOUR.length){ finishTour(); return; }
+  showTourStep();
+}
+// follow the spot every frame: screens re-render and sheets slide in, so the target moves
+function tourFrame(){
+  const t = tourState; if(!t || t.done) return;
+  const el = tourEl(TOUR[t.i]); const R = t.root;
+  if(!el || !el.getClientRects().length){
+    if(!t.advancing && ++t.missing > 90){ nextTourStep(); }   // about 1.5s without the spot (e.g. no budget yet): skip it
+    R.classList.add("tmiss");
+  } else {
+    R.classList.remove("tmiss");
+    // the ring marks what to tap; the lit area can be a bigger block around it (e.g. the whole card it explains)
+    const pad = 6, W = innerWidth, H = innerHeight;
+    const box = r => { const x = Math.max(0, r.left - pad), y = Math.max(0, r.top - pad); return { x, y, w: Math.min(W, r.right + pad) - x, h: Math.min(H, r.bottom + pad) - y }; };
+    const ring = box(el.getBoundingClientRect()), litEl = TOUR[t.i].light && $(TOUR[t.i].light), lit = litEl ? box(litEl.getBoundingClientRect()) : ring;
+    const set = (k, css) => Object.assign($(`[data-b="${k}"]`, R).style, css);
+    set("t", { left: 0, top: 0, width: W + "px", height: lit.y + "px" });
+    set("b", { left: 0, top: lit.y + lit.h + "px", width: W + "px", height: Math.max(0, H - lit.y - lit.h) + "px" });
+    set("l", { left: 0, top: lit.y + "px", width: lit.x + "px", height: lit.h + "px" });
+    set("r", { left: lit.x + lit.w + "px", top: lit.y + "px", width: Math.max(0, W - lit.x - lit.w) + "px", height: lit.h + "px" });
+    Object.assign($(".tring", R).style, { left: ring.x + "px", top: ring.y + "px", width: ring.w + "px", height: ring.h + "px" });
+    // the text box goes beside the lit area so it never covers what it explains
+    const bub = $(".tbub", R), bh = bub.offsetHeight, bw = Math.min(320, W - 32);
+    const below = lit.y + lit.h + 14 + bh < H - 16 && (lit.y + lit.h / 2 < H / 2 || lit.y - 14 - bh < 16);
+    bub.style.width = bw + "px";
+    bub.style.left = Math.max(16, Math.min(W - bw - 16, ring.x + ring.w / 2 - bw / 2)) + "px";
+    bub.style.top = (below ? lit.y + lit.h + 14 : Math.max(16, lit.y - 14 - bh)) + "px";
+  }
+  requestAnimationFrame(tourFrame);
+}
+function finishTour(){
+  const t = tourState; if(!t) return; t.done = true;
+  closeSheet(); closePops(); tab = "home"; render(); window.scrollTo(0, 0);
+  t.root.classList.add("tend");
+  t.root.innerHTML = `<div class="tendcard"><div class="tdone">${icon("check")}</div><h3>導覽完成</h3>
+    <p>主要功能都走過一遍了。想了解超支怎麼補、固定收支怎麼確認，可以看說明卡片。</p>
+    <div class="rowbtns"><button class="btn" data-tg="cards">看說明卡片</button><button class="btn primary" data-tg="go">開始使用</button></div></div>`;
+  $('[data-tg="go"]', t.root).addEventListener("click", () => endTour());
+  $('[data-tg="cards"]', t.root).addEventListener("click", () => { endTour(); openGuide(); });
+}
+function endTour(quiet){
+  const t = tourState; if(!t) return; tourState = null; t.done = true;
+  document.removeEventListener("click", t.onTap, true); t.root.remove();
+  if(!quiet){ closeSheet(); closePops(); tab = "home"; try{ localStorage.setItem("ledger.tab", tab); }catch(e){} render(); window.scrollTo(0, 0); if(t.onDone) t.onDone(); }
+}
+// after setup: ask first, so nobody is pulled into a walkthrough they didn't want
+function offerTour(onDone){
+  openSheet(`<div class="hd"><h2>設定好了</h2></div>
+    <p style="margin:0">要花 1 分鐘，跟著點一遍主要功能嗎？隨時可以跳過，之後也能在「設定 → 一般」重新導覽。</p>
+    <div class="rowbtns"><button class="btn" data-x>略過</button><button class="btn primary" data-go>開始導覽</button></div>`, sheet => {
+    $("[data-x]", sheet).addEventListener("click", () => { closeSheet(); if(onDone) onDone(); });
+    $("[data-go]", sheet).addEventListener("click", () => { closeSheet(); startTour(onDone); });
+  });
 }
 
 /* ---------- boot ---------- */

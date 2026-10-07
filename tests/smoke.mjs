@@ -213,6 +213,35 @@ await test("固定收支：全部處理完，上方提示消失", async () => {
   return p;
 });
 
+await test("導覽：20 步都能跟著點完，點亮處以外沒反應，不會改到資料", async () => {
+  const p = await openApp();
+  const before = (await stored(p)).months["2026-09"].length;
+  await p.click('[data-act="more"]'); await p.click('[data-m="prefs"]'); await p.click('[data-act="tour"]'); await p.waitForTimeout(400);
+  const spot = () => p.evaluate(() => { const t = document.querySelector(".tour"); if(!t) return null; if(t.classList.contains("tend")) return { end: true };
+    const r = document.querySelector(".tring").getBoundingClientRect(); return { step: document.querySelector(".tch").innerText, miss: t.classList.contains("tmiss"), x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  let seen = 0;
+  for(let k = 0; k < 40; k++){
+    const s = await spot(); ok(s, "導覽中途消失");
+    if(s.end) break;
+    if(s.miss){ await p.waitForTimeout(300); continue; }
+    if(seen === 2){ await p.mouse.click(20, 140); await p.waitForTimeout(150); ok((await spot()).step === s.step, "點亮處以外也前進了"); }
+    await p.mouse.click(s.x, s.y); await p.waitForTimeout(500); seen++;
+  }
+  ok(seen === 20, `只走了 ${seen} 步`);
+  ok((await stored(p)).months["2026-09"].length === before, "導覽改到了資料");
+  await p.click('[data-tg="go"]'); await p.waitForTimeout(200);
+  ok(!(await p.$(".tour")) && await p.$eval("[data-tab][aria-current]", e => e.dataset.tab) === "home", "結束後沒有回到首頁");
+  return p;
+});
+
+await test("導覽：可以隨時跳過", async () => {
+  const p = await openApp();
+  await p.click('[data-act="more"]'); await p.click('[data-m="prefs"]'); await p.click('[data-act="tour"]'); await p.waitForTimeout(400);
+  await p.click(".tskip"); await p.waitForTimeout(200);
+  ok(!(await p.$(".tour")), "跳過後導覽還在");
+  return p;
+});
+
 await test("設定的五個頁面都能打開", async () => {
   const p = await openApp();
   for(const m of ["budget", "fixed", "fav", "prefs", "data"]){
