@@ -1135,6 +1135,8 @@ header.top .srch + .more{margin-left:0}
 /* ---------- onboarding & 使用說明 ---------- */
 .tour{position:fixed;inset:0;z-index:60;pointer-events:none}
 .tour .tb{position:fixed;background:rgba(12,10,9,.62);pointer-events:auto}
+:root[data-theme="dark"] .tour .tb{background:rgba(0,0,0,.78)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tour .tb{background:rgba(0,0,0,.78)}}
 .tour.tmiss .tb[data-b="t"]{inset:0;width:auto!important;height:auto!important}
 .tour.tmiss .tring,.tour.tmiss .tbub{opacity:0}
 .tring{position:fixed;border-radius:14px;box-shadow:0 0 0 3px var(--surface),0 0 0 6px var(--accent);pointer-events:none;animation:tpulse 1.4s ease-in-out infinite}
@@ -2866,6 +2868,7 @@ window.addEventListener("popstate", () => {
   if(window.claude) return;
   if(backNav.ignore){ backNav.ignore = false; return; }
   backNav.guarded = false;
+  if(tourState){ endTour(); return; }   // back during the tour ends it, instead of leaving it waiting for a sheet that just closed
   if(document.getElementById("onboard")) return;                            // setup and guide close with their own buttons
   if($("#scrim")){ closeSheet(); render(); }
   else if(document.querySelector(".pop:not([hidden])")) closePops();
@@ -4278,7 +4281,7 @@ const TOUR = [
     ack: () => !$('[data-pop="today"]') },
   { ch: "今天可以花", when: () => $("#pop-today"), sel: "#pop-today", light: ".hero", ack: true, text: "今天多花，明天起每天就會少一點。App 裡看到 ⓘ，都可以點開看說明。" },
   { ch: "記一筆", sel: "#fab", text: "記帳從這裡開始。點 <b>＋</b> 打開記帳畫面。" },
-  { ch: "記一筆", sel: ".sheet label.amount", light: ".sheet", ack: true, text: "輸入<b>金額</b>、選一個<b>類別</b>，按「儲存」就記好了。金額旁的<b>計算機</b>可以拆帳、加總。" },
+  { ch: "記一筆", sel: ".sheet label.amount", light: [".sheet label.amount", ".sheet .chips"], ack: true, text: "輸入<b>金額</b>、選一個<b>類別</b>，按「儲存」就記好了。金額旁的<b>計算機</b>可以拆帳、加總。" },
   { ch: "記一筆", sel: ".sheet #e-nw", ack: true, text: "每一筆可以標記<b>必要、需要或想要</b>，「看懂」會算出想要占多少。" },
   { ch: "記一筆", sel: ".sheet .instbox .toggle", ack: true, text: "一次付不完，或想把預付的費用攤到之後幾期，就打開<b>分期／分攤</b>。" },
   { ch: "記一筆", sel: ".sheet [data-x]", text: "看完了，點「<b>關閉</b>」。導覽中不會存任何資料。" },
@@ -4293,8 +4296,7 @@ const TOUR = [
   { ch: "設定", sel: '.sheet [data-m="budget"]', text: "存錢罐在<b>預算與儲蓄</b>裡。點「預算與儲蓄」。" },
   { ch: "設定", sel: '[data-bseg="save"]', text: "點「<b>儲蓄</b>」。" },
   { ch: "設定", sel: ".section-head h2", light: ".section", ack: true, text: "<b>存錢罐</b>：依用途分開存，每週、每月或每年自動存一筆，可以設目標金額。" },
-  { ch: "設定", sel: '[data-act="back"]', text: "最後看備份。點「<b>返回</b>」。" },
-  { ch: "設定", sel: '[data-act="more"]', text: "再點一次<b>齒輪</b>。" },
+  { ch: "設定", sel: '[data-act="more"]', pre: () => { if(tab === "settings"){ tab = prevTab || "home"; render(); } }, text: "最後看備份。再點一次<b>齒輪</b>。" },
   { ch: "設定", sel: '.sheet [data-m="data"]', text: "點「<b>資料與備份</b>」。" },
   { ch: "設定", sel: backupRow, ack: true, text: () => BK_SHARE ? "資料只存在這支手機。記得定期按<b>分享</b>，把備份存到雲端硬碟。" : "資料只存在這個瀏覽器。記得定期<b>匯出備份</b>，存到雲端硬碟。" }
 ];
@@ -4321,6 +4323,7 @@ function startTour(onDone){
 }
 function showTourStep(){
   const t = tourState; if(!t) return; const step = TOUR[t.i];
+  if(step.pre) step.pre();
   const ci = TOUR_CH.indexOf(step.ch);
   $(".tdots", t.root).innerHTML = TOUR_CH.map((c, k) => `<i class="${k < ci ? "done" : k === ci ? "on" : ""}"></i>`).join("");
   $(".tch", t.root).textContent = step.ch;
@@ -4347,7 +4350,9 @@ function tourFrame(){
     // the ring marks what to tap; the lit area can be a bigger block around it (e.g. the whole card it explains)
     const pad = 6, W = innerWidth, H = innerHeight;
     const box = r => { const x = Math.max(0, r.left - pad), y = Math.max(0, r.top - pad); return { x, y, w: Math.min(W, r.right + pad) - x, h: Math.min(H, r.bottom + pad) - y }; };
-    const ring = box(el.getBoundingClientRect()), litEl = TOUR[t.i].light && $(TOUR[t.i].light), lit = litEl ? box(litEl.getBoundingClientRect()) : ring;
+    // light can be several blocks: the lit area is the box around all of them
+    const lights = [].concat(TOUR[t.i].light || []).map(q => $(q)).filter(Boolean).map(e => e.getBoundingClientRect());
+    const ring = box(el.getBoundingClientRect()), lit = lights.length ? box(lights.reduce((a, r) => ({ left: Math.min(a.left, r.left), top: Math.min(a.top, r.top), right: Math.max(a.right, r.right), bottom: Math.max(a.bottom, r.bottom) }))) : ring;
     const set = (k, css) => Object.assign($(`[data-b="${k}"]`, R).style, css);
     set("t", { left: 0, top: 0, width: W + "px", height: lit.y + "px" });
     set("b", { left: 0, top: lit.y + lit.h + "px", width: W + "px", height: Math.max(0, H - lit.y - lit.h) + "px" });

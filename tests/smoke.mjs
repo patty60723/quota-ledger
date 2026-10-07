@@ -242,10 +242,22 @@ await test("導覽：每一步都能跟著走完，亮的是對的東西，點�
     await p.waitForTimeout(450);
   }
   ok([...chapters].join() === "今天可以花,記一筆,明細,想買清單,看懂,設定", `段落：${[...chapters].join()}`);
-  ok(steps === 22 && acks === 7, `走了 ${steps} 步（${acks} 步是「知道了」）`);
+  ok(steps === 21 && acks === 7, `走了 ${steps} 步（${acks} 步是「知道了」）`);
   ok(JSON.stringify((await stored(p)).months) === before, "導覽改到了資料");
   await p.click('[data-tg="go"]'); await p.waitForTimeout(200);
   ok(!(await p.$(".tour")) && await p.$eval("[data-tab][aria-current]", e => e.dataset.tab) === "home", "結束後沒有回到首頁");
+  return p;
+});
+
+await test("導覽：途中按返回鍵就結束導覽，不會卡在暗掉的畫面", async () => {
+  const p = await openApp();
+  await p.click('[data-act="more"]'); await p.click('[data-m="prefs"]'); await p.click('[data-act="tour"]'); await p.waitForTimeout(400);
+  const ring = async () => p.evaluate(() => { const r = document.querySelector(".tring").getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+  await p.click(".tok button").catch(() => {});                       // step 1 may be 知道了 or a tap
+  for(let k = 0; k < 3 && !(await p.$(".sheet")); k++){ await p.waitForTimeout(200); if(await p.$(".tour.tack")) await p.click(".tok button"); else { const [x, y] = await ring(); await p.mouse.click(x, y); } await p.waitForTimeout(500); }
+  ok(await p.$(".sheet"), "沒有走到記帳畫面那一步");
+  await p.evaluate(() => history.back()); await p.waitForTimeout(400);
+  ok(!(await p.$(".tour")) && !(await p.$(".sheet")), "按返回後導覽或記帳畫面還在");
   return p;
 });
 
