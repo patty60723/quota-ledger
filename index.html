@@ -1141,11 +1141,21 @@ header.top .srch + .more{margin-left:0}
 @keyframes tpulse{0%,100%{box-shadow:0 0 0 3px var(--surface),0 0 0 6px var(--accent)}50%{box-shadow:0 0 0 3px var(--surface),0 0 0 12px color-mix(in srgb,var(--accent) 35%,transparent)}}
 @media (prefers-reduced-motion:reduce){.tring{animation:none}}
 .tbub{position:fixed;background:var(--surface);color:var(--ink);border-radius:16px;padding:var(--space-3) var(--space-4);box-shadow:0 10px 30px rgba(0,0,0,.25);pointer-events:auto;transition:top .2s,left .2s}
-.tch{font-size:12px;color:var(--muted)}
+.tch{font-size:12px}
 .ttx{margin:0;font-size:15px;line-height:1.55}
 .ttx b{color:var(--accent)}
-.tbar{height:3px;border-radius:2px;background:var(--sunk);margin-top:var(--space-3);overflow:hidden}
-.tbar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.tdots{display:inline-flex;gap:4px;margin-right:var(--space-2)}
+.tdots i{width:6px;height:6px;border-radius:50%;background:var(--sunk);box-shadow:inset 0 0 0 1px var(--line)}
+.tdots i.done{background:var(--muted);box-shadow:none}
+.tdots i.on{width:16px;border-radius:3px;background:var(--accent);box-shadow:none}
+.thd .tch{flex:1;font-weight:600;color:var(--ink)}
+.tok{display:none;justify-content:flex-end;margin-top:var(--space-3)}
+.tour.tack .tok{display:flex}
+.tcover{position:fixed;pointer-events:none}
+.tour.tack .tcover{pointer-events:auto}
+.tarr{position:absolute;width:12px;height:12px;background:var(--surface);transform:translateX(-50%) rotate(45deg);display:none}
+.tarr.up{display:block;top:-6px}
+.tarr.down{display:block;bottom:-6px}
 .thd{display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);margin-bottom:4px}
 .thd .tch{margin:0}
 .tskip{border:0;background:none;padding:var(--space-1) 0 var(--space-1) var(--space-2);color:var(--muted);font-size:12px;text-decoration:underline;text-underline-offset:3px}
@@ -4260,29 +4270,36 @@ function openGuide(afterSetup, onDone){
 // game-style walkthrough on the real screens: the page dims except one spot, the text sits beside it, and only
 // tapping that spot moves on. Nothing is saved: sheets opened along the way are closed without saving.
 const backupRow = () => ($('[data-act="share-backup"]') || $('[data-act="export"]'))?.closest(".setrow")?.querySelector(".k");
+// tap: the step moves on only when the lit spot is tapped (it really opens or switches something)
+// ack: the spot is shown but not tappable; a 知道了 button in the text box moves on (explanations only)
 const TOUR = [
   { ch: "今天可以花", sel: () => $('[data-pop="today"]') || $(".hero"), light: ".hero",
-    text: () => $('[data-pop="today"]') ? "這是<b>今天還能花多少</b>。點 ⓘ 看看怎麼算。" : "設好每月預算後，這裡會算出<b>今天還能花多少</b>。點一下這張卡片繼續。" },
-  { ch: "今天可以花", when: () => $("#pop-today"), sel: "#pop-today", light: ".hero", text: "今天多花，明天起每天就會少一點。看完說明，<b>點一下說明框</b>繼續。" },
+    text: () => $('[data-pop="today"]') ? "這是<b>今天還能花多少</b>。點 ⓘ 看看怎麼算。" : "設好每月預算後，這裡會算出<b>今天還能花多少</b>。",
+    ack: () => !$('[data-pop="today"]') },
+  { ch: "今天可以花", when: () => $("#pop-today"), sel: "#pop-today", light: ".hero", ack: true, text: "今天多花，明天起每天就會少一點。App 裡看到 ⓘ，都可以點開看說明。" },
   { ch: "記一筆", sel: "#fab", text: "記帳從這裡開始。點 <b>＋</b> 打開記帳畫面。" },
-  { ch: "記一筆", sel: ".sheet .calcbtn", text: "金額旁的<b>計算機</b>：拆帳、加總可以直接算。點一下試試。" },
-  { ch: "記一筆", sel: ".sheet #e-nw", text: "每一筆可以標記<b>必要、需要或想要</b>，「看懂」會算出想要占多少。點一個試試。" },
-  { ch: "記一筆", sel: ".sheet .instbox .toggle", text: "一次付不完，或想把預付的費用攤到之後幾期，就打開<b>分期／分攤</b>。點一下。" },
-  { ch: "記一筆", sel: ".sheet [data-x]", text: "看完了，點<b>關閉</b>。導覽中不會存任何資料。" },
-  { ch: "想買清單", sel: '[data-tab="wish"]', text: "想買的東西先放進<b>想買清單</b>，冷靜 7 天再決定。點「想買」。" },
-  { ch: "想買清單", sel: '[data-act="wish-new"]', text: "按<b>＋ 新增</b>放進想買的東西，App 會告訴你可以買、再等等，還是會影響預算。點一下看看。" },
-  { ch: "想買清單", sel: ".sheet [data-x]", text: "填名稱、價格和類別就能加入。這次先點<b>關閉</b>。" },
-  { ch: "看懂", sel: '[data-tab="report"]', text: "<b>看懂</b>告訴你錢花在哪裡、想要占多少。點「看懂」。" },
-  { ch: "看懂", sel: '[data-rseg="budget"]', text: "<b>預算進度</b>：每個類別用了多少，超支也可以在這裡處理。點一下。" },
-  { ch: "存錢罐", sel: '[data-act="more"]', text: "所有設定都在右上角。點<b>齒輪</b>。" },
-  { ch: "存錢罐", sel: '.sheet [data-m="budget"]', text: "存錢罐在<b>預算與儲蓄</b>裡。點一下。" },
-  { ch: "存錢罐", sel: '[data-bseg="save"]', text: "點<b>儲蓄</b>。" },
-  { ch: "存錢罐", sel: ".section-head h2", text: "<b>存錢罐</b>：依用途分開存，每週、每月或每年自動存一筆；可以設目標金額。點標題繼續。" },
-  { ch: "備份", sel: '[data-act="back"]', text: "點<b>返回</b>。" },
-  { ch: "備份", sel: '[data-act="more"]', text: "再點一次<b>齒輪</b>。" },
-  { ch: "備份", sel: '.sheet [data-m="data"]', text: "點<b>資料與備份</b>。" },
-  { ch: "備份", sel: backupRow, text: () => BK_SHARE ? "資料只存在這支手機。記得定期按<b>分享</b>，把備份存到雲端硬碟。點這一列繼續。" : "資料只存在這個瀏覽器。記得定期<b>匯出備份</b>，存到雲端硬碟。點這一列繼續。" }
+  { ch: "記一筆", sel: ".sheet label.amount", light: ".sheet", ack: true, text: "輸入<b>金額</b>、選一個<b>類別</b>，按「儲存」就記好了。金額旁的<b>計算機</b>可以拆帳、加總。" },
+  { ch: "記一筆", sel: ".sheet #e-nw", ack: true, text: "每一筆可以標記<b>必要、需要或想要</b>，「看懂」會算出想要占多少。" },
+  { ch: "記一筆", sel: ".sheet .instbox .toggle", ack: true, text: "一次付不完，或想把預付的費用攤到之後幾期，就打開<b>分期／分攤</b>。" },
+  { ch: "記一筆", sel: ".sheet [data-x]", text: "看完了，點「<b>關閉</b>」。導覽中不會存任何資料。" },
+  { ch: "明細", sel: '#tabs [data-tab="list"]', text: "記過的帳都在<b>明細</b>。點「明細」。" },
+  { ch: "明細", sel: '[data-lseg="cal"]', text: "可以切成<b>月曆</b>，顏色越深那天花越多。點「月曆」。" },
+  { ch: "明細", sel: () => $(".cd.sel") || $(".cd.today") || $("[data-calday]"), text: "點<b>今天</b>看看：下面會列出那天的紀錄，也能直接補記那天的帳。點其他日期也一樣。" },
+  { ch: "想買清單", sel: '#tabs [data-tab="wish"]', text: "想買的東西先放進<b>想買清單</b>，冷靜 7 天再決定；App 會告訴你可以買、再等等，還是會影響預算。點「想買」。" },
+  { ch: "想買清單", sel: '[data-act="wish-new"]', ack: true, text: "想到要買什麼，按<b>＋ 新增</b>先放進來。決定不買，也會記下省了多少。" },
+  { ch: "看懂", sel: '#tabs [data-tab="report"]', text: "<b>看懂</b>告訴你錢花在哪裡、想要占多少。點「看懂」。" },
+  { ch: "看懂", sel: '.rseg [data-rseg="budget"]', text: "<b>預算進度</b>：每個類別用了多少，超支也可以在這裡處理。點「預算進度」。" },
+  { ch: "設定", sel: '[data-act="more"]', text: "所有設定都在右上角。點<b>齒輪</b>。" },
+  { ch: "設定", sel: '.sheet [data-m="budget"]', text: "存錢罐在<b>預算與儲蓄</b>裡。點「預算與儲蓄」。" },
+  { ch: "設定", sel: '[data-bseg="save"]', text: "點「<b>儲蓄</b>」。" },
+  { ch: "設定", sel: ".section-head h2", light: ".section", ack: true, text: "<b>存錢罐</b>：依用途分開存，每週、每月或每年自動存一筆，可以設目標金額。" },
+  { ch: "設定", sel: '[data-act="back"]', text: "最後看備份。點「<b>返回</b>」。" },
+  { ch: "設定", sel: '[data-act="more"]', text: "再點一次<b>齒輪</b>。" },
+  { ch: "設定", sel: '.sheet [data-m="data"]', text: "點「<b>資料與備份</b>」。" },
+  { ch: "設定", sel: backupRow, ack: true, text: () => BK_SHARE ? "資料只存在這支手機。記得定期按<b>分享</b>，把備份存到雲端硬碟。" : "資料只存在這個瀏覽器。記得定期<b>匯出備份</b>，存到雲端硬碟。" }
 ];
+const TOUR_CH = [...new Set(TOUR.map(x => x.ch))];
+const tourAck = step => typeof step.ack === "function" ? step.ack() : !!step.ack;
 let tourState = null;
 function tourEl(step){ try{ return typeof step.sel === "function" ? step.sel() : $(step.sel); }catch(e){ return null; } }
 function startTour(onDone){
@@ -4290,20 +4307,25 @@ function startTour(onDone){
   closeSheet(); closePops(); tab = "home"; render(); window.scrollTo(0, 0);
   const root = document.createElement("div"); root.className = "tour"; root.setAttribute("role", "dialog"); root.setAttribute("aria-label", "功能導覽");
   root.innerHTML = `<div class="tb" data-b="t"></div><div class="tb" data-b="b"></div><div class="tb" data-b="l"></div><div class="tb" data-b="r"></div>
-    <div class="tring"></div><div class="tbub" aria-live="polite"><div class="thd"><span class="tch"></span><button class="tskip" type="button">跳過導覽</button></div><p class="ttx"></p><div class="tbar"><i></i></div></div>`;
+    <div class="tcover"></div><div class="tring"></div>
+    <div class="tbub" aria-live="polite"><i class="tarr"></i><div class="thd"><span class="tdots"></span><span class="tch"></span><button class="tskip" type="button">跳過導覽</button></div>
+      <p class="ttx"></p><div class="tok"><button class="btn small primary" type="button">知道了</button></div></div>`;
   document.body.appendChild(root);
   tourState = { i: 0, root, onDone, missing: 0, advancing: false };
   $(".tskip", root).addEventListener("click", () => endTour());
+  $(".tok button", root).addEventListener("click", () => { const t = tourState; if(t && !t.advancing){ t.advancing = true; nextTourStep(); } });
   // a tap on the lit spot reaches the app (it sits in the gap between the four dimmed blocks); this only notices it
-  tourState.onTap = e => { const t = tourState; if(!t || t.advancing || t.done) return; const el = tourEl(TOUR[t.i]); if(el && el.contains(e.target)){ t.advancing = true; setTimeout(nextTourStep, 380); } };
+  tourState.onTap = e => { const t = tourState; if(!t || t.advancing || t.done || tourAck(TOUR[t.i])) return; const el = tourEl(TOUR[t.i]); if(el && el.contains(e.target)){ t.advancing = true; setTimeout(nextTourStep, 380); } };
   document.addEventListener("click", tourState.onTap, true);
   showTourStep(); tourFrame();
 }
 function showTourStep(){
   const t = tourState; if(!t) return; const step = TOUR[t.i];
-  $(".tch", t.root).textContent = `${step.ch} · ${t.i + 1} / ${TOUR.length}`;
+  const ci = TOUR_CH.indexOf(step.ch);
+  $(".tdots", t.root).innerHTML = TOUR_CH.map((c, k) => `<i class="${k < ci ? "done" : k === ci ? "on" : ""}"></i>`).join("");
+  $(".tch", t.root).textContent = step.ch;
   $(".ttx", t.root).innerHTML = typeof step.text === "function" ? step.text() : step.text;
-  $(".tbar i", t.root).style.width = `${(t.i + 1) / TOUR.length * 100}%`;
+  t.root.classList.toggle("tack", tourAck(step));
   t.missing = 0; t.advancing = false;
   const el = tourEl(step); if(el){ const r = el.getBoundingClientRect(); if(r.top < 60 || r.bottom > innerHeight - 90) el.scrollIntoView({ block: "center" }); }
 }
@@ -4332,12 +4354,18 @@ function tourFrame(){
     set("l", { left: 0, top: lit.y + "px", width: lit.x + "px", height: lit.h + "px" });
     set("r", { left: lit.x + lit.w + "px", top: lit.y + "px", width: Math.max(0, W - lit.x - lit.w) + "px", height: lit.h + "px" });
     Object.assign($(".tring", R).style, { left: ring.x + "px", top: ring.y + "px", width: ring.w + "px", height: ring.h + "px" });
+    Object.assign($(".tcover", R).style, { left: lit.x + "px", top: lit.y + "px", width: lit.w + "px", height: lit.h + "px" });   // explanation steps: the lit area isn't tappable
     // the text box goes beside the lit area so it never covers what it explains
     const bub = $(".tbub", R), bh = bub.offsetHeight, bw = Math.min(320, W - 32);
     const below = lit.y + lit.h + 14 + bh < H - 16 && (lit.y + lit.h / 2 < H / 2 || lit.y - 14 - bh < 16);
     bub.style.width = bw + "px";
     bub.style.left = Math.max(16, Math.min(W - bw - 16, ring.x + ring.w / 2 - bw / 2)) + "px";
+    const bx = Math.max(16, Math.min(W - bw - 16, ring.x + ring.w / 2 - bw / 2));
     bub.style.top = (below ? lit.y + lit.h + 14 : Math.max(16, lit.y - 14 - bh)) + "px";
+    // little arrow from the text box toward the ring, when the box sits right next to it
+    const arr = $(".tarr", bub), near = below ? lit.y + lit.h === ring.y + ring.h : lit.y === ring.y;
+    arr.className = "tarr" + (near ? (below ? " up" : " down") : "");
+    arr.style.left = Math.max(18, Math.min(bw - 18, ring.x + ring.w / 2 - bx)) + "px";
   }
   requestAnimationFrame(tourFrame);
 }

@@ -213,22 +213,37 @@ await test("固定收支：全部處理完，上方提示消失", async () => {
   return p;
 });
 
-await test("導覽：20 步都能跟著點完，點亮處以外沒反應，不會改到資料", async () => {
+await test("導覽：每一步都能跟著走完，亮的是對的東西，點亮處以外沒反應，不會改到資料", async () => {
   const p = await openApp();
-  const before = (await stored(p)).months["2026-09"].length;
+  const before = JSON.stringify((await stored(p)).months);
   await p.click('[data-act="more"]'); await p.click('[data-m="prefs"]'); await p.click('[data-act="tour"]'); await p.waitForTimeout(400);
   const spot = () => p.evaluate(() => { const t = document.querySelector(".tour"); if(!t) return null; if(t.classList.contains("tend")) return { end: true };
-    const r = document.querySelector(".tring").getBoundingClientRect(); return { step: document.querySelector(".tch").innerText, miss: t.classList.contains("tmiss"), x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
-  let seen = 0;
-  for(let k = 0; k < 40; k++){
+    const r = document.querySelector(".tring").getBoundingClientRect();
+    return { ch: document.querySelector(".tch").innerText, text: document.querySelector(".ttx").innerText, ack: t.classList.contains("tack"), miss: t.classList.contains("tmiss"), x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  const chapters = new Set(); let steps = 0, acks = 0;
+  for(let k = 0; k < 60; k++){
+    await p.waitForTimeout(120);   // let the ring move to the new spot before reading where it is
     const s = await spot(); ok(s, "導覽中途消失");
     if(s.end) break;
     if(s.miss){ await p.waitForTimeout(300); continue; }
-    if(seen === 2){ await p.mouse.click(20, 140); await p.waitForTimeout(150); ok((await spot()).step === s.step, "點亮處以外也前進了"); }
-    await p.mouse.click(s.x, s.y); await p.waitForTimeout(500); seen++;
+    chapters.add(s.ch); steps++; if(process.env.TOURDBG) console.log("   ", steps, s.ack ? "ack" : "tap", s.text.slice(0, 24));
+    if(steps === 3){ await p.mouse.click(20, 140); await p.waitForTimeout(150); ok((await spot()).text === s.text, "點亮處以外也前進了"); }
+    const named = !s.ack && s.text.replace(/<[^>]+>/g, "").match(/點「(.+?)」/);   // a step that says 點「X」 must light a button that reads X
+    if(named){
+      const label = await p.evaluate(([x, y]) => (document.elementFromPoint(x, y)?.closest("button") || {}).innerText || "", [s.x, s.y]);
+      ok(label.replace(/\s+/g, "").includes(named[1]), `說「點「${named[1]}」」，亮的卻是「${label.trim()}」`);
+    }
+    if(/點「預算進度」/.test(s.text)){   // the ring must be on the 預算進度 switch itself, not a row that also links there
+      const hit = await p.evaluate(([x, y]) => { const e = document.querySelector('.rseg [data-rseg="budget"]').getBoundingClientRect(); return x > e.left && x < e.right && y > e.top && y < e.bottom; }, [s.x, s.y]);
+      ok(hit, "「預算進度」那一步亮錯地方");
+    }
+    if(s.ack){ acks++; await p.mouse.click(s.x, s.y); await p.waitForTimeout(150); ok((await spot()).text === s.text, `說明步驟點亮處就前進了：${s.text}`); await p.click(".tok button"); }
+    else await p.mouse.click(s.x, s.y);
+    await p.waitForTimeout(450);
   }
-  ok(seen === 20, `只走了 ${seen} 步`);
-  ok((await stored(p)).months["2026-09"].length === before, "導覽改到了資料");
+  ok([...chapters].join() === "今天可以花,記一筆,明細,想買清單,看懂,設定", `段落：${[...chapters].join()}`);
+  ok(steps === 22 && acks === 7, `走了 ${steps} 步（${acks} 步是「知道了」）`);
+  ok(JSON.stringify((await stored(p)).months) === before, "導覽改到了資料");
   await p.click('[data-tg="go"]'); await p.waitForTimeout(200);
   ok(!(await p.$(".tour")) && await p.$eval("[data-tab][aria-current]", e => e.dataset.tab) === "home", "結束後沒有回到首頁");
   return p;
