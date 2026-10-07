@@ -246,9 +246,10 @@ await test("導覽：每一步都能跟著走完，亮的是對的東西，點�
     if(s.ack){ acks++; await p.mouse.click(s.x, s.y); await p.waitForTimeout(150); ok((await spot()).text === s.text, `說明步驟點亮處就前進了：${s.text}`); await p.click(".tok button"); }
     else await p.mouse.click(s.x, s.y);
     await p.waitForTimeout(450);
+    if(/點計算機/.test(s.text)) ok(await p.$(".sheet .calc"), "導覽中點計算機沒有打開");
   }
   ok([...chapters].join() === "今天可以花,記一筆,其他功能", `段落：${[...chapters].join()}`);
-  ok(steps === 9 && acks === 5, `走了 ${steps} 步（${acks} 步是「知道了」）`);
+  ok(steps === 9 && acks === 4, `走了 ${steps} 步（${acks} 步是「知道了」）`);
   ok(JSON.stringify((await stored(p)).months) === before, "導覽改到了資料");
   await p.click('[data-tg="go"]'); await p.waitForTimeout(200);
   ok(!(await p.$(".tour")) && await p.$eval("[data-tab][aria-current]", e => e.dataset.tab) === "home", "結束後沒有回到首頁");
