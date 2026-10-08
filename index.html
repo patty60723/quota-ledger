@@ -216,6 +216,18 @@ h2{font-family:var(--f-body);font-weight:700;font-size:17px;margin:0;text-wrap:b
 .period .t{display:flex;flex-direction:column;align-items:center}
 .period .t b{font-family:var(--f-body);font-weight:700;font-size:19px}
 .period .t span{font-size:12px;color:var(--muted)}
+.period .tpick{border:0;background:none;padding:var(--space-1) var(--space-3);border-radius:12px;color:inherit}
+.period .tpick b{display:inline-flex;align-items:center;gap:2px;white-space:nowrap}
+.period .tpick .pdown .ic{width:15px;height:15px;transform:rotate(90deg);color:var(--muted)}
+.pkyear h3{margin:0 0 var(--space-2);font-size:14px;color:var(--muted);font-weight:600}
+.pkgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2)}
+.pkm{display:flex;flex-direction:column;align-items:center;gap:2px;padding:var(--space-2) 0;border:0;border-radius:12px;background:var(--sunk);color:var(--muted);font-size:14px}
+.pkm small{font-size:11px;color:var(--faint)}
+.pkm.has{color:var(--ink);font-weight:600}
+.pkm.has small{color:var(--muted);font-weight:500}
+.pkm.on{background:var(--ink);color:var(--paper)}
+.pkm.on small{color:var(--paper);opacity:.8}
+.pkm.off{background:none;color:var(--faint);opacity:.5}
 .iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;font-size:18px}
 .iconbtn:disabled{opacity:.35;cursor:default}
 
@@ -2139,8 +2151,28 @@ let lastViewKey = null;
 function periodNav(){
   const L = periodLabel(viewPeriod);
   return `<div class="period"><button class="iconbtn" data-act="prev" aria-label="上一期">${icon("chevl")}</button>
-    <div class="t"><b>${L.title}</b><span class="num">${L.range}</span></div>
+    <button class="t tpick" data-act="pickp" aria-haspopup="dialog" aria-label="選擇月份，目前是 ${L.title}"><b>${L.title}<span class="pdown" aria-hidden="true">${icon("chev")}</span></b><span class="num">${L.range}</span></button>
     <button class="iconbtn" data-act="next" aria-label="下一期">${icon("chev")}</button></div>`;
+}
+
+// jump to any month: every period from the first record to now, by year; months with records show what was spent
+function openPeriodPicker(){
+  const cur = curPeriod(), dates = realTx().map(t => t.date).sort();
+  const first = dates.length ? periodOf(dates[0]) : cur, from = pkey(first) < pkey(cur) ? first : cur;
+  const spent = {}; realTx().concat(allTx().filter(t => t.virtual)).forEach(t => { const k = pkey(periodOf(t.date)); spent[k] = (spent[k] || 0) + outAmt(t); });
+  const has = new Set(realTx().map(t => pkey(periodOf(t.date))));
+  const years = []; for(let y = cur.y; y >= from.y; y--) years.push(y);
+  const short = v => v >= 10000 * unitF() ? (v / unitF() / 10000).toLocaleString("zh-TW", { maximumFractionDigits: 1 }) + "萬" : moneyShort(v);
+  openSheet(`<div class="hd"><h2>選擇月份</h2><button class="btn ghost" data-x>關閉</button></div>
+    ${pkey(viewPeriod) !== pkey(cur) ? `<button class="btn block" data-pk="${pkey(cur)}">回到本期（${periodLabel(cur).title}）</button>` : ""}
+    ${years.map(y => `<div class="pkyear"><h3>${y} 年</h3><div class="pkgrid">${Array.from({ length: 12 }, (_, i) => { const p = { y, m: i + 1 }, k = pkey(p);
+      const out = k < pkey(from) || k > pkey(cur); const on = k === pkey(viewPeriod);
+      return out ? `<span class="pkm off" aria-hidden="true">${i + 1} 月</span>`
+        : `<button class="pkm${has.has(k) ? " has" : ""}${on ? " on" : ""}" data-pk="${k}" aria-pressed="${on}" aria-label="${y} 年 ${i + 1} 月${has.has(k) ? `，支出 ${money(Math.max(0, spent[k] || 0))}` : "，沒有紀錄"}">${i + 1} 月<small class="num">${has.has(k) ? short(Math.max(0, spent[k] || 0)) : "—"}</small></button>`; }).join("")}</div></div>`).join("")}`, sheet => {
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    sheet.querySelectorAll("[data-pk]").forEach(b => b.addEventListener("click", () => { const [y, m] = b.dataset.pk.split("-").map(Number); viewPeriod = { y, m }; closeSheet(); render(); window.scrollTo(0, 0); }));
+    sheet.querySelector(".pkm.on")?.scrollIntoView({ block: "center" });
+  });
 }
 
 // keepOrder: render the list as given (e.g. sorted by amount) instead of newest first
@@ -2617,7 +2649,7 @@ function viewReport(){
 function viewYear(Y){
   const cur = curPeriod(), yw = yearWindow(Y);
   const nav = `<div class="period"><button class="iconbtn" data-act="yprev" aria-label="上一年">${icon("chevl")}</button>
-    <div class="t"><b>${Y} 年</b><span>${yw ? `記錄了 ${yw.n} 個月${yw.current ? "，到目前" : ""}` : "沒有紀錄"}</span></div>
+    <button class="t tpick" data-act="pickp" aria-haspopup="dialog" aria-label="選擇年份或月份，目前是 ${Y} 年"><b>${Y} 年<span class="pdown" aria-hidden="true">${icon("chev")}</span></b><span>${yw ? `記錄了 ${yw.n} 個月${yw.current ? "，到目前" : ""}` : "沒有紀錄"}</span></button>
     <button class="iconbtn" data-act="ynext" aria-label="下一年" ${Y >= cur.y ? "disabled" : ""}>${icon("chev")}</button></div>`;
   const months = []; for(let m = 1; m <= 12; m++){ const p = { y: Y, m }; if(Y > cur.y || (Y === cur.y && m > cur.m)) break; const l = txIn(p); months.push({ p, l, inc: sumIncome(l), exp: sumOut(l) }); }
   const list = months.flatMap(x => x.l);
@@ -4300,7 +4332,8 @@ document.addEventListener("click", e => {
     confirmRun(item, v); render(); toast(`已記下 ${item.r.title}`); return;
   }
   const a = el.dataset.act;
-  if(a==="ymode" || a==="mmode"){ reportYear = a === "ymode"; render(); window.scrollTo(0, 0); }
+  if(a==="pickp"){ openPeriodPicker(); }
+  else if(a==="ymode" || a==="mmode"){ reportYear = a === "ymode"; render(); window.scrollTo(0, 0); }
   else if(a==="yprev" || a==="ynext"){ const y = viewPeriod.y + (a === "yprev" ? -1 : 1), cur = curPeriod(); viewPeriod = y >= cur.y ? cur : { y, m: 12 }; render(); }
   else if(a==="prev"){ viewPeriod = shift(viewPeriod,-1); render(); }
   else if(a==="next"){ viewPeriod = shift(viewPeriod,1); render(); }

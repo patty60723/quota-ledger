@@ -387,6 +387,11 @@ morning   = spendable + 今天已花（有上限類別）+ 今天沒上限類別
 - 預估：到今天的非固定支出日平均 × 剩下天數，加上之後還沒到的固定收支。
 - Y 軸只涵蓋資料範圍（常常從房租之後開始），兩端取整數，所以不畫面積。開始記帳以前的期別不顯示。
 
+### 10.23 年報與選月份（`viewYear`、`openPeriodPicker`）
+- 年報的一年 = 該年 1～12 月的預算期（`txIn({y, m})` 合併），只到本期；「記錄了幾個月」沿用 `yearWindow`，平均每月支出除以這個月數。
+- 收支長條圖 `trendSvg(data, year)` 共用月報的畫法，傳入 12 個月；目前畫面上的資料存在 `chartData` 給滑過提示用。
+- 選月份的範圍是第一筆紀錄所在的期到本期；有紀錄的期顯示支出（含分期的虛擬紀錄）。
+
 ### 10.21 本機設定（`localStorage`）
 `ledger.v1` 全部資料、`ledger.tab` 目前分頁、`ledger.setpage` 設定子頁、`ledger.rankview`、`ledger.rankscope`。
 
