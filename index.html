@@ -219,7 +219,11 @@ h2{font-family:var(--f-body);font-weight:700;font-size:17px;margin:0;text-wrap:b
 .period .tpick{border:0;background:none;padding:var(--space-1) var(--space-3);border-radius:12px;color:inherit}
 .period .tpick b{display:inline-flex;align-items:center;gap:2px;white-space:nowrap}
 .period .tpick .pdown .ic{width:15px;height:15px;transform:rotate(90deg);color:var(--muted)}
-.pkyear h3{margin:0 0 var(--space-2);font-size:14px;color:var(--muted);font-weight:600}
+.pkyears{display:flex;gap:var(--space-2);overflow-x:auto;scrollbar-width:none;margin-inline:calc(var(--space-4) * -1);padding:0 var(--space-4) 2px}
+.pky{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;min-width:76px;padding:var(--space-2) var(--space-3);border:0;border-radius:12px;background:var(--sunk);color:var(--ink);font-weight:700;font-size:15px}
+.pky small{font-size:11px;font-weight:500;color:var(--muted)}
+.pky.on{background:var(--ink);color:var(--paper)}
+.pky.on small{color:var(--paper);opacity:.8}
 .pkgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2)}
 .pkm{display:flex;flex-direction:column;align-items:center;gap:2px;padding:var(--space-2) 0;border:0;border-radius:12px;background:var(--sunk);color:var(--muted);font-size:14px}
 .pkm small{font-size:11px;color:var(--faint)}
@@ -2155,23 +2159,34 @@ function periodNav(){
     <button class="iconbtn" data-act="next" aria-label="下一期">${icon("chev")}</button></div>`;
 }
 
-// jump to any month: every period from the first record to now, by year; months with records show what was spent
+// jump to a month (or, in 年報, a year): years with records on top, then that year's 12 months.
+// Picking a year only switches the months shown; months with records show what was spent
 function openPeriodPicker(){
   const cur = curPeriod(), dates = realTx().map(t => t.date).sort();
   const first = dates.length ? periodOf(dates[0]) : cur, from = pkey(first) < pkey(cur) ? first : cur;
-  const spent = {}; realTx().concat(allTx().filter(t => t.virtual)).forEach(t => { const k = pkey(periodOf(t.date)); spent[k] = (spent[k] || 0) + outAmt(t); });
+  const spent = {}; allTx().forEach(t => { const k = pkey(periodOf(t.date)); spent[k] = (spent[k] || 0) + outAmt(t); });
   const has = new Set(realTx().map(t => pkey(periodOf(t.date))));
   const years = []; for(let y = cur.y; y >= from.y; y--) years.push(y);
+  const yearOut = y => Object.entries(spent).filter(([k]) => k.startsWith(y + "-")).reduce((a2, [, v]) => a2 + Math.max(0, v), 0);
   const short = v => v >= 10000 * unitF() ? (v / unitF() / 10000).toLocaleString("zh-TW", { maximumFractionDigits: 1 }) + "萬" : moneyShort(v);
-  openSheet(`<div class="hd"><h2>選擇月份</h2><button class="btn ghost" data-x>關閉</button></div>
-    ${pkey(viewPeriod) !== pkey(cur) ? `<button class="btn block" data-pk="${pkey(cur)}">回到本期（${periodLabel(cur).title}）</button>` : ""}
-    ${years.map(y => `<div class="pkyear"><h3>${y} 年</h3><div class="pkgrid">${Array.from({ length: 12 }, (_, i) => { const p = { y, m: i + 1 }, k = pkey(p);
-      const out = k < pkey(from) || k > pkey(cur); const on = k === pkey(viewPeriod);
-      return out ? `<span class="pkm off" aria-hidden="true">${i + 1} 月</span>`
-        : `<button class="pkm${has.has(k) ? " has" : ""}${on ? " on" : ""}" data-pk="${k}" aria-pressed="${on}" aria-label="${y} 年 ${i + 1} 月${has.has(k) ? `，支出 ${money(Math.max(0, spent[k] || 0))}` : "，沒有紀錄"}">${i + 1} 月<small class="num">${has.has(k) ? short(Math.max(0, spent[k] || 0)) : "—"}</small></button>`; }).join("")}</div></div>`).join("")}`, sheet => {
+  let shown = viewPeriod.y;
+  const yearBtns = () => years.map(y => `<button class="pky${y === shown ? " on" : ""}" data-py="${y}" aria-pressed="${y === shown}">${y}<small class="num">${short(yearOut(y))}</small></button>`).join("");
+  const grid = () => Array.from({ length: 12 }, (_, i) => { const p = { y: shown, m: i + 1 }, k = pkey(p), on = k === pkey(viewPeriod);
+    return k < pkey(from) || k > pkey(cur) ? `<span class="pkm off" aria-hidden="true">${i + 1} 月</span>`
+      : `<button class="pkm${has.has(k) ? " has" : ""}${on ? " on" : ""}" data-pk="${k}" aria-pressed="${on}" aria-label="${shown} 年 ${i + 1} 月${has.has(k) ? `，支出 ${money(Math.max(0, spent[k] || 0))}` : "，沒有紀錄"}">${i + 1} 月<small class="num">${has.has(k) ? short(Math.max(0, spent[k] || 0)) : "—"}</small></button>`; }).join("");
+  const go = (y, m) => { viewPeriod = y >= cur.y && m === undefined ? cur : { y, m: m ?? 12 }; closeSheet(); render(); window.scrollTo(0, 0); };
+  openSheet(`<div class="hd"><h2>${reportYear && tab === "report" ? "選擇年份" : "選擇月份"}</h2><button class="btn ghost" data-x>關閉</button></div>
+    ${!reportYear || tab !== "report" ? (pkey(viewPeriod) !== pkey(cur) ? `<button class="btn block" data-back>回到本期（${periodLabel(cur).title}）</button>` : "") : ""}
+    ${years.length > 1 || (reportYear && tab === "report") ? `<div class="pkyears" role="group" aria-label="年份">${yearBtns()}</div>` : ""}
+    ${reportYear && tab === "report" ? "" : `<div class="pkgrid">${grid()}</div>`}`, sheet => {
     $("[data-x]", sheet).addEventListener("click", closeSheet);
-    sheet.querySelectorAll("[data-pk]").forEach(b => b.addEventListener("click", () => { const [y, m] = b.dataset.pk.split("-").map(Number); viewPeriod = { y, m }; closeSheet(); render(); window.scrollTo(0, 0); }));
-    sheet.querySelector(".pkm.on")?.scrollIntoView({ block: "center" });
+    $("[data-back]", sheet)?.addEventListener("click", () => go(cur.y, cur.m));
+    const wire = () => sheet.querySelectorAll("[data-pk]").forEach(b2 => b2.addEventListener("click", () => { const [y, m] = b2.dataset.pk.split("-").map(Number); go(y, m); }));
+    sheet.querySelectorAll("[data-py]").forEach(b2 => b2.addEventListener("click", () => {
+      const y = +b2.dataset.py; if(reportYear && tab === "report"){ go(y); return; }
+      shown = y; sheet.querySelectorAll("[data-py]").forEach(x => { x.classList.toggle("on", +x.dataset.py === y); x.setAttribute("aria-pressed", +x.dataset.py === y); });
+      $(".pkgrid", sheet).innerHTML = grid(); wire(); }));
+    wire();
   });
 }
 
@@ -4181,6 +4196,19 @@ function demoLedger(){
   const nextM = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   recurring["d-r-music"] = { id: "d-r-music", title: "音樂串流", amount: 149, type: "expense", categoryId: "d-fun", day: 1, active: true, startMonth: ym(nextM.getFullYear(), nextM.getMonth() + 1) };
   let n = 0; const add = (date, type, categoryId, amount, title, nw, extra) => { const t = { id: `d-t${++n}`, date, type, categoryId, amount, title, note: "", nw, createdAt: stamp(date) + n, ...extra }; (months[date.slice(0, 7)] ||= []).push(t); };
+  // two earlier years of plain history (everyday spending, rent and pay), so the month picker and 年報 have several years
+  for(let k = 26; k >= 4; k--){
+    const d0 = new Date(now.getFullYear(), now.getMonth() - k, 1), Y = d0.getFullYear(), M = d0.getMonth() + 1, day = d => `${ym(Y, M)}-${pad(d)}`;
+    add(day(1), "expense", "d-rent", 15000, "房租", "must"); add(day(5), "income", "d-pay", k > 14 ? 42000 : 45000, "薪水");
+    for(let d = 1; d <= dim(Y, M); d++){
+      if(rnd() < 0.8) add(day(d), "expense", "d-food", pick([110, 130, 160, 220]), pick(["午餐", "晚餐", "便當"]), "need");
+      if(rnd() < 0.5) add(day(d), "expense", "d-move", pick([30, 45, 60]), pick(["捷運", "公車"]), "must");
+      if(rnd() < 0.08) add(day(d), "expense", "d-fun", pick([300, 450, 680, 1500]), pick(["電影", "展覽", "演唱會"]), "want");
+      if(rnd() < 0.05) add(day(d), "expense", "d-cloth", pick([590, 990, 1880]), pick(["T恤", "外套", "鞋子"]), "want");
+    }
+    if(M === 12) add(day(20), "expense", "d-fun", 3600, "跨年旅行", "want");
+  }
+  const histFrom = ymd(new Date(now.getFullYear(), now.getMonth() - 26, 1));
   for(let k = 3; k >= 0; k--){
     const y = now.getFullYear(), m0 = now.getMonth() - k, d0 = new Date(y, m0, 1), Y = d0.getFullYear(), M = d0.getMonth() + 1, last = k ? dim(Y, M) : now.getDate();
     const day = d => `${ym(Y, M)}-${pad(d)}`;
@@ -4227,7 +4255,7 @@ function demoLedger(){
     "d-f2": { id: "d-f2", name: "捷運", type: "expense", categoryId: "d-move", amount: 30, title: "捷運", note: "", uses: 40, createdAt: 2, order: 1 },
     "d-f3": { id: "d-f3", name: "午餐便當", type: "expense", categoryId: "d-food", amount: 110, title: "便當", note: "", uses: 15, createdAt: 3, order: 2 }
   };
-  return { settings: { ...state.settings, currency: "TWD", onboarded: true, startedOn: since, cycleStartDay: 1, lastBackupAt: stamp(ago(20)) },
+  return { settings: { ...state.settings, currency: "TWD", onboarded: true, startedOn: histFrom, cycleStartDay: 1, lastBackupAt: stamp(ago(20)) },
     categories, recurring, runs, months, installments, jars, wishes, favorites, adjustments: {}, closings: {} };
 }
 function backupJson(){ return JSON.stringify({ app: "慢慢花手帳", version: 2, exportedAt: new Date().toISOString(), data: state }, null, 1); }

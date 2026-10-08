@@ -501,10 +501,10 @@ await test("需要注意：這個月還沒用到警戒線、但今年超過年�
 });
 
 await test("選月份：點期間標題可以直接跳到有紀錄的月份，明細和看懂都可以", async () => {
-  const d = structuredClone(FIXTURE); d.months["2026-03"] = [{ id: "m3", date: "2026-03-10", type: "expense", categoryId: "c-food", amount: 321, title: "早餐", note: "", createdAt: 1 }];
+  const d = structuredClone(FIXTURE); d.months["2026-03"] = [{ id: "m3", date: "2026-03-10", type: "expense", categoryId: "c-food", amount: 321, title: "早餐", note: "", createdAt: 1 }]; d.months["2025-11"] = [{ id: "m4", date: "2025-11-20", type: "expense", categoryId: "c-fun", amount: 88, title: "電影", note: "", createdAt: 2 }];
   const p = await openApp({ data: d, tab: "list" });
   await p.click('[data-act="pickp"]'); await p.waitForTimeout(200);
-  ok(await p.$('.sheet .pkm.has[data-pk="2026-03"]') && !(await p.$('.sheet .pkm.has[data-pk="2026-05"]')), "有紀錄的月份沒有標出來");
+  ok(await p.$('.sheet .pkm.has[data-pk="2026-03"]') && !(await p.$('.sheet .pkm.has[data-pk="2026-05"]')) && await p.$('.sheet [data-py="2025"]'), "有紀錄的月份或年份沒有標出來");
   await p.click('.sheet [data-pk="2026-03"]'); await p.waitForTimeout(200);
   ok(/2026 年 3 月/.test(await text(p, ".period")) && /早餐/.test(await text(p, ".txlist")), "明細沒有跳到 3 月");
   await p.click('#tabs [data-tab="report"]'); await p.click('[data-act="pickp"]'); await p.waitForTimeout(200);
@@ -512,6 +512,16 @@ await test("選月份：點期間標題可以直接跳到有紀錄的月份，�
   ok(/2026 年 9 月/.test(await text(p, ".period")), "看懂沒有跳到 9 月");
   await p.click('.rmode [data-act="ymode"]'); await p.waitForTimeout(200);
   ok(/2026 年到目前支出/.test(await text(p, ".ysum")) && /NT\$20,621/.test(await text(p, ".ysum")), `年報總覽是「${await text(p, ".ysum")}」`);
+  // several years: pick the year first, then the month; in 年報 the picker lists years
+  await p.click('[data-act="pickp"]'); await p.waitForTimeout(200);
+  ok(!(await p.$(".sheet .pkgrid")) && await p.$('.sheet [data-py="2025"]'), "年報的選擇不是年份");
+  await p.click('.sheet [data-py="2025"]'); await p.waitForTimeout(200);
+  ok(/2025 年支出 NT\$88/.test(await text(p, ".ysum")), `選 2025 後年報是「${await text(p, ".ysum")}」`);
+  await p.click('.rmode [data-act="mmode"]'); await p.waitForTimeout(200);
+  await p.click('[data-act="pickp"]'); await p.click('.sheet [data-py="2026"]'); await p.waitForTimeout(150);
+  ok(await p.$('.sheet .pkm.has[data-pk="2026-03"]') && !(await p.$('.sheet [data-pk="2025-11"]')), "選了 2026 年，月份沒有跟著換");
+  await p.click('.sheet [data-py="2025"]'); await p.waitForTimeout(150); await p.click('.sheet [data-pk="2025-11"]'); await p.waitForTimeout(200);
+  ok(/2025 年 11 月/.test(await text(p, ".period")), "沒有跳到 2025 年 11 月");
   return p;
 });
 
