@@ -389,6 +389,21 @@ await test("貨幣：美元的計算機可以算小數", async () => {
   return p;
 });
 
+await test("貨幣：新台幣不能填小數，計算機也沒有小數點", async () => {
+  const p = await openApp();
+  await p.click("#fab"); await p.fill("#e-amt", "12.5");
+  ok(await p.$eval("#e-amt", e => e.value) === "12", `貼上 12.5 變成「${await p.$eval("#e-amt", e => e.value)}」`);
+  ok(await p.$eval("#e-amt", e => e.inputMode) === "numeric", "新台幣跳出有小數點的鍵盤");
+  await p.click(".sheet [data-calc]"); ok(!(await p.$('.sheet .calc [data-k="."]')), "新台幣的計算機有小數點");
+  for(const k of ["C", "1", "0", "0", "÷", "3"]) await p.click(`.sheet .calc [data-k="${k}"]`);
+  await p.click('.sheet .calc [data-k="="]'); await p.waitForTimeout(150);
+  ok(await p.$eval("#e-amt", e => e.value) === "33", "100 ÷ 3 沒有四捨五入成 33");
+  await p.click(".sheet [data-x]"); await p.waitForTimeout(200);
+  await p.click("#fab"); await p.selectOption("#e-cur", "JPY"); await p.waitForTimeout(150); await p.fill("#e-amt", "1200.5");
+  ok(await p.$eval("#e-amt", e => e.value) === "1200", "日圓外幣也能填小數");
+  return p;
+});
+
 await test("貨幣：有資料時換成日圓只換符號，換成有小數的美元會被擋下", async () => {
   const p = await openApp();
   await prefs(p); await p.selectOption("#set-cur", "JPY"); await p.waitForTimeout(200);
