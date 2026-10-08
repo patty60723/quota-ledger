@@ -490,6 +490,16 @@ await test("花費進度：今天的累計跟首頁的本期預算已用一致�
   return p;
 });
 
+await test("需要注意：這個月還沒用到警戒線、但今年超過年度上限，標成年度超支，不是快用完", async () => {
+  const d = structuredClone(FIXTURE); d.categories["c-food"].yearlyLimit = 1500;   // 餐飲 this month 2,000 / 6,000 (33%)
+  const p = await openApp({ data: d });
+  const row = await p.evaluate(() => [...document.querySelectorAll(".trow")].find(e => e.innerText.includes("餐飲"))?.innerText.replace(/\s+/g, " ") || "");
+  ok(/年度超支/.test(row) && /2026 年已花 NT\$2,000，年度上限 NT\$1,500/.test(row) && !/快用完/.test(row), `首頁顯示「${row}」`);
+  const bud = await budgetRow(p, "餐飲");
+  ok(/年度超支/.test(bud), `預算進度顯示「${bud}」`);
+  return p;
+});
+
 await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {
   const p = await openApp({ width: 320, theme: "dark" });
   for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }
