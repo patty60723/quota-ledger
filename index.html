@@ -300,9 +300,11 @@ svg.trend text{fill:var(--muted);font-size:17px;font-family:var(--f-body)}
 .ymore .link{display:inline-flex;align-items:center;gap:2px}
 .yrank .r{grid-template-columns:5.5em 1fr auto;row-gap:0}
 .yrank .ym{grid-column:3;text-align:right;font-size:12px;color:var(--muted)}
-.nwleg.ystatic > div{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) 0}
-.nwleg.ystatic b{margin-left:auto}
-.nwleg.ystatic small{color:var(--muted);min-width:3em;text-align:right}
+.ynw{display:flex;flex-direction:column;margin-top:var(--space-3)}
+.ynw > div{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;border-top:1px solid var(--line);font-size:14px}
+.ynw > div:first-child{border-top:0}
+.ynw b{margin-left:auto;font-weight:600}
+.ynw small{color:var(--muted);min-width:3.2em;text-align:right;font-size:13px}
 .yhl{list-style:none;margin:0;padding:var(--space-2) var(--space-4)}
 .yhl li{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3);padding:var(--space-3) 0;border-top:1px solid var(--line)}
 .yhl li:first-child{border-top:0}
@@ -2629,7 +2631,7 @@ function viewYear(Y){
     : `<div class="empty">沒有支出。</div>`;
   const ns = nwSplit(list); const pctOf = v => ns.total ? Math.round(v / ns.total * 100) : 0;
   const nwHtml = ns.total ? `<div class="nwcard"><div class="nwbar" role="img" aria-label="必要 ${pctOf(ns.must)}%，需要 ${pctOf(ns.need)}%，想要 ${pctOf(ns.want)}%">${["must", "need", "want", "none"].filter(k => ns[k]).map(k => `<i class="${k}" style="width:${ns[k] / ns.total * 100}%"></i>`).join("")}</div>
-      <div class="nwleg ystatic">${NW_KEYS.map(k => `<div><span class="sw ${k}"></span>${NW_LABEL[k]}<b class="num">${moneyShort(ns[k])}</b><small>${pctOf(ns[k])}%</small></div>`).join("")}${ns.none ? `<div><span class="sw none"></span>未標記<b class="num">${moneyShort(ns.none)}</b><small>${ns.noneCount} 筆</small></div>` : ""}</div></div>` : "";
+      <div class="ynw">${NW_KEYS.map(k => `<div><span class="sw ${k}"></span>${NW_LABEL[k]}<b class="num">${moneyShort(ns[k])}</b><small>${pctOf(ns[k])}%</small></div>`).join("")}${ns.none ? `<div><span class="sw none"></span>未標記<b class="num">${moneyShort(ns.none)}</b><small>${ns.noneCount} 筆</small></div>` : ""}</div></div>` : "";
   // highlights: the heaviest month, the biggest single expense, and how many days have a record
   const top = months.filter(x => x.exp > 0).sort((a, b) => b.exp - a.exp)[0];
   const big = list.filter(t => t.type === "expense" && !t.virtual).sort((a, b) => b.amount - a.amount)[0];
