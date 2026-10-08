@@ -2860,10 +2860,8 @@ function viewSettings(){
     fav: `<div class="section" id="fav-section"><div class="section-head"><h2>項目</h2><button class="btn small addbtn" data-act="fav-new">${icon("plus")}新增</button></div><div class="card setlist">${favHtml}
       <div class="note">排序：${s.favManual ? `手動 <button class="btn ghost small" data-act="fav-auto">改回依使用次數</button>` : "依使用次數（按箭頭可手動排）"}。首頁「快速記帳」依這個順序排列，可左右滑。</div></div></div>
 `,
-    prefs: `<div class="section"><h2>貨幣</h2><div class="card setlist">
-      <div class="setrow"><div class="k"><b>記帳貨幣</b><span>預算、報表和每一筆都用這個貨幣</span></div><select id="set-cur" aria-label="記帳貨幣">${curOpts()}</select></div>
-    </div></div>
-    <div class="section"><h2>日期與週期</h2><div class="card setlist">
+    prefs: `<div class="section"><h2>貨幣與週期</h2><div class="card setlist">
+      <div class="setrow"><div class="k"><b>記帳貨幣</b><span>預算和報表都用這個貨幣</span></div><select id="set-cur" aria-label="記帳貨幣">${curOpts()}</select></div>
       <div class="setrow"><div class="k"><b>月預算從哪天開始</b><span>例如設成發薪日；當月沒有這天就用月底</span></div><select id="set-cycle" aria-label="月預算起始日">${dayOpts}</select></div>
       <div class="setrow"><div class="k"><b>警戒線</b><span>用到這個比例就標「快用完」、記帳時提醒，並列在首頁</span></div><select id="set-warn" aria-label="警戒線">${[50,55,60,65,70,75,80,85,90,95].map(v => `<option value="${v}" ${(s.warnPct||80)===v?"selected":""}>${v}%</option>`).join("")}</select></div>
       <div class="setrow"><div class="k"><b>一週從哪天開始</b><span>明細的月曆照這個排</span></div><select id="set-week" aria-label="一週從哪天開始">${[[1,"星期一"],[0,"星期日"]].map(([v,l]) => `<option value="${v}" ${(s.weekStart ?? 1)===v?"selected":""}>${l}</option>`).join("")}</select></div>
@@ -2980,9 +2978,9 @@ function openEntry(existing, refundOf, prefill){
       ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+", ...(ac().dp ? ["."] : [])].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加",".":"小數點"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq${ac().dp ? " w3" : ""}" data-k="=">＝ 填入金額</button></div></div>` : ""}
       ${fxCur ? `<div class="fxconv">
         <label class="frate">1 ${esc(CURS[fxCur].name)} =<input class="inp num" id="e-rate" inputmode="decimal" value="${fxRate ?? ""}" placeholder="匯率" aria-label="匯率">${esc(curC().name)}</label>
-        <label class="fpaid">換算成<span class="num">${esc(SYM())}</span><input class="inp num" id="e-conv" inputmode="${IM()}" value="${amtIn(ledgerAmt())}" placeholder="0" aria-label="換算後的金額"></label>
         ${!existing && !state.settings.fxRates?.[fxCur] ? `<p class="fref" id="e-rateref">參考匯率</p>` : ""}
-        ${existing ? `<p class="small muted">可以改成帳單上的實際扣款</p>` : ""}</div>` : ""}
+        <label class="fpaid">換算成<span class="num">${esc(SYM())}</span><input class="inp num" id="e-conv" inputmode="${IM()}" value="${amtIn(ledgerAmt())}" placeholder="0" aria-label="換算後的金額"></label>
+        ${existing ? `<p class="small muted" id="e-fxnote"></p>` : ""}</div>` : ""}
       ${t.wishId && !existing && state.wishes[t.wishId]?.price ? `<div class="hint">清單上的價格是 <b class="num">${SYM()}${moneyShort(state.wishes[t.wishId].price)}</b>，實際價格不同可以直接改金額</div>` : ""}
       ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}"><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${esc(c.name)}</button>`).join("")}</div>`}
       ${(!existing || canInst) && !isRefund && type==="expense" && !fxCur ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期／分攤</label>${inst ? "" : `<span class="small muted" style="flex-basis:100%">也能把一次付清的費用（如兩個月課程）攤到之後幾期</span>`}
@@ -3033,12 +3031,16 @@ function openEntry(existing, refundOf, prefill){
       box.innerHTML = lines.map(([cls, txt]) => `<div class="hint ${cls}">${txt}</div>`).join("");
     };
     const conv = $("#e-conv", sheet), rateIn = $("#e-rate", sheet);
-    const syncConv = () => { if(conv && !fxPaid) conv.value = amtIn(ledgerAmt()); };
+    const paidNote = $("#e-fxnote", sheet);
+    const syncNote = () => { if(!paidNote) return; const byRate = fxConv(fxAmt, fxCur, fxRate);
+      paidNote.textContent = fxPaid && byRate !== t.amount ? `已改成實際扣款，照匯率是 ${SYM()}${moneyShort(byRate || 0)}` : "可以改成帳單上的實際扣款"; };
+    const syncConv = () => { if(conv && !fxPaid) conv.value = amtIn(ledgerAmt()); syncNote(); };
+    syncNote();
     const takeAmt = () => { if(fxCur){ fxAmt = amtOf(amt.value, ac()); syncConv(); } else t.amount = amtOf(amt.value); };
     amt.addEventListener("input", () => { amt.value = amtClean(amt.value, ac()); takeAmt(); hint(); });
     rateIn && rateIn.addEventListener("input", () => { rateIn.value = amtClean(rateIn.value, { dp: 6 }); fxRate = parseFloat(rateIn.value) > 0 ? parseFloat(rateIn.value) : null; fxPaid = false; $("#e-rateref", sheet)?.remove(); syncConv(); hint(); });
     // typing the converted amount by hand (e.g. the card statement): it stops following the rate
-    conv && conv.addEventListener("input", () => { conv.value = amtClean(conv.value); fxPaid = true; t.amount = amtOf(conv.value); hint(); });
+    conv && conv.addEventListener("input", () => { conv.value = amtClean(conv.value); fxPaid = true; t.amount = amtOf(conv.value); syncNote(); hint(); });
     const curSel = $("#e-cur", sheet);
     curSel && curSel.addEventListener("change", () => { const k = curSel.value; const typed = amt.value;
       fxCur = k === ledgerCode() ? null : k; fxPaid = false; fxRate = fxCur ? fxRateFor(fxCur) : null; calcOpen = false;
@@ -4183,7 +4185,7 @@ document.addEventListener("change", e => {
     }
     openSheet(`<div class="hd"><h2>改成${esc(b.name)}？</h2><button class="btn ghost" data-x>取消</button></div>
       <p style="margin:0">現有的金額<b>不會換算</b>，只會把 ${esc(a.sym)} 換成 ${esc(b.sym)}。例如 ${esc(a.sym)}1,200 會變成 ${esc(b.sym)}1,200。</p>
-      <p class="small muted" style="margin:0">適合一開始選錯貨幣。想記不同貨幣的花費，之後會有外幣記帳。</p>
+      <p class="small muted" style="margin:0">適合一開始選錯貨幣。想記某一筆外幣，記一筆時點貨幣符號就可以。</p>
       <div class="rowbtns"><button class="btn primary" data-go>改成${esc(b.name)}</button></div>`, sheet => {
       $("[data-x]", sheet).addEventListener("click", closeSheet);
       $("[data-go]", sheet).addEventListener("click", () => { closeSheet(); go(); });

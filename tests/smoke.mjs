@@ -467,6 +467,9 @@ await test("外幣：隔天換回記帳貨幣；美元可以填小數；帳單�
   await p.fill("#e-conv", "150"); await p.click(".sheet [data-save]"); await p.waitForTimeout(200);
   t = (await stored(p)).months["2026-09"].find(x => x.fx);
   ok(t.amount === 150 && t.fx.paid === true && t.fx.amt === 450, `改成實際扣款後存成 ${JSON.stringify(t)}`);
+  await p.click(`[data-edit="${t.id}"]`); await p.waitForTimeout(200);
+  ok(/已改成實際扣款，照匯率是 NT\$ 142/.test(await text(p, ".sheet .fxconv")), `編輯時說明是「${await text(p, ".sheet .fxconv")}」`);
+  await p.click(".sheet [data-x]"); await p.waitForTimeout(200);
   return p;
 });
 
