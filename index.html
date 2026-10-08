@@ -2976,7 +2976,7 @@ function openEntry(existing, refundOf, prefill){
       ${fxCur ? `<div class="fxconv">
         <label class="frate">1 ${esc(CURS[fxCur].name)} =<input class="inp num" id="e-rate" inputmode="decimal" value="${fxRate ?? ""}" placeholder="匯率" aria-label="匯率">${esc(curC().name)}</label>
         <label class="fpaid">換算成<span class="num">${esc(SYM())}</span><input class="inp num" id="e-conv" inputmode="${IM()}" value="${amtIn(ledgerAmt())}" placeholder="0" aria-label="換算後的金額"></label>
-        <p class="small muted">${existing ? "帳單出來後，可以把換算金額改成實際扣款。" : `外幣只用到今天，明天會換回${esc(curC().name)}。帳單出來後可以把換算金額改成實際扣款。`}</p></div>` : ""}
+        <p class="small muted">${existing ? "" : `今天接下來記的每一筆會先用${esc(CURS[fxCur].name)}，明天起新紀錄恢復用${esc(curC().name)}；這筆的${esc(CURS[fxCur].name)}金額會一直保留。<br>`}帳單出來後，可以把「換算成」改成實際扣款的金額。</p></div>` : ""}
       ${t.wishId && !existing && state.wishes[t.wishId]?.price ? `<div class="hint">清單上的價格是 <b class="num">${SYM()}${moneyShort(state.wishes[t.wishId].price)}</b>，實際價格不同可以直接改金額</div>` : ""}
       ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}"><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${esc(c.name)}</button>`).join("")}</div>`}
       ${(!existing || canInst) && !isRefund && type==="expense" && !fxCur ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期／分攤</label>${inst ? "" : `<span class="small muted" style="flex-basis:100%">也能把一次付清的費用（如兩個月課程）攤到之後幾期</span>`}
