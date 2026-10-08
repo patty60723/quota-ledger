@@ -295,6 +295,20 @@ h2{font-family:var(--f-body);font-weight:700;font-size:17px;margin:0;text-wrap:b
 svg.trend{width:100%;height:auto;display:block;overflow:visible}
 svg.trend text{fill:var(--muted);font-size:17px;font-family:var(--f-body)}
 .trtake{margin:0 0 var(--space-3);font-size:13px;color:var(--muted)}
+.rmode{width:max-content;margin:0 auto var(--space-1)}
+.ymore{text-align:center;margin:var(--space-6) 0 0}
+.ymore .link{display:inline-flex;align-items:center;gap:2px}
+.yrank .r{grid-template-columns:5.5em 1fr auto;row-gap:0}
+.yrank .ym{grid-column:3;text-align:right;font-size:12px;color:var(--muted)}
+.nwleg.ystatic > div{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) 0}
+.nwleg.ystatic b{margin-left:auto}
+.nwleg.ystatic small{color:var(--muted);min-width:3em;text-align:right}
+.yhl{list-style:none;margin:0;padding:var(--space-2) var(--space-4)}
+.yhl li{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3);padding:var(--space-3) 0;border-top:1px solid var(--line)}
+.yhl li:first-child{border-top:0}
+.yhl li > span{color:var(--muted);font-size:14px;flex-shrink:0}
+.yhl b{font-weight:600;text-align:right}
+.yhl b small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
 .trtake b{color:var(--ink)}
 svg.trend .grid{stroke:var(--line);stroke-width:1}
 svg.burn path{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -2198,7 +2212,7 @@ function budgetRows(p, list){
   }).join("");
 }
 
-let pendOpen = false, upOpen = false, reportSeg = "analysis";
+let pendOpen = false, upOpen = false, reportSeg = "analysis", reportYear = false;   // 看懂: month report or year report
 const budOpen = new Set();
 // attention order: used up (nothing left to spend) before almost used up, then by share used
 const byUrgency = p => (a, b) => {
@@ -2511,7 +2525,11 @@ function fixedAutoTester(){
   const recs = Object.values(state.recurring).filter(r => r.active && r.type === "expense");
   return t => !!t.recurringId || recs.some(r => r.categoryId === t.categoryId && (norm(r.title) === norm(t.title) || r.amount === t.amount));
 }
+function reportMode(){
+  return `<div class="seg mini rmode" role="tablist" aria-label="月報或年報"><button role="tab" data-act="mmode" aria-pressed="${!reportYear}" aria-selected="${!reportYear}">月報</button><button role="tab" data-act="ymode" aria-pressed="${reportYear}" aria-selected="${reportYear}">年報</button></div>`;
+}
 function viewReport(){
+  if(reportYear) return reportMode() + viewYear(viewPeriod.y);
   const list = txIn(viewPeriod); const out = sumOut(list);
   // 支出分類 leaves fixed items (房貸, 電信…) out by default so they don't always top the list
   const isFixed = fixedTester(); const fixedOut = rankAll ? 0 : sumOut(list.filter(t => t.type === "expense" && isFixed(t)));
@@ -2539,12 +2557,7 @@ function viewReport(){
       </div>
       ${ns.must ? `<p class="nwfund">必要支出 <b class="num">${moneyShort(ns.must)}</b>，是這一期維持生活的底線；緊急預備金建議準備 6 個月，約 <b class="num">${SYM()} ${moneyShort(ns.must * 6)}</b>。</p>` : ""}
     </div>` : `<div class="empty">這一期沒有支出。</div>`;
-  const Y = viewPeriod.y; const yw = yearWindow(Y);
-  const refs = cats("expense").map(c => ({c, r: yearCatStats(c, Y)})).filter(o => o.r && o.r.spent > 0).sort((a,b)=>b.r.est-a.r.est);
-  const refHtml = refs.length ? `<div class="tblwrap" style="padding:0 14px 14px"><table><thead><tr><th>類別</th>${yw.current ? "<th>今年已花</th><th>全年預估</th>" : "<th>全年實際</th>"}<th>年度上限</th></tr></thead><tbody>
-      ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.spent)}</td>${yw.current ? `<td>${moneyShort(o.r.est)}</td>` : ""}<td${o.c.yearlyLimit && o.r.est > o.c.yearlyLimit ? ' class="bad"' : ""}>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) + (o.r.est > o.c.yearlyLimit ? `<span class="sr">，預估會超過</span>` : "") : "—"}</td></tr>`).join("")}</tbody></table></div>`
-    : `<div class="empty">${Y} 年還沒有支出紀錄。</div>`;
-  const yNote = !yw ? "" : yw.current ? `依 ${Y} 年已記錄 ${yw.n} 個月的平均推算全年${yw.n < 12 ? "，未滿 12 個月僅供參考" : ""}。` : `${Y} 年的全年實際花費。`;
+  const Y = viewPeriod.y;
   const seg = `<div class="seg rseg" role="tablist" aria-label="報表內容">
       <button role="tab" data-rseg="analysis" aria-pressed="${reportSeg==="analysis"}" aria-selected="${reportSeg==="analysis"}">收支分析</button>
       <button role="tab" data-rseg="budget" aria-pressed="${reportSeg==="budget"}" aria-selected="${reportSeg==="budget"}">預算進度</button></div>`;
@@ -2567,11 +2580,11 @@ function viewReport(){
     </div>`;
   if(reportSeg === "budget"){
     const bc = budgetCats(); const hot = bc.filter(c => needsAttention(c, viewPeriod)).length;
-    return periodNav() + insight + seg + burnSection(viewPeriod) + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><button class="link" data-set="budget">調整預算${icon("chev","sm")}</button></div>
+    return reportMode() + periodNav() + insight + seg + burnSection(viewPeriod) + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><button class="link" data-set="budget">調整預算${icon("chev","sm")}</button></div>
       <p class="budcount">${bc.length} 個類別${hot ? ` · ${hot} 個需要注意` : ""}</p>
       <div class="card budc">${budgetCompact(viewPeriod)}</div></div>`;
   }
-  return periodNav() + insight + seg + `
+  return reportMode() + periodNav() + insight + seg + `
     <div class="section"><div class="section-head"><h2>${icon("report")}支出分類</h2><div class="seg mini" role="tablist" aria-label="支出分類顯示方式">
         <button role="tab" data-rview="rank" aria-pressed="${rankView==="rank"}" aria-selected="${rankView==="rank"}">排行</button>
         <button role="tab" data-rview="pie" aria-pressed="${rankView==="pie"}" aria-selected="${rankView==="pie"}">圓餅</button></div></div>
@@ -2583,9 +2596,59 @@ function viewReport(){
     <div class="section"><div class="section-head"><h2>必要・需要・想要${infoBtn("nw", "必要・需要・想要的說明")}</h2></div>${infoPop("nw", "下方的長條是近 6 期「想要」占支出的比例，看看想要的花費是變多還是變少。<br>點必要、需要、想要，可以看這一期的每一筆並修改標記。")}<div class="card">${nwHtml}</div></div>
     <div class="section"><div class="section-head"><h2>近 6 期收支</h2><span class="label">到 ${periodLabel(viewPeriod).title}</span></div>
       <div class="card"><div class="chartbox" id="chartbox">${trendSvg()}</div>${trendTable()}</div></div>
-    <div class="section"><div class="section-head"><h2>${Y} 年度參考值</h2><span class="label">${yw ? `記錄了 ${yw.n} 個月` : ""}</span></div>
+    <p class="small muted ymore"><button class="link" data-act="ymode">看 ${Y} 年的年報${icon("chev","sm")}</button></p>`;
+}
+
+// 年報: a calendar year of budget periods (1 月期 … 12 月期), up to the current one
+function viewYear(Y){
+  const cur = curPeriod(), yw = yearWindow(Y);
+  const nav = `<div class="period"><button class="iconbtn" data-act="yprev" aria-label="上一年">${icon("chevl")}</button>
+    <div class="t"><b>${Y} 年</b><span>${yw ? `記錄了 ${yw.n} 個月${yw.current ? "，到目前" : ""}` : "沒有紀錄"}</span></div>
+    <button class="iconbtn" data-act="ynext" aria-label="下一年" ${Y >= cur.y ? "disabled" : ""}>${icon("chev")}</button></div>`;
+  const months = []; for(let m = 1; m <= 12; m++){ const p = { y: Y, m }; if(Y > cur.y || (Y === cur.y && m > cur.m)) break; const l = txIn(p); months.push({ p, l, inc: sumIncome(l), exp: sumOut(l) }); }
+  const list = months.flatMap(x => x.l);
+  if(!list.length) return nav + `<div class="card"><div class="empty">${Y} 年還沒有紀錄。</div></div>`;
+  const inc = sumIncome(list), out = sumOut(list), net = inc - out, n = yw ? yw.n : months.length;
+  const isFixed = fixedTester();
+  const rList = rankAll ? list : list.filter(t => !(t.type === "expense" && isFixed(t))); const fixedOut = rankAll ? 0 : out - sumOut(rList);
+  const byCat = {}; rList.forEach(t => { const v = outAmt(t); if(v) byCat[t.categoryId] = (byCat[t.categoryId] || 0) + v; });
+  const rows = Object.entries(byCat).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]); const rOut = rows.reduce((a, [, v]) => a + v, 0), max = rows[0]?.[1] || 1;
+  const rank = rows.length ? `<div class="rank yrank">${rows.map(([id, v]) => `<div class="r"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v / max * 100}%"></i></span><span class="v num">${moneyShort(v)}<small>${Math.round(v / rOut * 100)}%</small></span><span class="ym num">月平均 ${moneyShort(Math.round(v / n))}</span></div>`).join("")}</div>`
+    : `<div class="empty">沒有支出。</div>`;
+  const ns = nwSplit(list); const pctOf = v => ns.total ? Math.round(v / ns.total * 100) : 0;
+  const nwHtml = ns.total ? `<div class="nwcard"><div class="nwbar" role="img" aria-label="必要 ${pctOf(ns.must)}%，需要 ${pctOf(ns.need)}%，想要 ${pctOf(ns.want)}%">${["must", "need", "want", "none"].filter(k => ns[k]).map(k => `<i class="${k}" style="width:${ns[k] / ns.total * 100}%"></i>`).join("")}</div>
+      <div class="nwleg ystatic">${NW_KEYS.map(k => `<div><span class="sw ${k}"></span>${NW_LABEL[k]}<b class="num">${moneyShort(ns[k])}</b><small>${pctOf(ns[k])}%</small></div>`).join("")}${ns.none ? `<div><span class="sw none"></span>未標記<b class="num">${moneyShort(ns.none)}</b><small>${ns.noneCount} 筆</small></div>` : ""}</div></div>` : "";
+  // highlights: the heaviest month, the biggest single expense, and how many days have a record
+  const top = months.filter(x => x.exp > 0).sort((a, b) => b.exp - a.exp)[0];
+  const big = list.filter(t => t.type === "expense" && !t.virtual).sort((a, b) => b.amount - a.amount)[0];
+  const days = new Set(list.filter(t => !t.virtual).map(t => t.date)).size;
+  const hl = [top && `<li><span>花最多的月份</span><b>${top.p.m} 月 <span class="num">${SYM()}${moneyShort(top.exp)}</span></b></li>`,
+    big && `<li><span>最大的一筆</span><b>${esc(big.title || catName(big.categoryId))} <span class="num">${SYM()}${moneyShort(big.amount)}</span><small>${+big.date.slice(5, 7)}/${+big.date.slice(8)} · ${esc(catName(big.categoryId))}</small></b></li>`,
+    `<li><span>有記帳的天數</span><b><span class="num">${days}</span> 天</b></li>`].filter(Boolean).join("");
+  const rate = inc > 0 ? Math.round(net / inc * 100) : null;
+  const sum = `<div class="card card--soft insight ysum">
+      <p class="lead">${Y} 年${yw && yw.current ? "到目前" : ""}支出 <b class="num">${SYM()}${moneyShort(out)}</b></p>
+      ${inc ? `<p class="inc">收入 <span class="num">${SYM()}${moneyShort(inc)}</span></p>` : ""}
+      <p class="sub">${net >= 0 ? "收入比支出多" : "支出比收入多"} <b class="num${net < 0 ? " bad" : ""}">${SYM()}${moneyShort(Math.abs(net))}</b>${rate !== null && net > 0 ? `，儲蓄率 <b class="num">${rate}%</b>` : ""}</p>
+      <p class="sub">平均每個月支出 <span class="num">${SYM()}${moneyShort(Math.round(out / n))}</span>${n < 12 ? `（記錄了 ${n} 個月）` : ""}</p></div>`;
+  const refs = cats("expense").map(c => ({ c, r: yearCatStats(c, Y) })).filter(o => o.r && o.r.spent > 0).sort((a, b) => b.r.est - a.r.est);
+  const refHtml = refs.length ? `<div class="tblwrap" style="padding:0 14px 14px"><table><thead><tr><th>類別</th>${yw.current ? "<th>今年已花</th><th>全年預估</th>" : "<th>全年實際</th>"}<th>年度上限</th></tr></thead><tbody>
+      ${refs.map(o => `<tr><td>${esc(o.c.name)}</td><td>${moneyShort(o.r.spent)}</td>${yw.current ? `<td>${moneyShort(o.r.est)}</td>` : ""}<td${o.c.yearlyLimit && o.r.est > o.c.yearlyLimit ? ' class="bad"' : ""}>${o.c.yearlyLimit ? moneyShort(o.c.yearlyLimit) + (o.r.est > o.c.yearlyLimit ? `<span class="sr">，預估會超過</span>` : "") : "—"}</td></tr>`).join("")}</tbody></table></div>` : "";
+  const yNote = !yw ? "" : yw.current ? `依 ${Y} 年已記錄 ${yw.n} 個月的平均推算全年${yw.n < 12 ? "，未滿 12 個月僅供參考" : ""}。` : `${Y} 年的全年實際花費。`;
+  const data = months.map(({ p, inc, exp }) => ({ p, inc, exp }));
+  return nav + sum + `
+    <div class="section"><div class="section-head"><h2>今年的亮點</h2></div><div class="card"><ul class="yhl">${hl}</ul></div></div>
+    <div class="section"><div class="section-head"><h2>每月收支</h2><span class="label">${Y} 年</span></div>
+      <div class="card"><div class="chartbox" id="chartbox">${trendSvg(data, Y)}</div>${trendTable(data)}</div></div>
+    <div class="section"><div class="section-head"><h2>支出分類</h2></div>
+      <div class="card"><div class="rscope"><div class="seg mini" role="tablist" aria-label="要不要算固定支出">
+        <button role="tab" data-rscope="daily" aria-pressed="${!rankAll}" aria-selected="${!rankAll}">日常支出</button>
+        <button role="tab" data-rscope="all" aria-pressed="${rankAll}" aria-selected="${rankAll}">全部支出</button></div>
+        ${fixedOut ? `<span class="small muted">另有固定支出 ${SYM()}${moneyShort(fixedOut)} 沒列入</span>` : ""}</div>${rank}</div></div>
+    ${nwHtml ? `<div class="section"><div class="section-head"><h2>必要・需要・想要</h2></div>${nwHtml}</div>` : ""}
+    <div class="section"><div class="section-head"><h2>年度參考值</h2></div>
       ${yearlySavings(Y)}
-      <div class="card ydetail"><div class="ydh"><h3>各類別全年花費</h3>${yNote ? `<p class="ynote">${yNote}</p>` : ""}</div>${refHtml}</div></div>`;
+      ${refHtml ? `<div class="card ydetail"><div class="ydh"><h3>各類別全年花費</h3>${yNote ? `<p class="ynote">${yNote}</p>` : ""}</div>${refHtml}</div>` : ""}</div>`;
 }
 
 // 支出分類 as a donut: the five biggest categories plus 其他, with a legend that carries names, amounts and shares
@@ -2731,8 +2794,9 @@ function trendData(){
   return out;
 }
 function niceMax(v){ if(v<=0) return thr(1000); const e = Math.pow(10, Math.floor(Math.log10(v))); const f = v/e; return (f<=1?1:f<=2?2:f<=5?5:10)*e; }
-function trendSvg(){
-  const data = trendData(); const W = 520, H = 230, L = 58, R = 8, T = 12, B = 34;
+let chartData = null;   // what the 收支 chart on screen shows, for its hover
+function trendSvg(data = trendData(), year){
+  chartData = data; const W = 520, H = 230, L = 58, R = 8, T = 12, B = 34;
   const max = niceMax(Math.max(...data.map(d=>Math.max(d.inc,d.exp))));
   const y = v => T + (H-T-B) * (1 - v/max); const cw = (W-L-R)/data.length; const bw = Math.min(22, cw/2 - 6);
   const ticks = [0, max/2, max];
@@ -2744,20 +2808,19 @@ function trendSvg(){
     const cx = L + cw*i + cw/2;
     g += `<g class="col" data-i="${i}"><rect class="hit" x="${L+cw*i}" y="${T}" width="${cw}" height="${H-T-B}" rx="6"/>
       ${bar(cx-bw-1, d.inc, "var(--income)")}${bar(cx+1, d.exp, "var(--expense)")}
-      <text x="${cx}" y="${H-10}" text-anchor="middle">${d.p.m} 月</text></g>`;
+      <text x="${cx}" y="${H-10}" text-anchor="middle">${year ? d.p.m : `${d.p.m} 月`}</text></g>`;
   });
   const cur = data[data.length-1], diff = cur.inc - cur.exp, ongoing = samePeriod(cur.p, curPeriod());
-  const take = cur.inc || cur.exp ? `<p class="trtake">${ongoing ? "這期到目前，" : `${cur.p.m} 月`}${diff >= 0 ? "收入比支出多" : "支出比收入多"} <b class="num">${SYM()}${moneyShort(Math.abs(diff))}</b>。</p>` : "";
+  const take = year ? "" : cur.inc || cur.exp ? `<p class="trtake">${ongoing ? "這期到目前，" : `${cur.p.m} 月`}${diff >= 0 ? "收入比支出多" : "支出比收入多"} <b class="num">${SYM()}${moneyShort(Math.abs(diff))}</b>。</p>` : "";
   return `${take}<div class="legend"><span><i style="background:var(--income)"></i>收入</span><span><i style="background:var(--expense)"></i>支出</span></div>
-    <svg class="trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="近 6 期收入與支出長條圖">${g}</svg>`;
+    <svg class="trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="${year ? `${year} 年每月` : "近 6 期"}收入與支出長條圖">${g}</svg>`;
 }
-function trendTable(){
-  const data = trendData();
+function trendTable(data = trendData()){
   return `<details class="tbl"><summary>表格檢視</summary><div class="tblwrap"><table><thead><tr><th>期別</th><th>收入</th><th>支出</th><th>結餘</th></tr></thead><tbody>
     ${[...data].reverse().map(d => `<tr><td>${d.p.y}/${d.p.m}</td><td>${moneyShort(d.inc)}</td><td>${moneyShort(d.exp)}</td><td>${moneyShort(d.inc-d.exp)}</td></tr>`).join("")}</tbody></table></div></details>`;
 }
 function wireChart(){
-  const box = $("#chartbox"); if(!box) return; const svg = box.querySelector("svg"); const data = trendData();
+  const box = $("#chartbox"); if(!box) return; const svg = box.querySelector("svg"); const data = chartData || trendData();
   let tip = null;
   const show = (g) => {
     box.querySelectorAll(".col").forEach(x=>x.classList.toggle("hover", x===g));
@@ -4223,7 +4286,9 @@ document.addEventListener("click", e => {
     confirmRun(item, v); render(); toast(`已記下 ${item.r.title}`); return;
   }
   const a = el.dataset.act;
-  if(a==="prev"){ viewPeriod = shift(viewPeriod,-1); render(); }
+  if(a==="ymode" || a==="mmode"){ reportYear = a === "ymode"; render(); window.scrollTo(0, 0); }
+  else if(a==="yprev" || a==="ynext"){ const y = viewPeriod.y + (a === "yprev" ? -1 : 1), cur = curPeriod(); viewPeriod = y >= cur.y ? cur : { y, m: 12 }; render(); }
+  else if(a==="prev"){ viewPeriod = shift(viewPeriod,-1); render(); }
   else if(a==="next"){ viewPeriod = shift(viewPeriod,1); render(); }
   else if(a==="cat-new") openCategory(null);
   else if(a==="rec-new") openRecurring(null);
