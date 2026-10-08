@@ -132,7 +132,7 @@ await test("匯出 CSV：每筆一列，支出是負數，分期列出每一期"
   const lines = (await readFile(file, "utf8")).replace(/^\ufeff/, "").split("\r\n");
   ok(lines[0].startsWith("日期,收支,類別,名稱,金額"), "標題列不對");
   ok(lines.length === 1 + 7 + 3, `應有 10 筆，實際 ${lines.length - 1} 筆`);
-  ok(lines.includes("2026-09-12,支出,娛樂,演唱會,-2500,想要,,,"), "演唱會那一列不對");
+  ok(lines.includes("2026-09-12,支出,娛樂,演唱會,-2500,想要,,,,,"), "演唱會那一列不對");
   ok(lines.some(l => l.startsWith("2026-09-10,支出,醫療,課程,-1000,") && l.includes("分期 1/3")), "分期第 1 期不對");
   return p;
 });
@@ -412,6 +412,44 @@ await test("貨幣：新使用者在設定引導選美元，收入可以填小�
   const s = await stored(p);
   ok(s.settings.currency === "USD", "沒有存下美元");
   ok(Object.values(s.recurring).some(r => r.title === "薪資" && r.amount === 350050), "收入 3500.50 沒有存成 350050 分");
+  return p;
+});
+
+await test("外幣：日圓 1,200、匯率 0.21 記成 NT$252，明細顯示原幣，今天下一筆沿用日圓", async () => {
+  const p = await openApp();
+  await p.click("#fab"); await p.selectOption("#e-cur", "JPY"); await p.waitForTimeout(150);
+  ok(!(await p.$(".sheet .instbox")), "外幣還能開分期");
+  await p.fill("#e-rate", "0.21"); await p.fill("#e-amt", "1200");
+  ok(await p.$eval("#e-conv", e => e.value) === "252", `換算顯示「${await p.$eval("#e-conv", e => e.value)}」`);
+  await p.click('.sheet [data-cat="c-food"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(200);
+  const s = await stored(p); const t = s.months["2026-09"].find(x => x.fx);
+  ok(t && t.amount === 252 && t.fx.cur === "JPY" && t.fx.amt === 1200 && t.fx.rate === 0.21, `存成 ${JSON.stringify(t)}`);
+  ok(s.settings.fxRates.JPY === 0.21 && s.settings.fxDay.cur === "JPY", "沒有記住匯率和今天的外幣");
+  ok(/2,252 \/ 6,000/.test(await budgetRow(p, "餐飲")), `餐飲顯示「${await budgetRow(p, "餐飲")}」`);
+  await p.click('#tabs [data-tab="list"]'); await p.waitForTimeout(200);
+  ok(/¥1,200/.test(await text(p, `[data-edit="${t.id}"]`)), "明細沒有顯示 ¥1,200");
+  await p.click('#tabs [data-tab="home"]'); await p.click("#fab"); await p.waitForTimeout(150);
+  ok(/¥/.test(await text(p, ".sheet .curpick")) && await p.$eval("#e-rate", e => e.value) === "0.21", "今天下一筆沒有沿用日圓和匯率");
+  await p.selectOption("#e-cur", "TWD"); await p.fill("#e-amt", "80"); await p.click('.sheet [data-cat="c-food"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(200);
+  ok(!(await stored(p)).settings.fxDay, "換回台幣記帳後，外幣還是會沿用");
+  return p;
+});
+
+await test("外幣：隔天換回記帳貨幣；美元可以填小數；帳單出來後可以改成實際扣款", async () => {
+  const d = structuredClone(FIXTURE); d.settings.fxDay = { cur: "JPY", date: "2026-09-14" }; d.settings.fxRates = { JPY: 0.21, USD: 31.5 };
+  const p = await openApp({ data: d });
+  await p.click("#fab"); await p.waitForTimeout(150);
+  ok(/NT\$/.test(await text(p, ".sheet .curpick")) && !(await p.$("#e-rate")), "隔天還在用昨天的外幣");
+  await p.selectOption("#e-cur", "USD"); await p.waitForTimeout(150);
+  ok(await p.$eval("#e-rate", e => e.value) === "31.5", "沒有帶入記住的匯率");
+  await p.fill("#e-amt", "4.50"); await p.click('.sheet [data-cat="c-med"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(200);
+  let t = (await stored(p)).months["2026-09"].find(x => x.fx);
+  ok(t && t.fx.amt === 450 && t.amount === 142, `US$4.50 × 31.5 存成 ${JSON.stringify(t)}`);
+  await p.click('#tabs [data-tab="list"]'); await p.waitForTimeout(200); await p.click(`[data-edit="${t.id}"]`); await p.waitForTimeout(200);
+  ok(/US\$4\.50/.test(await text(p, ".sheet .amount")) || await p.$eval("#e-amt", e => e.value) === "4.5", "編輯時沒有顯示原幣金額");
+  await p.fill("#e-conv", "150"); await p.click(".sheet [data-save]"); await p.waitForTimeout(200);
+  t = (await stored(p)).months["2026-09"].find(x => x.fx);
+  ok(t.amount === 150 && t.fx.paid === true && t.fx.amt === 450, `改成實際扣款後存成 ${JSON.stringify(t)}`);
   return p;
 });
 

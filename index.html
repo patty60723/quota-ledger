@@ -277,6 +277,7 @@ h2{font-family:var(--f-body);font-weight:700;font-size:17px;margin:0;text-wrap:b
 .tx .mid span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tx .amt{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-weight:500}
 .tx .amt.inc{color:var(--pos)}
+.tx .amt .famt{display:block;font-size:12px;font-weight:500;color:var(--muted)}
 .empty{padding:var(--space-6) var(--space-4);text-align:center;color:var(--muted);font-size:14px}
 
 /* report */
@@ -345,6 +346,15 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .amount .calcbtn{align-self:center;flex-shrink:0;width:40px;height:40px;border-radius:12px;border:0;background:var(--sunk);color:var(--ink);display:grid;place-items:center}
 .amount .calcbtn[aria-expanded="true"]{background:var(--ink);color:var(--surface)}
 .calc{display:flex;flex-direction:column;gap:var(--space-2)}
+/* currency picker: the symbol is the button, a native select sits on top of it */
+.curpick{position:relative;display:inline-flex;align-items:center;gap:2px;flex-shrink:0;align-self:center;padding:var(--space-1) var(--space-2);margin-left:calc(var(--space-2) * -1);border-radius:10px;color:var(--muted)}
+.curpick .ic{width:14px;height:14px;transform:rotate(90deg)}
+.curpick.fx{background:var(--warn-soft);color:var(--warn);font-weight:700}
+.curpick select{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;padding:0;font-size:16px}
+.fxconv{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4);align-items:center;margin-top:calc(var(--space-2) * -1)}
+.fxconv label{display:flex;align-items:center;gap:var(--space-2);font-size:14px;color:var(--muted)}
+.fxconv .inp{width:96px;padding:var(--space-2);text-align:right}
+.fxconv p{flex-basis:100%;margin:0}
 .calc .expr{font-family:var(--f-num);font-size:15px;color:var(--muted);text-align:right;min-height:1.4em;word-break:break-all}
 .calc .expr b{color:var(--ink)}
 .calc .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2)}
@@ -1364,15 +1374,21 @@ const CURS = {
 };
 const curC = () => CURS[state.settings.currency] || CURS.TWD;
 const SYM = () => curC().sym;
-const unitF = () => 10 ** curC().dp;
-const IM = () => curC().dp ? "decimal" : "numeric";
-const moneyShort = n => { const c = curC(); return (Math.round(n) / 10 ** c.dp).toLocaleString("zh-TW", { minimumFractionDigits: c.dp, maximumFractionDigits: c.dp }); };
+const unitF = (c = curC()) => 10 ** c.dp;
+const IM = (c = curC()) => c.dp ? "decimal" : "numeric";
+const moneyShort = (n, c = curC()) => { return (Math.round(n) / 10 ** c.dp).toLocaleString("zh-TW", { minimumFractionDigits: c.dp, maximumFractionDigits: c.dp }); };
 const money = n => SYM() + " " + moneyShort(n);
 // typing: keep digits (and one decimal point, up to the currency's decimals); amtOf turns it into stored units, amtIn back
-const amtClean = v => { const s = String(v ?? "").replace(/[^\d.]/g, ""); const dp = curC().dp; if(!dp) return s.replace(/\./g, "");
+const amtClean = (v, c = curC()) => { const s = String(v ?? "").replace(/[^\d.]/g, ""); const dp = c.dp; if(!dp) return s.replace(/\./g, "");
   const [a, ...b] = s.split("."); return b.length ? a + "." + b.join("").slice(0, dp) : a; };
-const amtOf = v => { const x = parseFloat(amtClean(v)); if(!(x > 0)) return null; const n = Math.round(x * unitF()); return n > 0 ? n : null; };
-const amtIn = n => n == null || n === "" ? "" : String(+(n / unitF()).toFixed(curC().dp));
+const amtOf = (v, c = curC()) => { const x = parseFloat(amtClean(v, c)); if(!(x > 0)) return null; const n = Math.round(x * unitF(c)); return n > 0 ? n : null; };
+const amtIn = (n, c = curC()) => n == null || n === "" ? "" : String(+(n / unitF(c)).toFixed(c.dp));
+// foreign-currency records: t.fx = { cur, amt (in that currency's smallest unit), rate (ledger units per 1 foreign unit), paid (amount set by hand) };
+// t.amount is always the ledger amount, so every total keeps working. A foreign currency picked today stays for new records until tomorrow
+const ledgerCode = () => CURS[state.settings.currency] ? state.settings.currency : "TWD";
+const fxToday = () => { const d = state.settings.fxDay; return d && d.date === todayStr() && CURS[d.cur] && d.cur !== ledgerCode() ? d.cur : null; };
+const fxConv = (amt, cur, rate) => amt && rate > 0 ? Math.round(amt / unitF(CURS[cur]) * rate * unitF()) : null;
+const fxText = fx => fx && CURS[fx.cur] ? CURS[fx.cur].sym + moneyShort(fx.amt, CURS[fx.cur]) : "";
 // a round number about this many NT$, in the current currency's units (thresholds, rounding steps, examples)
 const niceK = v => { const x = v * curC().k, e = 10 ** Math.floor(Math.log10(x)); return Math.max(1, Math.round(x / e * 2) / 2 * e); };
 const thr = v => niceK(v) * unitF();
@@ -2116,7 +2132,7 @@ function txRows(list, withDays, keepOrder){
     const attr = t.virtual ? `data-inst="${esc(t.installmentId)}"` : `data-edit="${esc(t.id)}"`;
     html += `<button class="tx" ${attr}><span class="dot ${catTint(state.categories[t.categoryId])}">${catMark(state.categories[t.categoryId], cn)}</span>
       <span class="mid"><b>${t.type === "expense" && !t.virtual && isFixed(t) ? `<span class="fxtag">固定</span>` : ""}${esc(t.title || cn)}</b><span class="subl">${nwTag(t)}<span class="subt">${esc(sub)}</span></span></span>
-      <span class="amt${plus?" inc":""}">${plus?"+":"−"}${moneyShort(t.amount)}</span></button>`;
+      <span class="amt${plus?" inc":""}">${plus?"+":"−"}${moneyShort(t.amount)}${t.fx ? `<small class="famt">${esc(fxText(t.fx))}</small>` : ""}</span></button>`;
   });
   return html;
 }
@@ -2936,6 +2952,12 @@ function openEntry(existing, refundOf, prefill){
     : { id: uid(), date: todayStr(), type: "expense", categoryId: null, amount: null, title: "", note: "" };
   // an existing expense can be turned into an installment, except ones tied to a fixed item or paid by a jar
   const canInst = !!existing && existing.type === "expense" && !existing.recurringId && !existing.jarId;
+  const fxOk = !isRefund && !t.jarId && !t.recurringId;   // foreign currency only for plain records
+  let fxCur = existing?.fx?.cur && CURS[existing.fx.cur] ? existing.fx.cur : !existing && fxOk && !(prefill && (prefill.favoriteId || prefill.wishId)) ? fxToday() : null;
+  let fxAmt = existing?.fx?.amt ?? null, fxRate = existing?.fx?.rate ?? (fxCur ? state.settings.fxRates?.[fxCur] ?? null : null), fxPaid = !!existing?.fx?.paid;
+  if(fxCur && !existing) t.amount = null;
+  const ac = () => fxCur ? CURS[fxCur] : curC();   // the currency typed into the amount field
+  const ledgerAmt = () => fxCur ? (fxPaid ? t.amount : fxConv(fxAmt, fxCur, fxRate)) : t.amount;
   let type = t.type, catId = t.categoryId, confirmDel = false, delMode = false, inst = false, n = 3, nwPick = t.nw || null, fixedPick = typeof t.fixed === "boolean" ? t.fixed : null, calcOpen = false, calcExpr = "", instMode = "total", instAt = 1;
   const draw = sheet => {
     const list = usageOrder(type === "refund" ? "expense" : type);
@@ -2948,11 +2970,16 @@ function openEntry(existing, refundOf, prefill){
       ${favs.length ? `<div class="favbar" role="group" aria-label="常用">${favs.map(f => `<button class="chip fav" data-favq="${esc(f.id)}"><span class="dot sm ${catTint(state.categories[f.categoryId])}">${catMark(state.categories[f.categoryId], f.name)}</span>${esc(f.name)}${f.amount ? ` <span class="num">${moneyShort(f.amount)}</span>` : ""}</button>`).join("")}</div>` : ""}
       ${isRefund ? `<div class="hint">退款會算回「${esc(catName(catId))}」，那一期的額度會還回來。</div>`
         : `<div class="seg" role="group" aria-label="收支"><button data-type="expense" aria-pressed="${type==="expense"}">支出</button><button data-type="income" aria-pressed="${type==="income"}">收入</button></div>`}
-      <label class="amount"><span>${inst ? (instMode === "per" ? "每期" : "總額") : SYM()}</span><input id="e-amt" inputmode="${calcOpen ? "none" : IM()}" pattern="[0-9]*" placeholder="0" value="${amtIn(t.amount)}" aria-label="金額" ${calcOpen ? "readonly" : ""}><button type="button" class="calcbtn" data-calc aria-label="計算機" aria-expanded="${calcOpen}">${icon("calc")}</button></label>
-      ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+", ...(curC().dp ? ["."] : [])].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加",".":"小數點"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq${curC().dp ? " w3" : ""}" data-k="=">＝ 填入金額</button></div></div>` : ""}
+      <label class="amount">${inst ? `<span>${instMode === "per" ? "每期" : "總額"}</span>` : !fxOk ? `<span>${SYM()}</span>`
+        : `<span class="curpick${fxCur ? " fx" : ""}">${esc(ac().sym)}${icon("chev")}<select id="e-cur" aria-label="貨幣">${Object.entries(CURS).map(([k, c]) => `<option value="${k}" ${k === (fxCur || ledgerCode()) ? "selected" : ""}>${esc(c.sym)} ${esc(c.name)}${k === ledgerCode() ? "（記帳貨幣）" : ""}</option>`).join("")}</select></span>`}<input id="e-amt" inputmode="${calcOpen ? "none" : IM(ac())}" pattern="[0-9]*" placeholder="0" value="${fxCur ? amtIn(fxAmt, ac()) : amtIn(t.amount)}" aria-label="金額" ${calcOpen ? "readonly" : ""}><button type="button" class="calcbtn" data-calc aria-label="計算機" aria-expanded="${calcOpen}">${icon("calc")}</button></label>
+      ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+", ...(ac().dp ? ["."] : [])].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加",".":"小數點"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq${ac().dp ? " w3" : ""}" data-k="=">＝ 填入金額</button></div></div>` : ""}
+      ${fxCur ? `<div class="fxconv">
+        <label class="frate">1 ${esc(CURS[fxCur].name)} =<input class="inp num" id="e-rate" inputmode="decimal" value="${fxRate ?? ""}" placeholder="匯率" aria-label="匯率">${esc(curC().name)}</label>
+        <label class="fpaid">換算成<span class="num">${esc(SYM())}</span><input class="inp num" id="e-conv" inputmode="${IM()}" value="${amtIn(ledgerAmt())}" placeholder="0" aria-label="換算後的金額"></label>
+        <p class="small muted">${existing ? "帳單出來後，可以把換算金額改成實際扣款。" : `外幣只用到今天，明天會換回${esc(curC().name)}。帳單出來後可以把換算金額改成實際扣款。`}</p></div>` : ""}
       ${t.wishId && !existing && state.wishes[t.wishId]?.price ? `<div class="hint">清單上的價格是 <b class="num">${SYM()}${moneyShort(state.wishes[t.wishId].price)}</b>，實際價格不同可以直接改金額</div>` : ""}
       ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}"><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${esc(c.name)}</button>`).join("")}</div>`}
-      ${(!existing || canInst) && !isRefund && type==="expense" ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期／分攤</label>${inst ? "" : `<span class="small muted" style="flex-basis:100%">也能把一次付清的費用（如兩個月課程）攤到之後幾期</span>`}
+      ${(!existing || canInst) && !isRefund && type==="expense" && !fxCur ? `<div class="instbox"><label class="toggle"><input type="checkbox" id="e-inst" ${inst?"checked":""}>分期／分攤</label>${inst ? "" : `<span class="small muted" style="flex-basis:100%">也能把一次付清的費用（如兩個月課程）攤到之後幾期</span>`}
         ${inst ? `<div class="seg mini" role="radiogroup" aria-label="怎麼輸入分期">${[["total","輸入總額"],["per","輸入每期"]].map(([k,l]) => `<button type="button" role="radio" data-imode="${k}" aria-pressed="${instMode===k}" aria-checked="${instMode===k}">${l}</button>`).join("")}</div>
         <label class="field" style="flex-direction:row;align-items:center;gap:8px">${instMode === "per" ? "總期數" : "期數"}<input class="inp num" id="e-n" inputmode="numeric" value="${n}" style="width:70px;text-align:right"></label>
         ${instMode === "per" ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">這期是第<input class="inp num" id="e-at" inputmode="numeric" value="${instAt}" style="width:60px;text-align:right">期</label>` : ""}` : ""}</div>` : ""}
@@ -2973,7 +3000,7 @@ function openEntry(existing, refundOf, prefill){
       <div class="rowbtns">${existing ? `<button class="btn danger" data-del>${refundable ? "刪除／退款" : confirmDel ? "確定刪除" : "刪除"}</button>`:""}${!existing && canSaveFav ? `<button class="btn" data-savefav>存成常用</button>` : ""}<button class="btn primary" data-save>儲存</button></div>`}`;
     const amt = $("#e-amt", sheet);
     const hint = () => {
-      const v = amtOf(amt.value) || 0; const c = state.categories[catId]; const box = $("#e-hint", sheet);
+      const v = (inst ? amtOf(amt.value) : ledgerAmt()) || 0; const c = state.categories[catId]; const box = $("#e-hint", sheet);
       if(!c || c.type!=="expense"){ box.innerHTML = ""; return; }
       const date = $("#e-date", sheet).value || todayStr(); const p = periodOf(date); const L = periodLabel(p);
       const lines = [];
@@ -2999,15 +3026,26 @@ function openEntry(existing, refundOf, prefill){
       }
       box.innerHTML = lines.map(([cls, txt]) => `<div class="hint ${cls}">${txt}</div>`).join("");
     };
-    amt.addEventListener("input", () => { amt.value = amtClean(amt.value); t.amount = amtOf(amt.value); hint(); });
+    const conv = $("#e-conv", sheet), rateIn = $("#e-rate", sheet);
+    const syncConv = () => { if(conv && !fxPaid) conv.value = amtIn(ledgerAmt()); };
+    const takeAmt = () => { if(fxCur){ fxAmt = amtOf(amt.value, ac()); syncConv(); } else t.amount = amtOf(amt.value); };
+    amt.addEventListener("input", () => { amt.value = amtClean(amt.value, ac()); takeAmt(); hint(); });
+    rateIn && rateIn.addEventListener("input", () => { rateIn.value = amtClean(rateIn.value, { dp: 6 }); fxRate = parseFloat(rateIn.value) > 0 ? parseFloat(rateIn.value) : null; fxPaid = false; syncConv(); hint(); });
+    // typing the converted amount by hand (e.g. the card statement): it stops following the rate
+    conv && conv.addEventListener("input", () => { conv.value = amtClean(conv.value); fxPaid = true; t.amount = amtOf(conv.value); hint(); });
+    const curSel = $("#e-cur", sheet);
+    curSel && curSel.addEventListener("change", () => { const k = curSel.value; const typed = amt.value;
+      fxCur = k === ledgerCode() ? null : k; fxPaid = false; fxRate = fxCur ? state.settings.fxRates?.[fxCur] ?? null : null; calcOpen = false;
+      if(fxCur) fxAmt = amtOf(typed, ac()); else t.amount = amtOf(typed);
+      draw(sheet); if(fxCur && !fxRate) $("#e-rate", sheet)?.focus(); });
     // calculator: builds an expression from the keys, keeps the amount field showing the result (rounded, never negative)
     const showCalc = () => { const r = calcEval(calcExpr); const box = $("#e-expr", sheet); if(!box) return;
-      box.innerHTML = calcExpr ? `${esc(calcExpr.replace(/[+−×÷]/g, " $& "))}${r !== null && /[+−×÷]/.test(calcExpr) ? (r < 0 ? `（結果小於 0，不能當金額）` : ` = <b>${moneyShort(Math.round(r * unitF()))}</b>`) : ""}` : "輸入算式，例如 350 + 120 − 50";
-      if(r !== null){ const v = Math.max(0, Math.round(r * unitF())); amt.value = v ? amtIn(v) : ""; t.amount = v || null; hint(); } };
+      box.innerHTML = calcExpr ? `${esc(calcExpr.replace(/[+−×÷]/g, " $& "))}${r !== null && /[+−×÷]/.test(calcExpr) ? (r < 0 ? `（結果小於 0，不能當金額）` : ` = <b>${moneyShort(Math.round(r * unitF(ac())), ac())}</b>`) : ""}` : "輸入算式，例如 350 + 120 − 50";
+      if(r !== null){ const v = Math.max(0, Math.round(r * unitF(ac()))); amt.value = v ? amtIn(v, ac()) : ""; takeAmt(); hint(); } };
     $("[data-calc]", sheet).addEventListener("click", () => { calcOpen = !calcOpen; if(calcOpen) calcExpr = amt.value || ""; draw(sheet); });
     sheet.querySelectorAll("[data-k]").forEach(b => b.addEventListener("click", () => { const k = b.dataset.k;
       if(k === "C") calcExpr = ""; else if(k === "⌫") calcExpr = calcExpr.slice(0, -1);
-      else if(k === "="){ const r = calcEval(calcExpr); calcExpr = r !== null ? amtIn(Math.max(0, Math.round(r * unitF()))) : calcExpr; calcOpen = false; showCalc(); draw(sheet); return; }
+      else if(k === "="){ const r = calcEval(calcExpr); calcExpr = r !== null ? amtIn(Math.max(0, Math.round(r * unitF(ac()))), ac()) : calcExpr; calcOpen = false; showCalc(); draw(sheet); return; }
       else if("+−×÷".includes(k)){ if(!calcExpr) return; calcExpr = /[+−×÷]$/.test(calcExpr) ? calcExpr.slice(0, -1) + k : calcExpr + k; }
       else if(k === "."){ if(/(^|[+−×÷])\d*\.\d*$/.test(calcExpr)) return; calcExpr += /(^|[+−×÷])$/.test(calcExpr) ? "0." : "."; }
       else calcExpr += k;
@@ -3028,7 +3066,7 @@ function openEntry(existing, refundOf, prefill){
     sheet.querySelectorAll(".chips .chip[data-cat]").forEach(b => b.addEventListener("click", drawNw));
     // 固定支出: follows the automatic guess until switched by hand; the hand choice is what gets saved
     const fxBox = $("#e-fixed", sheet), fxNote = $("#e-fixed-note", sheet);
-    const fxAuto = () => fixedAutoTester()({ type, categoryId: catId, title: $("#e-title", sheet)?.value || t.title, amount: amtOf(amt.value), recurringId: t.recurringId });
+    const fxAuto = () => fixedAutoTester()({ type, categoryId: catId, title: $("#e-title", sheet)?.value || t.title, amount: ledgerAmt(), recurringId: t.recurringId });
     const syncFixed = () => { if(!fxBox) return; const a = fxAuto(); fxBox.checked = fixedPick ?? a;
       fxNote.textContent = fixedPick === null ? (a ? "自動判斷：跟固定收支相符" : "") : "手動設定"; };
     if(fxBox){ fxBox.addEventListener("change", () => { fixedPick = fxBox.checked; syncFixed(); });
@@ -3051,15 +3089,17 @@ function openEntry(existing, refundOf, prefill){
     const sf = $("[data-savefav]", sheet);
     sf && sf.addEventListener("click", () => {
       if(!catId){ toast("先選一個類別"); return; }
-      const draft = { type, categoryId: catId, amount: amtOf(amt.value), title: $("#e-title", sheet).value.trim(), nw: type === "expense" ? nwPick : null };
+      const draft = { type, categoryId: catId, amount: ledgerAmt(), title: $("#e-title", sheet).value.trim(), nw: type === "expense" ? nwPick : null };
       const dup = Object.values(state.favorites).find(x => favKey(x)===favKey(draft));
       if(dup){ toast(`已經有相同的常用「${dup.name}」`); return; }
-      const f = saveFavFrom({ type, categoryId: catId, amount: amtOf(amt.value), title: $("#e-title", sheet).value, note: $("#e-note", sheet).value.trim() });
+      const f = saveFavFrom({ type, categoryId: catId, amount: ledgerAmt(), title: $("#e-title", sheet).value, note: $("#e-note", sheet).value.trim() });
       toast(`已存成常用「${f.name}」${f.amount ? "" : "（金額每次輸入）"}`);
     });
     const saveBtn = $("[data-save]", sheet);
     saveBtn && saveBtn.addEventListener("click", () => {
-      const v = amtOf(amt.value); const date = $("#e-date", sheet).value;
+      const v = inst ? amtOf(amt.value) : ledgerAmt(); const date = $("#e-date", sheet).value;
+      if(fxCur && !fxAmt){ toast("請輸入金額"); amt.focus(); return; }
+      if(fxCur && !v){ toast("請填匯率"); $("#e-rate", sheet)?.focus(); return; }
       if(!v){ toast("請輸入金額"); amt.focus(); return; }
       if(!catId){ toast("請選一個類別"); return; }
       if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ toast("請選日期"); return; }
@@ -3090,6 +3130,11 @@ function openEntry(existing, refundOf, prefill){
         const mine = Object.values(state.adjustments).filter(x => x.txId === t.id && x.kind === "jar" && x.use).reduce((s2, x) => s2 + x.amount, 0);
         if(v > jarBalance(j) + mine){ toast(`「${j.name}」只有 ${moneyShort(jarBalance(j) + mine)}，金額不能超過`); return; } }
       if(type === "expense" && nwPick) rec.nw = nwPick;
+      if(fxCur){ rec.fx = { cur: fxCur, amt: fxAmt, rate: fxRate }; if(fxPaid) rec.fx.paid = true; }
+      // remember the rate, and keep a foreign currency picked for today's next records (picking the ledger currency ends it)
+      if(fxOk && !existing){ const st = state.settings;
+        if(fxCur){ if(fxRate) st.fxRates = { ...(st.fxRates || {}), [fxCur]: fxRate }; st.fxDay = { cur: fxCur, date: todayStr() }; put.settings(); }
+        else if(st.fxDay){ delete st.fxDay; put.settings(); } }
       if(existing) removeTx(existing, false);
       addTx(rec); if(rec.jarId) syncJarUse(rec);
       if(!existing && t.favoriteId) bumpFav(t.favoriteId, 1);
@@ -3879,9 +3924,9 @@ function ledgerCsv(){
     const kind = t.type === "income" ? "收入" : t.type === "refund" ? "退款" : "支出";
     const src = t.virtual ? `分期 ${t.k+1}/${state.installments[t.installmentId]?.n || ""}` : t.jarId ? `存錢罐「${state.jars[t.jarId]?.name || ""}」` : t.recurringId ? "固定收支" : "";
     const nw = t.type === "income" ? "" : (NW_LABEL[nwOf(t)] || "");
-    return [t.date, kind, catName(t.categoryId), String(t.title || "").replace(/（分期 \d+\/\d+）$/, ""), amtIn(t.type === "expense" ? -t.amount : t.amount), nw, t.type === "expense" && isFixed(t) ? "是" : "", src, t.note || ""].map(v => q(String(v))).join(",");
+    return [t.date, kind, catName(t.categoryId), String(t.title || "").replace(/（分期 \d+\/\d+）$/, ""), amtIn(t.type === "expense" ? -t.amount : t.amount), nw, t.type === "expense" && isFixed(t) ? "是" : "", src, t.note || "", t.fx && CURS[t.fx.cur] ? `${t.fx.cur} ${amtIn(t.fx.amt, CURS[t.fx.cur])}` : "", t.fx?.rate || ""].map(v => q(String(v))).join(",");
   });
-  return "\ufeff" + ["日期,收支,類別,名稱,金額,必要需要想要,固定,來源,備註", ...rows].join("\r\n");
+  return "\ufeff" + ["日期,收支,類別,名稱,金額,必要需要想要,固定,來源,備註,原幣金額,匯率", ...rows].join("\r\n");
 }
 async function exportCsv(){
   const name = `慢慢花手帳-明細-${todayStr()}.csv`, data = ledgerCsv();
