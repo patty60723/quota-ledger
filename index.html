@@ -297,6 +297,17 @@ svg.trend text{fill:var(--muted);font-size:17px;font-family:var(--f-body)}
 .trtake{margin:0 0 var(--space-3);font-size:13px;color:var(--muted)}
 .trtake b{color:var(--ink)}
 svg.trend .grid{stroke:var(--line);stroke-width:1}
+svg.burn path{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+svg.burn .bact{stroke:var(--expense)}
+svg.burn .bpace{stroke:var(--faint)}
+svg.burn .bproj{stroke:var(--expense);stroke-dasharray:6 6;opacity:.7}
+svg.burn .bdot{fill:var(--expense);stroke:var(--surface);stroke-width:2}
+svg.burn .bx{stroke:var(--muted);stroke-width:1}
+.tip.below{transform:translate(-50%,0)}
+svg.burn .bhit{fill:transparent;cursor:crosshair;touch-action:pan-y}
+.legend .lk{width:14px;height:0;border-radius:0;border-top:2px solid var(--expense);background:none}
+.legend .lk.pace{border-top-color:var(--faint)}
+.legend .lk.proj{border-top-style:dashed;opacity:.7}
 svg.trend .hit{fill:transparent}
 svg.trend .col.hover .hit{fill:var(--sunk)}
 .tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);font-size:12px;padding:var(--space-2) var(--space-3);border-radius:8px;line-height:1.5;white-space:nowrap;box-shadow:var(--shadow);transform:translate(-50%,-100%);z-index:3}
@@ -2105,7 +2116,7 @@ function render(){
   if(hd && hd.tagName === "HEADER" && app._head === head){ while(hd.nextSibling) hd.nextSibling.remove(); hd.insertAdjacentHTML("afterend", body); }
   else app.innerHTML = head + body;
   app._head = head;
-  if(tab==="report") wireChart();
+  if(tab==="report"){ wireChart(); wireBurn(); }
 }
 let lastViewKey = null;
 
@@ -2556,7 +2567,7 @@ function viewReport(){
     </div>`;
   if(reportSeg === "budget"){
     const bc = budgetCats(); const hot = bc.filter(c => needsAttention(c, viewPeriod)).length;
-    return periodNav() + insight + seg + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><button class="link" data-set="budget">調整預算${icon("chev","sm")}</button></div>
+    return periodNav() + insight + seg + burnSection(viewPeriod) + `<div class="section" id="budget-all"><div class="section-head"><h2>預算進度</h2><button class="link" data-set="budget">調整預算${icon("chev","sm")}</button></div>
       <p class="budcount">${bc.length} 個類別${hot ? ` · ${hot} 個需要注意` : ""}</p>
       <div class="card budc">${budgetCompact(viewPeriod)}</div></div>`;
   }
@@ -2759,6 +2770,95 @@ function wireChart(){
   const hide = () => { box.querySelectorAll(".col").forEach(x=>x.classList.remove("hover")); if(tip){ tip.remove(); tip = null; } };
   svg.querySelectorAll(".col").forEach(g => { g.addEventListener("pointerenter", ()=>show(g)); g.addEventListener("click", ()=>show(g)); });
   svg.addEventListener("pointerleave", hide);
+}
+
+// 花費進度: running total of spending in budgeted categories against an even pace to the period's budget.
+// Installments, borrowing and the like already count from day 1 (base); fixed items count on their day in both lines,
+// so rent on the 1st doesn't read as overspending. Today's point is the same 已用 as the home screen.
+function burnData(p){
+  const [pa, pb] = periodRange(p), today = todayStr(), isCur = samePeriod(p, curPeriod());
+  const limited = cats("expense").filter(c => c.monthlyLimit); const ids = new Set(limited.map(c => c.id));
+  const bs = limited.map(c => budgetOf(c, p)); const cap = bs.reduce((s2, b) => s2 + b.cap, 0);
+  if(!cap || pa > today || (state.settings.startedOn && pb < state.settings.startedOn)) return null;
+  const plan = isCur ? todayPlan(p) : null;
+  const total = plan ? plan.used + plan.unbOver : bs.reduce((s2, b) => s2 + b.used, 0);
+  const days = []; for(let d = parseYmd(pa); ymd(d) <= pb; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) days.push(ymd(d));
+  const isFixed = fixedTester(); const out = {}, flex = {};
+  txIn(p).forEach(t => { if(t.virtual || !ids.has(t.categoryId)) return; const v = outAmt(t); out[t.date] = (out[t.date] || 0) + v; if(!(t.type === "expense" && isFixed(t))) flex[t.date] = (flex[t.date] || 0) + v; });
+  // fixed items in budgeted categories, on the day they fall (paid or not), for the pace line
+  const fixedAt = {}; Object.values(state.recurring).forEach(r => {
+    if(!r.active || r.type !== "expense" || !ids.has(r.categoryId)) return;
+    for(let d = parseYmd(pa); ymd(d) <= pb; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)){
+      const y = d.getFullYear(), m = d.getMonth() + 1, ym = `${y}-${pad(m)}`, at = ymd(new Date(y, m - 1, Math.min(r.day || 1, dim(y, m))));
+      if(at < pa || at > pb || (r.startMonth && ym < r.startMonth) || state.runs[`${r.id}_${ym}`]?.status === "skipped") continue;
+      fixedAt[at] = (fixedAt[at] || 0) + r.amount; } });
+  const ti = Math.min(days.length - 1, days.findIndex(d => d >= today) < 0 ? days.length - 1 : days.findIndex(d => d >= today));
+  const upTo = isCur ? ti : days.length - 1;
+  const spent = days.slice(0, upTo + 1).reduce((s2, d) => s2 + (out[d] || 0), 0);
+  const base = Math.max(0, total - spent), fixedTotal = Object.values(fixedAt).reduce((a, b) => a + b, 0), N = days.length;
+  const even = Math.max(0, cap - base - fixedTotal);
+  let a = base, f = 0, fl = 0; const pts = days.map((d, i) => { f += fixedAt[d] || 0; const pace = Math.round(base + f + even * (i + 1) / N);
+    if(i > upTo) return { d, pace }; a += out[d] || 0; fl += flex[d] || 0; return { d, pace, day: out[d] || 0, cum: a }; });
+  const now = pts[upTo];
+  // projection: the everyday pace so far for the days left, plus fixed items still to come
+  const fixedLater = days.slice(upTo + 1).reduce((s2, d) => s2 + (fixedAt[d] || 0), 0);
+  const proj = isCur && upTo < N - 1 ? Math.round(now.cum + fl / (upTo + 1) * (N - 1 - upTo) + fixedLater) : null;
+  return { p, cap, base, pts, upTo, isCur, proj, now };
+}
+function burnSvg(bd){
+  const W = 440, H = 280, L = 58, R = 12, T = 14, B = 30, N = bd.pts.length;   // taller than the 6-period chart: a line needs height
+  // the axis spans just the data: fixed items and installments often start both lines high, and the gap between
+  // the lines is what matters. Round ends, so the three ticks read cleanly
+  const top = Math.max(bd.cap, bd.proj || 0, ...bd.pts.map(x => x.cum || 0)), bottom = Math.min(bd.pts[0].pace, bd.pts[0].cum ?? bd.pts[0].pace);
+  const e = 10 ** Math.floor(Math.log10(Math.max(1, top - bottom) / 2));
+  let lo = Math.floor(bottom / e / 2) * e * 2; if(lo < top * 0.3) lo = 0;
+  const span = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 30, 40, 50, 60, 80, 100].map(k => k * e).find(v => lo + v >= top) || top - lo, max = lo + span;
+  const x = i => L + (W - L - R) * (N > 1 ? i / (N - 1) : 0), y = v => T + (H - T - B) * (1 - (v - lo) / span);
+  const fmt = v => v >= 10000 * unitF() ? (v / unitF() / 10000).toLocaleString("zh-TW", { maximumFractionDigits: 1 }) + "萬" : moneyShort(v);
+  const md = d => `${+d.slice(5, 7)}/${+d.slice(8)}`;
+  const grid = [lo, lo + span / 2, max].map(t => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${fmt(t)}</text>`).join("");
+  const tickAt = [0, 7, 14, 21, N - 1].filter((v, i, l) => v < N && (i === l.length - 1 || N - 1 - v >= 4));
+  const xt = tickAt.map(i => `<text x="${x(i)}" y="${H - 8}" text-anchor="${i === 0 ? "start" : i === N - 1 ? "end" : "middle"}">${md(bd.pts[i].d)}</text>`).join("");
+  const pace = bd.pts.map((q, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(q.pace).toFixed(1)}`).join("");
+  const done = bd.pts.slice(0, bd.upTo + 1);
+  const act = done.map((q, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(q.cum).toFixed(1)}`).join("");
+  const proj = bd.proj !== null ? `<path class="bproj" d="M${x(bd.upTo).toFixed(1)},${y(bd.now.cum).toFixed(1)}L${x(N - 1).toFixed(1)},${y(bd.proj).toFixed(1)}"/>` : "";
+  const end = `<circle class="bdot" cx="${x(bd.upTo).toFixed(1)}" cy="${y(bd.now.cum).toFixed(1)}" r="5"/>`;
+  return `<svg class="trend burn" viewBox="0 0 ${W} ${H}" data-lo="${lo}" data-max="${max}" role="img" aria-label="花費進度：到 ${md(bd.now.d)} 用了 ${money(bd.now.cum)}，預算 ${money(bd.cap)}">${grid}${xt}
+    <path class="bpace" d="${pace}"/>${proj}<path class="bact" d="${act}"/>${end}
+    <line class="bx" x1="0" x2="0" y1="${T}" y2="${H - B}" style="display:none"/><rect class="bhit" x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}"/></svg>`;
+}
+function burnSection(p){
+  const bd = burnData(p); if(!bd) return "";
+  const diff = bd.now.cum - bd.now.pace, left = bd.cap - (bd.isCur ? (bd.proj ?? bd.now.cum) : bd.now.cum);
+  const take = bd.isCur
+    ? `到今天用了 <b class="num">${SYM()}${moneyShort(bd.now.cum)}</b>，${Math.abs(diff) < thr(100) ? "跟平均進度差不多" : diff > 0 ? `比平均進度多 <b class="num">${SYM()}${moneyShort(diff)}</b>` : `比平均進度少 <b class="num">${SYM()}${moneyShort(-diff)}</b>`}。`
+      + (bd.proj !== null ? `照目前的速度，期末${left >= 0 ? `還會剩 <b class="num">${SYM()}${moneyShort(left)}</b>` : `會超出 <b class="num bad">${SYM()}${moneyShort(-left)}</b>`}。` : "")
+    : `這期用了 <b class="num">${SYM()}${moneyShort(bd.now.cum)}</b>，${left >= 0 ? `剩下 <b class="num">${SYM()}${moneyShort(left)}</b>` : `超出 <b class="num bad">${SYM()}${moneyShort(-left)}</b>`}。`;
+  const rows = bd.pts.slice(0, bd.upTo + 1).map(q => `<tr><td>${+q.d.slice(5, 7)}/${+q.d.slice(8)}</td><td>${moneyShort(q.day)}</td><td>${moneyShort(q.cum)}</td><td>${moneyShort(q.pace)}</td></tr>`).reverse().join("");
+  return `<div class="section"><div class="section-head"><h2>花費進度</h2><span class="label">預算 ${SYM()}${moneyShort(bd.cap)}</span></div>
+    <div class="card"><div class="chartbox" id="burnbox"><p class="trtake">${take}</p>
+      <div class="legend"><span><i class="lk act"></i>實際累計</span><span><i class="lk pace"></i>平均進度</span>${bd.proj !== null ? `<span><i class="lk proj"></i>預估</span>` : ""}</div>
+      ${burnSvg(bd)}</div>
+      <details class="tbl"><summary>表格檢視</summary><div class="tblwrap"><table><thead><tr><th>日期</th><th>當天</th><th>累計</th><th>平均進度</th></tr></thead><tbody>${rows}</tbody></table></div></details></div></div>`;
+}
+// crosshair: snaps to the nearest day and lists both lines
+function wireBurn(){
+  const box = $("#burnbox"); if(!box) return; const svg = box.querySelector("svg"); const bd = burnData(viewPeriod); if(!svg || !bd) return;
+  const hit = svg.querySelector(".bhit"), line = svg.querySelector(".bx"); let tip = null; const N = bd.pts.length;
+  const show = e => { const r = hit.getBoundingClientRect(); const i = Math.max(0, Math.min(N - 1, Math.round((e.clientX - r.left) / r.width * (N - 1)))); const q = bd.pts[i];
+    const vb = svg.viewBox.baseVal, sx = r.width / (+hit.getAttribute("width")), X = +hit.getAttribute("x") + (N > 1 ? i / (N - 1) : 0) * +hit.getAttribute("width");
+    line.setAttribute("x1", X); line.setAttribute("x2", X); line.style.display = "";
+    if(!tip){ tip = document.createElement("div"); tip.className = "tip below"; box.appendChild(tip); }
+    const d = parseYmd(q.d);
+    tip.innerHTML = `${d.getMonth() + 1}/${d.getDate()}（${WEEK[d.getDay()]}）${q.cum !== undefined ? `<span class="num">累計 ${moneyShort(q.cum)}${q.day ? `（當天 ${moneyShort(q.day)}）` : ""}</span>` : ""}<span class="num">平均進度 ${moneyShort(q.pace)}</span>`;
+    const br = box.getBoundingClientRect(), px = r.left - br.left + (X - +hit.getAttribute("x")) * sx;
+    // the readout sits in the half of the plot the lines aren't in
+    const lineY = q.cum ?? q.pace, hi = (lineY - +svg.dataset.lo) / (+svg.dataset.max - +svg.dataset.lo) > 0.5;
+    tip.style.left = Math.max(80, Math.min(br.width - 80, px)) + "px";
+    tip.style.top = (hi ? r.bottom - br.top - tip.offsetHeight - 4 : r.top - br.top + 2) + "px"; };
+  const hide = () => { line.style.display = "none"; if(tip){ tip.remove(); tip = null; } };
+  hit.addEventListener("pointermove", show); hit.addEventListener("pointerdown", show); hit.addEventListener("pointerleave", hide);
 }
 
 // the list shows one headline limit; the category sheet shows them all

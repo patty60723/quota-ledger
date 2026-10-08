@@ -473,6 +473,23 @@ await test("外幣：隔天換回記帳貨幣；美元可以填小數；帳單�
   return p;
 });
 
+await test("花費進度：今天的累計跟首頁的本期預算已用一致（含分期），開始記帳前的期別不顯示", async () => {
+  const d = structuredClone(FIXTURE);   // an installment counts from day 1, so the chart's start isn't just the records
+  d.installments = { i1: { id: "i1", title: "課程", categoryId: "c-food", total: 3000, n: 3, per: 1000, first: 1000, date: "2026-08-20", startPeriod: "2026-08", status: "active", createdAt: 1 } };
+  const p = await openApp({ data: d });
+  const left = +(await p.$eval(".hstats b", e => e.innerText)).replace(/\D/g, "");
+  await p.click('#tabs [data-tab="report"]'); await p.click('[data-rseg="budget"]'); await p.waitForTimeout(300);
+  const cap = +(await p.$eval("#burnbox", e => e.closest(".section").querySelector(".label").innerText)).replace(/\D/g, "");
+  const take = await text(p, "#burnbox .trtake");
+  ok(take.includes(`NT$${(cap - left).toLocaleString("en")}`), `花費進度說「${take}」，首頁是預算 ${cap} − 還剩 ${left}`);
+  const r = await p.$eval("#burnbox .bhit", e => { const b = e.getBoundingClientRect(); return [b.left + b.width * 0.3, b.top + b.height / 2]; });
+  await p.mouse.move(r[0], r[1]); await p.waitForTimeout(150);
+  ok(/累計/.test(await text(p, "#burnbox .tip")), "滑過圖表沒有顯示數字");
+  await p.click(".period button:first-child"); await p.waitForTimeout(300);
+  ok(!(await p.$("#burnbox")), "開始記帳前的期別也顯示了花費進度");
+  return p;
+});
+
 await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {
   const p = await openApp({ width: 320, theme: "dark" });
   for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }
