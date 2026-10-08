@@ -352,9 +352,10 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .curpick.fx{background:var(--warn-soft);color:var(--warn);font-weight:700}
 .curpick select{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;padding:0;font-size:16px}
 .fxconv{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-4);align-items:center;margin-top:calc(var(--space-2) * -1)}
-.fxconv label{display:flex;align-items:center;gap:var(--space-2);font-size:14px;color:var(--muted)}
+.fxconv label{display:flex;align-items:center;gap:var(--space-2);font-size:14px;color:var(--muted);white-space:nowrap}
 .fxconv .inp{width:96px;padding:var(--space-2);text-align:right}
 .fxconv p{flex-basis:100%;margin:0}
+.fxconv .fref{font-size:12px;color:var(--faint)}
 .calc .expr{font-family:var(--f-num);font-size:15px;color:var(--muted);text-align:right;min-height:1.4em;word-break:break-all}
 .calc .expr b{color:var(--ink)}
 .calc .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2)}
@@ -1363,14 +1364,15 @@ const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
 const parseYmd = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
 const dim = (y,m) => new Date(y, m, 0).getDate(); // m: 1-12
 // currencies: amounts are stored as whole numbers of the currency's smallest unit (cents for US$, plain dollars for NT$),
-// so all the budget math stays in integers; only typing and showing a number converts. k = rough units per NT$1,
-// used to scale "big enough to mention" thresholds and example numbers
+// so all the budget math stays in integers; only typing and showing a number converts. twd = roughly how many NT$ one unit is worth,
+// used to scale "big enough to mention" thresholds and example numbers,
+// and as the first-time exchange rate (a rough reference, people can change it)
 const CURS = {
-  TWD: { sym: "NT$", name: "新台幣", dp: 0, k: 1 }, JPY: { sym: "¥", name: "日圓", dp: 0, k: 5 }, KRW: { sym: "₩", name: "韓元", dp: 0, k: 40 },
-  USD: { sym: "US$", name: "美元", dp: 2, k: 0.03 }, EUR: { sym: "€", name: "歐元", dp: 2, k: 0.03 }, GBP: { sym: "£", name: "英鎊", dp: 2, k: 0.025 },
-  HKD: { sym: "HK$", name: "港幣", dp: 2, k: 0.25 }, CNY: { sym: "CN¥", name: "人民幣", dp: 2, k: 0.22 }, SGD: { sym: "S$", name: "新加坡幣", dp: 2, k: 0.04 },
-  MYR: { sym: "RM", name: "馬來西亞令吉", dp: 2, k: 0.14 }, THB: { sym: "฿", name: "泰銖", dp: 2, k: 1.1 }, AUD: { sym: "A$", name: "澳幣", dp: 2, k: 0.05 },
-  CAD: { sym: "C$", name: "加幣", dp: 2, k: 0.045 }, VND: { sym: "₫", name: "越南盾", dp: 0, k: 800 }
+  TWD: { sym: "NT$", name: "新台幣", dp: 0, twd: 1 }, JPY: { sym: "¥", name: "日圓", dp: 0, twd: 0.21 }, KRW: { sym: "₩", name: "韓元", dp: 0, twd: 0.023 },
+  USD: { sym: "US$", name: "美元", dp: 2, twd: 32 }, EUR: { sym: "€", name: "歐元", dp: 2, twd: 35 }, GBP: { sym: "£", name: "英鎊", dp: 2, twd: 41 },
+  HKD: { sym: "HK$", name: "港幣", dp: 2, twd: 4.1 }, CNY: { sym: "CN¥", name: "人民幣", dp: 2, twd: 4.4 }, SGD: { sym: "S$", name: "新加坡幣", dp: 2, twd: 24 },
+  MYR: { sym: "RM", name: "馬來西亞令吉", dp: 2, twd: 7.2 }, THB: { sym: "฿", name: "泰銖", dp: 2, twd: 0.95 }, AUD: { sym: "A$", name: "澳幣", dp: 2, twd: 21 },
+  CAD: { sym: "C$", name: "加幣", dp: 2, twd: 23 }, VND: { sym: "₫", name: "越南盾", dp: 0, twd: 0.0013 }
 };
 const curC = () => CURS[state.settings.currency] || CURS.TWD;
 const SYM = () => curC().sym;
@@ -1387,10 +1389,13 @@ const amtIn = (n, c = curC()) => n == null || n === "" ? "" : String(+(n / unitF
 // t.amount is always the ledger amount, so every total keeps working. A foreign currency picked today stays for new records until tomorrow
 const ledgerCode = () => CURS[state.settings.currency] ? state.settings.currency : "TWD";
 const fxToday = () => { const d = state.settings.fxDay; return d && d.date === todayStr() && CURS[d.cur] && d.cur !== ledgerCode() ? d.cur : null; };
+// first time a currency is used: a rough rate from the table (3 significant digits), marked as a reference in the sheet
+const fxGuess = cur => CURS[cur] ? +(CURS[cur].twd / curC().twd).toPrecision(3) : null;
+const fxRateFor = cur => state.settings.fxRates?.[cur] ?? fxGuess(cur);
 const fxConv = (amt, cur, rate) => amt && rate > 0 ? Math.round(amt / unitF(CURS[cur]) * rate * unitF()) : null;
 const fxText = fx => fx && CURS[fx.cur] ? CURS[fx.cur].sym + moneyShort(fx.amt, CURS[fx.cur]) : "";
 // a round number about this many NT$, in the current currency's units (thresholds, rounding steps, examples)
-const niceK = v => { const x = v * curC().k, e = 10 ** Math.floor(Math.log10(x)); return Math.max(1, Math.round(x / e * 2) / 2 * e); };
+const niceK = v => { const x = v / curC().twd, e = 10 ** Math.floor(Math.log10(x)); return Math.max(1, Math.round(x / e * 2) / 2 * e); };
 const thr = v => niceK(v) * unitF();
 const curOpts = () => Object.entries(CURS).map(([k, c]) => `<option value="${k}" ${CURS[state.settings.currency] ? (state.settings.currency === k ? "selected" : "") : k === "TWD" ? "selected" : ""}>${c.name} ${c.sym}</option>`).join("");
 // anything with an amount in it: switching to a currency with a different number of decimals would shift every amount
@@ -2954,7 +2959,7 @@ function openEntry(existing, refundOf, prefill){
   const canInst = !!existing && existing.type === "expense" && !existing.recurringId && !existing.jarId;
   const fxOk = !isRefund && !t.jarId && !t.recurringId;   // foreign currency only for plain records
   let fxCur = existing?.fx?.cur && CURS[existing.fx.cur] ? existing.fx.cur : !existing && fxOk && !(prefill && (prefill.favoriteId || prefill.wishId)) ? fxToday() : null;
-  let fxAmt = existing?.fx?.amt ?? null, fxRate = existing?.fx?.rate ?? (fxCur ? state.settings.fxRates?.[fxCur] ?? null : null), fxPaid = !!existing?.fx?.paid;
+  let fxAmt = existing?.fx?.amt ?? null, fxRate = existing?.fx?.rate ?? (fxCur ? fxRateFor(fxCur) : null), fxPaid = !!existing?.fx?.paid;
   if(fxCur && !existing) t.amount = null;
   const ac = () => fxCur ? CURS[fxCur] : curC();   // the currency typed into the amount field
   const ledgerAmt = () => fxCur ? (fxPaid ? t.amount : fxConv(fxAmt, fxCur, fxRate)) : t.amount;
@@ -2976,6 +2981,7 @@ function openEntry(existing, refundOf, prefill){
       ${fxCur ? `<div class="fxconv">
         <label class="frate">1 ${esc(CURS[fxCur].name)} =<input class="inp num" id="e-rate" inputmode="decimal" value="${fxRate ?? ""}" placeholder="匯率" aria-label="匯率">${esc(curC().name)}</label>
         <label class="fpaid">換算成<span class="num">${esc(SYM())}</span><input class="inp num" id="e-conv" inputmode="${IM()}" value="${amtIn(ledgerAmt())}" placeholder="0" aria-label="換算後的金額"></label>
+        ${!existing && !state.settings.fxRates?.[fxCur] ? `<p class="fref" id="e-rateref">參考匯率，可以改成當天的匯率</p>` : ""}
         ${existing ? `<p class="small muted">可以改成帳單上的實際扣款</p>` : ""}</div>` : ""}
       ${t.wishId && !existing && state.wishes[t.wishId]?.price ? `<div class="hint">清單上的價格是 <b class="num">${SYM()}${moneyShort(state.wishes[t.wishId].price)}</b>，實際價格不同可以直接改金額</div>` : ""}
       ${isRefund ? "" : `<div class="chips" role="group" aria-label="類別">${list.map(c=>`<button class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id===catId}"><span class="dot sm ${catTint(c)}">${catMark(c)}</span>${esc(c.name)}</button>`).join("")}</div>`}
@@ -3030,12 +3036,12 @@ function openEntry(existing, refundOf, prefill){
     const syncConv = () => { if(conv && !fxPaid) conv.value = amtIn(ledgerAmt()); };
     const takeAmt = () => { if(fxCur){ fxAmt = amtOf(amt.value, ac()); syncConv(); } else t.amount = amtOf(amt.value); };
     amt.addEventListener("input", () => { amt.value = amtClean(amt.value, ac()); takeAmt(); hint(); });
-    rateIn && rateIn.addEventListener("input", () => { rateIn.value = amtClean(rateIn.value, { dp: 6 }); fxRate = parseFloat(rateIn.value) > 0 ? parseFloat(rateIn.value) : null; fxPaid = false; syncConv(); hint(); });
+    rateIn && rateIn.addEventListener("input", () => { rateIn.value = amtClean(rateIn.value, { dp: 6 }); fxRate = parseFloat(rateIn.value) > 0 ? parseFloat(rateIn.value) : null; fxPaid = false; $("#e-rateref", sheet)?.remove(); syncConv(); hint(); });
     // typing the converted amount by hand (e.g. the card statement): it stops following the rate
     conv && conv.addEventListener("input", () => { conv.value = amtClean(conv.value); fxPaid = true; t.amount = amtOf(conv.value); hint(); });
     const curSel = $("#e-cur", sheet);
     curSel && curSel.addEventListener("change", () => { const k = curSel.value; const typed = amt.value;
-      fxCur = k === ledgerCode() ? null : k; fxPaid = false; fxRate = fxCur ? state.settings.fxRates?.[fxCur] ?? null : null; calcOpen = false;
+      fxCur = k === ledgerCode() ? null : k; fxPaid = false; fxRate = fxCur ? fxRateFor(fxCur) : null; calcOpen = false;
       if(fxCur) fxAmt = amtOf(typed, ac()); else t.amount = amtOf(typed);
       draw(sheet); if(fxCur && !fxRate) $("#e-rate", sheet)?.focus(); });
     // calculator: builds an expression from the keys, keeps the amount field showing the result (rounded, never negative)

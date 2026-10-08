@@ -455,8 +455,10 @@ await test("外幣：隔天換回記帳貨幣；美元可以填小數；帳單�
   const p = await openApp({ data: d });
   await p.click("#fab"); await p.waitForTimeout(150);
   ok(/NT\$/.test(await text(p, ".sheet .curpick")) && !(await p.$("#e-rate")), "隔天還在用昨天的外幣");
+  await p.selectOption("#e-cur", "KRW"); await p.waitForTimeout(150);
+  ok(await p.$eval("#e-rate", e => e.value) === "0.023" && /參考匯率/.test(await text(p, ".sheet .fxconv")), "第一次用韓元沒有帶入參考匯率");
   await p.selectOption("#e-cur", "USD"); await p.waitForTimeout(150);
-  ok(await p.$eval("#e-rate", e => e.value) === "31.5", "沒有帶入記住的匯率");
+  ok(await p.$eval("#e-rate", e => e.value) === "31.5" && !/參考匯率/.test(await text(p, ".sheet .fxconv")), "沒有帶入記住的匯率");
   await p.fill("#e-amt", "4.50"); await p.click('.sheet [data-cat="c-med"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(200);
   let t = (await stored(p)).months["2026-09"].find(x => x.fx);
   ok(t && t.fx.amt === 450 && t.amount === 142, `US$4.50 × 31.5 存成 ${JSON.stringify(t)}`);
