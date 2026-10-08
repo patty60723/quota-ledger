@@ -30,8 +30,8 @@ const results = [];
 async function openApp({ width = 390, theme, data = FIXTURE, tab = "home" } = {}){
   const ctx = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block", acceptDownloads: true });
   await ctx.addInitScript(T => { const D = Date; class F extends D{ constructor(...a){ super(...(a.length ? a : [T])); } static now(){ return T; } } globalThis.Date = F; }, NOW);
-  const d = structuredClone(data); if(theme) d.settings.theme = theme;
-  await ctx.addInitScript(([x, t]) => { try{ if(!sessionStorage.seeded){ localStorage.setItem("ledger.v1", x); localStorage.setItem("ledger.tab", t); sessionStorage.seeded = 1; } }catch(e){} }, [JSON.stringify(d), tab]);
+  const d = data && structuredClone(data); if(theme && d) d.settings.theme = theme;
+  if(d) await ctx.addInitScript(([x, t]) => { try{ if(!sessionStorage.seeded){ localStorage.setItem("ledger.v1", x); localStorage.setItem("ledger.tab", t); sessionStorage.seeded = 1; } }catch(e){} }, [JSON.stringify(d), tab]);
   const page = await ctx.newPage(); page.errors = [];
   page.on("pageerror", e => page.errors.push(e.message));
   await page.goto(`${BASE}/index.html`); await page.waitForTimeout(500);
@@ -360,6 +360,58 @@ await test("設定的五個頁面都能打開", async () => {
     if(m === "fixed"){ await p.click('[data-fseg="inst"]'); }
     await p.click('[data-act="back"]'); await p.waitForTimeout(100);
   }
+  return p;
+});
+
+// currencies: amounts are stored in the currency's smallest unit (cents for US$), so a US$ ledger reads the fixture as cents
+const IN_CUR = cur => { const d = structuredClone(FIXTURE); d.settings.currency = cur; return d; };
+const prefs = async p => { await p.click('[data-act="more"]'); await p.click('[data-m="prefs"]'); await p.waitForTimeout(200); };
+
+await test("貨幣：美元帳本可以記 4.50，預算加總正確", async () => {
+  const p = await openApp({ data: IN_CUR("USD") });
+  ok(/20\.00 \/ 60\.00/.test(await budgetRow(p, "餐飲")), `美元餐飲顯示「${await budgetRow(p, "餐飲")}」`);
+  await p.click('#tabs [data-tab="home"]'); ok(/US\$/.test(await text(p, ".hero")), "首頁沒有用 US$");
+  await p.click("#fab"); await p.fill("#e-amt", "4.50"); await p.click('.sheet [data-cat="c-food"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(200);
+  ok((await stored(p)).months["2026-09"].some(t => t.amount === 450 && t.categoryId === "c-food"), "4.50 沒有存成 450 分");
+  ok(/24\.50 \/ 60\.00/.test(await budgetRow(p, "餐飲")), `記完後餐飲顯示「${await budgetRow(p, "餐飲")}」`);
+  return p;
+});
+
+await test("貨幣：美元的計算機可以算小數", async () => {
+  const p = await openApp({ data: IN_CUR("USD") });
+  await p.click("#fab"); await p.click(".sheet [data-calc]");
+  for(const k of ["3", ".", "5", "×", "2"]) await p.click(`.sheet .calc [data-k="${k}"]`);
+  ok(/7\.00/.test(await text(p, "#e-expr")), `算式顯示「${await text(p, "#e-expr")}」`);
+  await p.click('.sheet .calc [data-k="="]'); await p.waitForTimeout(150);
+  ok(await p.$eval("#e-amt", e => e.value) === "7", "結果沒有填進金額");
+  await p.click('.sheet [data-cat="c-food"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(200);
+  ok((await stored(p)).months["2026-09"].some(t => t.amount === 700), "3.5 × 2 沒有存成 7.00");
+  return p;
+});
+
+await test("貨幣：有資料時換成日圓只換符號，換成有小數的美元會被擋下", async () => {
+  const p = await openApp();
+  await prefs(p); await p.selectOption("#set-cur", "JPY"); await p.waitForTimeout(200);
+  ok(/改成日圓/.test(await text(p, ".sheet")), "換貨幣前沒有先說明"); await p.click(".sheet [data-go]"); await p.waitForTimeout(200);
+  ok((await stored(p)).settings.currency === "JPY", "沒有存下日圓");
+  ok(/2,000 \/ 6,000/.test(await budgetRow(p, "餐飲")), `換成日圓後餐飲顯示「${await budgetRow(p, "餐飲")}」`);
+  await p.click('#tabs [data-tab="home"]'); ok(/¥/.test(await text(p, ".hero")), "首頁沒有換成 ¥");
+  await prefs(p); await p.selectOption("#set-cur", "USD"); await p.waitForTimeout(200);
+  ok(/不能直接換成美元/.test(await text(p, ".sheet")), "換成美元沒有被擋下");
+  ok((await stored(p)).settings.currency === "JPY", "被擋下卻還是換了貨幣");
+  ok(await p.$eval("#set-cur", e => e.value) === "JPY", "選單沒有回到日圓");
+  return p;
+});
+
+await test("貨幣：新使用者在設定引導選美元，收入可以填小數", async () => {
+  const p = await openApp({ data: null });
+  await p.click('[data-ob="next"]'); await p.selectOption("#ob-cur", "USD"); await p.waitForTimeout(150);
+  ok(/US\$/.test(await text(p, ".obin")), "選了美元，收入欄位還是 NT$");
+  await p.fill("#ob-inc", "3500.50"); await p.click('[data-ob="next"]'); await p.click('[data-ob="next"]'); await p.click('[data-ob="next"]'); await p.waitForTimeout(300);
+  await p.click(".sheet [data-x]"); await p.waitForTimeout(200);
+  const s = await stored(p);
+  ok(s.settings.currency === "USD", "沒有存下美元");
+  ok(Object.values(s.recurring).some(r => r.title === "薪資" && r.amount === 350050), "收入 3500.50 沒有存成 350050 分");
   return p;
 });
 
