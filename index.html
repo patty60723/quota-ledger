@@ -2241,7 +2241,7 @@ function attnInfo(c, p){
     ? { cls: "full", tag: "已用完", text: `已用 100% · 還剩 ${SYM()}0`, short: `還剩 ${SYM()}0` }
     : { cls: "warn", tag: "快用完", text: `已用 ${Math.round(b.used / b.cap * 100)}% · 還剩 ${SYM()}${moneyShort(b.avail)}`, short: `還剩 ${SYM()}${moneyShort(b.avail)}` };
   const yu = yearUsed(c, p.y);
-  if(c.yearlyLimit && yu > c.yearlyLimit) return { cls: "over", tag: "年度超支", text: `${p.y} 年已花 ${SYM()}${moneyShort(yu)}，年度上限 ${SYM()}${moneyShort(c.yearlyLimit)}`, short: `今年超出 ${SYM()}${moneyShort(yu - c.yearlyLimit)}` };
+  if(c.yearlyLimit && yu > c.yearlyLimit) return { year: true, cls: "over", tag: "年度超支", text: `${p.y} 年已花 ${SYM()}${moneyShort(yu)}，年度上限 ${SYM()}${moneyShort(c.yearlyLimit)}`, short: `今年超出 ${SYM()}${moneyShort(yu - c.yearlyLimit)}` };
   return { cls: "warn", tag: "快用完", text: `還剩 ${SYM()}${moneyShort(b.avail)}`, short: `還剩 ${SYM()}${moneyShort(b.avail)}` };
 }
 function budgetRows(p, list){
@@ -2306,6 +2306,23 @@ function openCatList(c, p){
     sheet.querySelectorAll("[data-inst]").forEach(x => x.addEventListener("click", () => { const i = state.installments[x.dataset.inst]; i && openInstallment(i); }));
   });
 }
+// a category's records for a calendar year, by month: what makes up 年度超支, or a 年報 row.
+// Same records as yearUsed (installment portions included), so the total matches; dailyOnly follows 年報's 日常支出 switch
+function openYearList(c, Y, dailyOnly){
+  const a = `${Y}-01-01`, b = `${Y}-12-31`, isFixed = fixedTester();
+  const list = allTx().filter(t => t.categoryId === c.id && t.date >= a && t.date <= b && outAmt(t) && !(dailyOnly && t.type === "expense" && isFixed(t)));
+  const total = list.reduce((s2, t) => s2 + outAmt(t), 0), lim = !dailyOnly && c.yearlyLimit;
+  const byM = {}; list.forEach(t => (byM[t.date.slice(0, 7)] ||= []).push(t));
+  const months = Object.keys(byM).sort().reverse();
+  openSheet(`<div class="hd"><h2>${esc(c.name)}・${Y} 年</h2><button class="btn ghost" data-x>關閉</button></div>
+    <p class="small muted srchsum">${dailyOnly ? "日常支出 · " : ""}<b class="num">${list.length}</b> 筆 · 已花 <span class="num">${SYM()}${moneyShort(total)}</span>${lim ? ` · 年度上限 <span class="num">${SYM()}${moneyShort(lim)}</span>${total > lim ? ` · <b class="num bad">超出 ${SYM()}${moneyShort(total - lim)}</b>` : ` · 還剩 <span class="num">${SYM()}${moneyShort(lim - total)}</span>`}` : ""}</p>
+    <div class="card txlist cdlist">${months.length ? months.map(k => { const l = byM[k];
+      return `<div class="daygrp"><span>${+k.slice(5)} 月</span><span class="num">${l.length} 筆 · ${moneyShort(l.reduce((s2, t) => s2 + outAmt(t), 0))}</span></div>${txRows(l, false)}`; }).join("") : `<div class="empty">${Y} 年沒有這個類別的紀錄。</div>`}</div>`, sheet => {
+    $("[data-x]", sheet).addEventListener("click", closeSheet);
+    sheet.querySelectorAll("[data-edit]").forEach(x => x.addEventListener("click", () => { const t = findTx(x.dataset.edit); t && openEntry(t); }));
+    sheet.querySelectorAll("[data-inst]").forEach(x => x.addEventListener("click", () => { const i = state.installments[x.dataset.inst]; i && openInstallment(i); }));
+  });
+}
 // expand/collapse one row in place: redrawing the whole page made some phones jump
 function toggleBudRow(bx){
   const id = bx.dataset.budx, c = state.categories[id]; budOpen.has(id) ? budOpen.delete(id) : budOpen.add(id);
@@ -2347,7 +2364,9 @@ function budgetCompactRows(p, list){
     if(c.yearlyLimit){ const yu = yearUsed(c, p.y); detail.push(`${p.y} 年 ${moneyShort(yu)} / ${moneyShort(c.yearlyLimit)}${yu > c.yearlyLimit ? "（超過年度上限）" : ""}`); }
     const nrec = catTx(c, p).length;
     if(!nrec) detail.push("這期還沒有紀錄");
-    const list = open && nrec ? `<button class="btn small" data-catlist="${esc(c.id)}" data-p="${pkey(p)}">看這期 ${nrec} 筆</button>` : "";
+    const ynum = open && c.yearlyLimit ? allTx().filter(t => t.categoryId === c.id && t.date.startsWith(p.y + "-") && outAmt(t)).length : 0;
+    const list = (open && nrec ? `<button class="btn small" data-catlist="${esc(c.id)}" data-p="${pkey(p)}">看這期 ${nrec} 筆</button>` : "")
+      + (ynum ? `<button class="btn small" data-yearlist="${esc(c.id)}" data-y="${p.y}">看 ${p.y} 年 ${ynum} 筆</button>` : "");
     const body = `<span class="dot sm ${catTint(c)}">${catMark(c)}</span>${main}${bar}${meta ? `<span class="bm num">${meta}</span>` : ""}`;
     return `<button class="bc${open ? " open" : ""}" data-budx="${esc(c.id)}" aria-expanded="${open}">
       <span class="bchev" aria-hidden="true">${icon("chev")}</span>${body}
@@ -2498,7 +2517,7 @@ function viewHome(){
   const pendShown = pendOpen ? pend : pend.slice(0, 3);
   const n = pend.length + overs.length + hot.length + (bk ? 1 : 0);
   const budRow = c => { const a = attnInfo(c, p);
-    return `<button class="trow tap" data-act="bud-all"><span class="qic ${catTint(c)}">${catMark(c)}</span><div class="meta"><b class="nmrow"><span class="t">${esc(c.name)}</span><span class="tag ${a.cls}">${a.tag}</span></b><span class="num">${a.text}</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button>`; };
+    return `<button class="trow tap" ${a.year ? `data-yearlist="${esc(c.id)}" data-y="${p.y}"` : `data-act="bud-all"`}><span class="qic ${catTint(c)}">${catMark(c)}</span><div class="meta"><b class="nmrow"><span class="t">${esc(c.name)}</span><span class="tag ${a.cls}">${a.tag}</span></b><span class="num">${a.text}</span></div><span class="chev" aria-hidden="true">${icon("chev")}</span></button>`; };
   // overspent categories go first and can be fixed right here; the rest open the budget list
   const hotLeft = hot.filter(c => !overs.some(s => s.categoryId === c.id));
   const hotOver = hotLeft.filter(c => budgetOf(c, p).avail < 0 && overSubject(c, p)), hotRest = hotLeft.filter(c => !hotOver.includes(c)).sort(byUrgency(p));
@@ -2638,7 +2657,7 @@ function viewReport(){
       ${inc ? `<p class="inc">收入 <span class="num">${SYM()}${moneyShort(inc)}</span></p>` : ""}
       ${topCat ? `<p class="sub">日常支出中，花最多的是${esc(catName(topCat[0]))} <span class="num">${SYM()}${moneyShort(topCat[1])}</span>（${dailyOut > 0 ? Math.round(topCat[1]/dailyOut*100) : 0}%）</p>` : ""}
       ${ns.total && ns.want ? `<p class="sub">整體支出中，標成「想要」的有 <span class="num">${SYM()}${moneyShort(ns.want)}</span>，占 ${Math.round(ns.wantPct*100)}%</p>` : ""}
-      ${hotCats.length ? `<ul>${hotCats.slice(0,3).map(({c}) => { const a = attnInfo(c, viewPeriod); return `<li><button data-rseg="budget"><span>${esc(c.name)} <span class="st ${a.cls}">${a.tag}</span></span><span class="num small muted">${a.short}</span></button></li>`; }).join("")}</ul>`
+      ${hotCats.length ? `<ul>${hotCats.slice(0,3).map(({c}) => { const a = attnInfo(c, viewPeriod); return `<li><button ${a.year ? `data-yearlist="${esc(c.id)}" data-y="${viewPeriod.y}"` : `data-rseg="budget"`}><span>${esc(c.name)} <span class="st ${a.cls}">${a.tag}</span></span><span class="num small muted">${a.short}</span></button></li>`; }).join("")}</ul>`
         : budgetCats().length ? `<p class="sub">每個有預算的類別都還在範圍內。</p>` : ""}
     </div>`;
   if(reportSeg === "budget"){
@@ -2676,7 +2695,7 @@ function viewYear(Y){
   const rList = rankAll ? list : list.filter(t => !(t.type === "expense" && isFixed(t))); const fixedOut = rankAll ? 0 : out - sumOut(rList);
   const byCat = {}; rList.forEach(t => { const v = outAmt(t); if(v) byCat[t.categoryId] = (byCat[t.categoryId] || 0) + v; });
   const rows = Object.entries(byCat).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]); const rOut = rows.reduce((a, [, v]) => a + v, 0), max = rows[0]?.[1] || 1;
-  const rank = rows.length ? `<div class="rank yrank">${rows.map(([id, v]) => `<div class="r"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v / max * 100}%"></i></span><span class="v num">${moneyShort(v)}<small>${Math.round(v / rOut * 100)}%</small></span><span class="ym num">月平均 ${moneyShort(Math.round(v / n))}</span></div>`).join("")}</div>`
+  const rank = rows.length ? `<div class="rank yrank">${rows.map(([id, v]) => `<button class="r" data-yearlist="${esc(id)}" data-y="${Y}"${rankAll ? "" : " data-daily"} aria-label="看${esc(catName(id))} ${Y} 年的紀錄"><span class="nm"><span class="dot sm ${catTint(state.categories[id])}">${catMark(state.categories[id], catName(id))}</span>${esc(catName(id))}</span><span class="track"><i style="width:${v / max * 100}%"></i></span><span class="v num">${moneyShort(v)}<small>${Math.round(v / rOut * 100)}%</small></span><span class="rchev" aria-hidden="true">${icon("chev")}</span><span class="ym num">月平均 ${moneyShort(Math.round(v / n))}</span></button>`).join("")}</div>`
     : `<div class="empty">沒有支出。</div>`;
   const ns = nwSplit(list); const pctOf = v => ns.total ? Math.round(v / ns.total * 100) : 0;
   const nwHtml = ns.total ? `<div class="nwcard"><div class="nwbar" role="img" aria-label="必要 ${pctOf(ns.must)}%，需要 ${pctOf(ns.need)}%，想要 ${pctOf(ns.want)}%">${["must", "need", "want", "none"].filter(k => ns[k]).map(k => `<i class="${k}" style="width:${ns[k] / ns.total * 100}%"></i>`).join("")}</div>
@@ -4331,6 +4350,8 @@ document.addEventListener("click", e => {
   if(ix){ hideInsight(insKeys[+ix.dataset.insx]); return; }
   const oc = e.target.closest("[data-overcat]");
   if(oc && !oc.closest(".sheet")){ const c = state.categories[oc.dataset.overcat]; const s = c && overSubject(c, oc.dataset.p ? fromKey(oc.dataset.p) : viewPeriod); if(s) openOverspend(s, true); return; }
+  const yl = e.target.closest("[data-yearlist]");
+  if(yl && !yl.closest(".sheet")){ const c = state.categories[yl.dataset.yearlist]; c && openYearList(c, +yl.dataset.y, yl.hasAttribute("data-daily")); return; }
   const cl = e.target.closest("[data-catlist]");
   if(cl && !cl.closest(".sheet")){ const c = state.categories[cl.dataset.catlist]; c && openCatList(c, fromKey(cl.dataset.p)); return; }
   const bx = e.target.closest("[data-budx]");

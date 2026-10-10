@@ -500,6 +500,20 @@ await test("需要注意：這個月還沒用到警戒線、但今年超過年�
   return p;
 });
 
+await test("年度超支：點了可以看今年這個類別的每一筆，加總跟年度已花一致；年報的類別也能點", async () => {
+  const d = structuredClone(FIXTURE); d.categories["c-food"].yearlyLimit = 1500;
+  d.months["2026-03"] = [{ id: "m3", date: "2026-03-10", type: "expense", categoryId: "c-food", amount: 300, title: "春酒", note: "", createdAt: 1 }];
+  const p = await openApp({ data: d });
+  await p.evaluate(() => [...document.querySelectorAll(".trow")].find(e => e.innerText.includes("餐飲"))?.click()); await p.waitForTimeout(250);
+  const sh = await text(p, ".sheet");
+  ok(/餐飲・2026 年/.test(sh) && /已花 NT\$2,300/.test(sh) && /年度上限 NT\$1,500/.test(sh) && /超出 NT\$800/.test(sh), `年度明細是「${sh.slice(0, 120)}」`);
+  ok(/3 月/.test(sh) && /春酒/.test(sh) && /9 月/.test(sh), "年度明細沒有依月份列出每一筆");
+  await p.click(".sheet [data-x]"); await p.waitForTimeout(200);
+  await p.click('#tabs [data-tab="report"]'); await p.click('.rmode [data-act="ymode"]'); await p.waitForTimeout(200);
+  await p.click('.yrank [data-yearlist="c-food"]'); await p.waitForTimeout(250);
+  ok(/餐飲・2026 年/.test(await text(p, ".sheet")), "年報的類別點了沒有打開今年的紀錄");
+});
+
 await test("選月份：點期間標題可以直接跳到有紀錄的月份，明細和看懂都可以", async () => {
   const d = structuredClone(FIXTURE); d.months["2026-03"] = [{ id: "m3", date: "2026-03-10", type: "expense", categoryId: "c-food", amount: 321, title: "早餐", note: "", createdAt: 1 }]; d.months["2025-11"] = [{ id: "m4", date: "2025-11-20", type: "expense", categoryId: "c-fun", amount: 88, title: "電影", note: "", createdAt: 2 }];
   const p = await openApp({ data: d, tab: "list" });
