@@ -539,6 +539,17 @@ await test("選月份：點期間標題可以直接跳到有紀錄的月份，�
   return p;
 });
 
+await test("存成常用：同名同金額 30 天內第 4 次才問，第 3 次或 30 天前的不算", async () => {
+  const d = structuredClone(FIXTURE);
+  const add = (id, date) => d.months[date.slice(0, 7)].push({ id, date, type: "expense", categoryId: "c-food", amount: 65, title: "咖啡", note: "", createdAt: 1 });
+  d.months["2026-08"] = []; add("k1", "2026-08-10"); add("k2", "2026-09-01"); add("k3", "2026-09-05");   // 8/10 is more than 30 days before 9/15
+  const p = await openApp({ data: d });
+  const rec = async () => { await p.click("#fab"); await p.fill("#e-amt", "65"); await p.fill("#e-title", "咖啡"); await p.click('.sheet [data-cat="c-food"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(250); };
+  await rec(); ok(!/要存成常用嗎/.test(await p.evaluate(() => document.body.innerText)), "30 天內第 3 次就問了");
+  await rec(); ok(/「咖啡」65 最近記了 4 次/.test(await p.evaluate(() => document.body.innerText)), "30 天內第 4 次沒有問");
+  return p;
+});
+
 await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {
   const p = await openApp({ width: 320, theme: "dark" });
   for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }

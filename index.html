@@ -3783,9 +3783,10 @@ function suggestFavorite(t){
   const k = favKey(t);
   if((state.settings.favDismissed || []).includes(k)) return;
   if(Object.values(state.favorites).some(f => favKey(f)===k)) return;
-  const since = new Date(); since.setDate(since.getDate()-60); const s = ymd(since);
+  // about once a week: same type, category, name and amount 4 times in 30 days (an occasional lunch spot isn't a favorite)
+  const since = new Date(); since.setDate(since.getDate()-30); const s = ymd(since);
   const n = realTx().filter(x => x.date >= s && favKey(x)===k).length;
-  if(n < 3) return;
+  if(n < 4) return;
   toast(`「${t.title}」${moneyShort(t.amount)} 最近記了 ${n} 次，要存成常用嗎？`, [
     ["存成常用", () => { saveFavFrom(t); render(); toast("已存成常用"); }],
     ["不用", () => { state.settings.favDismissed = [...(state.settings.favDismissed || []), k]; put.settings(); }]
