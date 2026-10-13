@@ -2801,11 +2801,17 @@ function insights(){
   // 5. something bought again and again this period (必要 items like meals are routine, so they don't count)
   const byTitle = {}; cur.filter(t => t.type === "expense" && !t.virtual && !t.recurringId && nwOf(t) !== "must" && (t.title || "").trim()).forEach(t => { const k = t.title.trim(); (byTitle[k] ||= []).push(t); });
   const rep = Object.entries(byTitle).filter(([, l]) => l.length >= 4).sort((x, y) => spend(y[1]) - spend(x[1]))[0];
-  if(rep) out.push({ key: "rep:" + rep[0], pri: 50, tone: "info", icon: "repeat", title: `這期買了 ${rep[1].length} 次「${esc(rep[0])}」`, sub: `共 <b class="num">${SYM()}${moneyShort(spend(rep[1]))}</b>，平均一次 ${SYM()}${moneyShort(spend(rep[1]) / rep[1].length)}`, act: { search: rep[0] } });
+  if(rep){ const sum = spend(rep[1]), was = hasPrev ? prev.filter(t => t.type === "expense" && !t.virtual && (t.title || "").trim() === rep[0]).length : null;
+    out.push({ key: "rep:" + rep[0], pri: 50, tone: "info", icon: "repeat", title: `這期買了 ${rep[1].length} 次「${esc(rep[0])}」`,
+      sub: `共 <b class="num">${SYM()}${moneyShort(sum)}</b>，平均一次 ${SYM()}${moneyShort(sum / rep[1].length)}`
+        + (el < total ? `。照這個速度，整期約 <b class="num">${SYM()}${moneyShort(Math.round(sum / el * total))}</b>` : "")
+        + (was !== null ? `；上期同一時間 ${was} 次` : ""), act: { search: rep[0] } }); }
   // 6. days without spending so far (not counting today)
   if(el >= 4){ const spent = new Set(cur.filter(t => t.type === "expense" && !t.virtual && !isFixed(t)).map(t => t.date)); let free = 0;
+    // each installment portion isn't a day's spending, but the day of the purchase is (not one entered mid-plan from before the ledger)
+    Object.values(state.installments).forEach(i => { if(!i.skip && i.date >= pa && i.date < today) spent.add(i.date); });
     for(let d = parseYmd(pa); ymd(d) < today; d.setDate(d.getDate() + 1)) if(!spent.has(ymd(d))) free++;
-    if(free >= 3) out.push({ key: "free", pri: 40, tone: "good", icon: "star", title: `這期有 ${free} 天沒有花錢`, sub: `不算固定支出。過了 ${el - 1} 天，每 ${Math.max(1, Math.round((el - 1) / free))} 天就有 1 天沒花`, act: { list: 1 } }); }
+    if(free >= 3) out.push({ key: "free", pri: 40, tone: "good", icon: "star", title: `這期有 ${free} 天沒有花錢`, sub: `不算固定支出和分期每期的金額。過了 ${el - 1} 天，每 ${Math.max(1, Math.round((el - 1) / free))} 天就有 1 天沒花`, act: { list: 1 } }); }
   // 9. near the end of the period: how much should roll into 已節省結餘
   if(el >= total - 7 && el < total){ const save = Math.min(Math.max(0, todayPlan(p).left), cats("expense").filter(toPool).reduce((a, c) => { const b = budgetOf(c, p); return a + Math.max(0, b.cap - Math.max(b.used, projOf(c, b))); }, 0));
     if(save >= thr(500)) out.push({ key: "save", pri: 58, tone: "good", icon: "jar", title: `這期預計結餘 ${SYM()}${moneyShort(save)}`, sub: `存錢罐之外多省下的，這期結束時會轉入已節省結餘`, act: { bud: 1 } }); }

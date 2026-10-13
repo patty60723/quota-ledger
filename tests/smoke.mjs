@@ -544,9 +544,25 @@ await test("存成常用：同名同金額 30 天內第 4 次才問，第 3 次�
   const add = (id, date) => d.months[date.slice(0, 7)].push({ id, date, type: "expense", categoryId: "c-food", amount: 65, title: "咖啡", note: "", createdAt: 1 });
   d.months["2026-08"] = []; add("k1", "2026-08-10"); add("k2", "2026-09-01"); add("k3", "2026-09-05");   // 8/10 is more than 30 days before 9/15
   const p = await openApp({ data: d });
-  const rec = async () => { await p.click("#fab"); await p.fill("#e-amt", "65"); await p.fill("#e-title", "咖啡"); await p.click('.sheet [data-cat="c-food"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(250); };
+  const rec = async () => { await p.click("#fab"); await p.waitForSelector("#e-amt"); await p.fill("#e-amt", "65"); await p.fill("#e-title", "咖啡"); await p.click('.sheet [data-cat="c-food"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(250); };
   await rec(); ok(!/要存成常用嗎/.test(await p.evaluate(() => document.body.innerText)), "30 天內第 3 次就問了");
-  await rec(); ok(/「咖啡」65 最近記了 4 次/.test(await p.evaluate(() => document.body.innerText)), "30 天內第 4 次沒有問");
+  await rec(); ok(await p.waitForFunction(() => /「咖啡」65 最近記了 4 次/.test(document.body.innerText), null, { timeout: 3000 }).then(() => true, () => false), "30 天內第 4 次沒有問");
+  return p;
+});
+
+await test("這期發現：買了好幾次會預估整期並跟上期比；分期買下的那天算有花錢", async () => {
+  const d = structuredClone(FIXTURE);
+  const tea = (id, date, amount) => (d.months[date.slice(0, 7)] ||= []).push({ id, date, type: "expense", categoryId: "c-fun", amount, title: "珍奶", note: "", nw: "want", createdAt: 1 });
+  tea("b0", "2026-08-05", 60); tea("b1", "2026-09-02", 50); tea("b2", "2026-09-08", 60); tea("b3", "2026-09-10", 55); tea("b4", "2026-09-12", 65);
+  let p = await openApp({ data: d });
+  const cards = () => p.evaluate(() => document.body.innerText.replace(/\s+/g, " "));
+  const all = await cards();
+  ok(/這期買了 4 次「珍奶」/.test(all) && /整期約 NT\$460/.test(all) && /上期同一時間 1 次/.test(all), "買了好幾次的卡片沒有預估或上期比較");
+  ok(/這期有 9 天沒有花錢/.test(all) && /不算固定支出和分期每期的金額/.test(all), "沒花錢的天數或說明不對");
+  await p.context().close();
+  d.installments = { i1: { id: "i1", title: "手機", categoryId: "c-fun", total: 12000, n: 12, per: 1000, first: 1000, date: "2026-09-04", startPeriod: "2026-09", status: "active", createdAt: 1 } };
+  p = await openApp({ data: d });
+  ok(/這期有 8 天沒有花錢/.test(await cards()), "用分期買手機的那天還是算沒花錢");
   return p;
 });
 
