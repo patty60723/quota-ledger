@@ -1403,6 +1403,14 @@ header.top .srch + .more{margin-left:0}
 .ptabs button[aria-pressed="true"]{background:var(--paper);color:var(--ink);border-color:var(--line)}
 .ptabs button:active{transform:none}
 .ptabs.rmode,.ptabs.lseg{margin:var(--space-2) 0 var(--space-3)}
+.ptabs.fseg{margin:var(--space-1) 0 var(--space-3)}
+.ptabs.fseg small{font-family:var(--f-num);font-weight:500}
+/* text switch: a second-level choice inside a page, a word with an underline, quieter than the page tabs */
+.utabs{display:flex;gap:var(--space-5);padding:0 var(--space-1);margin:var(--space-5) 0 0}
+.utabs button{border:0;background:none;box-shadow:none;padding:var(--space-2) 0;min-height:40px;font-weight:600;font-size:15px;color:var(--muted);border-bottom:2px solid transparent;border-radius:0}
+.utabs button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.utabs button:active{transform:none}
+.utabs.rseg + .section{margin-top:var(--space-5)}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -2656,7 +2664,7 @@ function viewReport(){
       ${ns.must ? `<p class="nwfund">必要支出 <b class="num">${moneyShort(ns.must)}</b>，是這一期維持生活的底線；緊急預備金建議準備 6 個月，約 <b class="num">${SYM()} ${moneyShort(ns.must * 6)}</b>。</p>` : ""}
     </div>` : `<div class="empty">這一期沒有支出。</div>`;
   const Y = viewPeriod.y;
-  const seg = `<div class="seg rseg" role="tablist" aria-label="報表內容">
+  const seg = `<div class="utabs rseg" role="tablist" aria-label="報表內容">
       <button role="tab" data-rseg="analysis" aria-pressed="${reportSeg==="analysis"}" aria-selected="${reportSeg==="analysis"}">收支分析</button>
       <button role="tab" data-rseg="budget" aria-pressed="${reportSeg==="budget"}" aria-selected="${reportSeg==="budget"}">預算進度</button></div>`;
   // insight first: one sentence for the period, then what needs attention
@@ -3104,7 +3112,7 @@ function viewSettings(){
   const poolChips = limited.length ? `<div class="chips" role="group" aria-label="可以轉入已節省結餘的類別">${limited.map(c => `<button class="chip" data-pool="${esc(c.id)}" aria-pressed="${toPool(c)}"><span class="pchk" aria-hidden="true">${toPool(c) ? icon("check") : ""}</span>${esc(c.name)}</button>`).join("")}</div>`
     : `<span class="small muted">先幫類別設每月上限，才能選。</span>`;
   const pages = {
-    budget: `<div class="seg fseg" role="tablist" aria-label="預算與儲蓄">
+    budget: `<div class="ptabs fseg" role="tablist" aria-label="預算與儲蓄">
       <button role="tab" data-bseg="cat" aria-pressed="${budSeg==="cat"}" aria-selected="${budSeg==="cat"}">類別預算 <small class="num">${allCats.length}</small></button>
       <button role="tab" data-bseg="save" aria-pressed="${budSeg==="save"}" aria-selected="${budSeg==="save"}">儲蓄</button></div>
     ${budSeg === "cat" ? `<div class="section">${budgetSummary()}
@@ -3118,7 +3126,7 @@ function viewSettings(){
       <div class="setrow" style="flex-direction:column;align-items:stretch"><div class="k"><b>可以轉入已節省結餘的類別</b><span>只列出有設每月上限的類別 · 已選 <b class="num">${limited.filter(toPool).length}</b> / ${limited.length}</span></div>${poolChips}</div>
     </div></div></div>`}
 `,
-    fixed: `<div class="seg fseg" role="tablist" aria-label="固定收支與分期">
+    fixed: `<div class="ptabs fseg" role="tablist" aria-label="固定收支與分期">
       <button role="tab" data-fseg="rec" aria-pressed="${fixSeg==="rec"}" aria-selected="${fixSeg==="rec"}">固定收支 <small class="num">${recs.length}</small></button>
       <button role="tab" data-fseg="inst" aria-pressed="${fixSeg==="inst"}" aria-selected="${fixSeg==="inst"}">分期 <small class="num">${insts.filter(i => i.status==="active").length}</small></button></div>
     ${fixSeg === "rec" ? `<div class="section"><div class="section-head"><h2>固定收支${infoBtn("rec", "固定收支怎麼運作")}</h2><button class="btn small addbtn" data-act="rec-new">${icon("plus")}新增</button></div>${infoPop("rec", "到了每月收支日，會出現在首頁「需要注意」等你確認。確認後才算進帳；金額不同可以先改再確認，這個月沒有就按略過。")}${recPend ? `<button class="recgo" data-tab="home"><span>有 <b class="num">${recPend}</b> 筆固定收支待確認</span><span>到首頁確認${icon("chev","sm")}</span></button>` : ""}<div class="card setlist">${recHtml}</div></div>`
