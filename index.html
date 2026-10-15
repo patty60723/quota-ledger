@@ -1387,6 +1387,22 @@ header.top .srch + .more{margin-left:0}
   :root:not([data-theme="light"]) .wm-dark{display:block}
 }
 @media (max-width:340px){ .wm{height:34px} }
+/* ---------- notebook pass 1: ledger rows and page tabs ---------- */
+/* ledger row: a small line icon in the category's colour, name ⋯⋯ amount, details underneath */
+.tx.lrow{grid-template-columns:20px minmax(0,1fr) auto;column-gap:var(--space-2);align-items:start;padding:10px var(--space-4)}
+.tx.lrow .cic{display:grid;place-items:center;width:20px;height:22px;background:none!important;font-size:13px;font-weight:700}
+.tx.lrow .cic .ic{width:18px;height:18px;stroke-width:1.8}
+.tx.lrow .mid b{display:flex;align-items:baseline;gap:6px;font-size:15px;font-weight:500;overflow:visible}
+.tx.lrow .mid .tt{font-size:inherit;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tx.lrow .lead{flex:1 1 12px;min-width:12px;border-bottom:1.5px dotted var(--line);transform:translateY(-4px)}
+.tx.lrow .subl{margin-top:1px}
+.tx.lrow .amt{align-self:start;font-size:15px;font-weight:600;line-height:inherit;padding-top:1px}
+/* page tabs: index tabs on a rule; the chosen one is the same paper as the page below */
+.ptabs{display:flex;gap:4px;padding:0 var(--space-1);margin:var(--space-2) 0 var(--space-3);border-bottom:1px solid var(--line);width:auto}
+.ptabs button{position:relative;bottom:-1px;border:1px solid transparent;border-bottom:0;background:var(--sunk);color:var(--muted);font-family:var(--f-display);font-weight:700;font-size:15px;letter-spacing:.08em;padding:6px 18px 7px;border-radius:10px 10px 0 0;box-shadow:none}
+.ptabs button[aria-pressed="true"]{background:var(--paper);color:var(--ink);border-color:var(--line)}
+.ptabs button:active{transform:none}
+.ptabs.rmode,.ptabs.lseg{margin:var(--space-2) 0 var(--space-3)}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -2211,8 +2227,8 @@ function txRows(list, withDays, keepOrder){
     const extra = [kind, t.pendingOverspend ? "超支待處理" : "", t.note].filter(Boolean).join(" · ");
     const sub = withDays ? [cn, extra].filter(Boolean).join(" · ") : [`${t.date.slice(5).replace("-","/")}`, cn, kind].filter(Boolean).join(" · ");
     const attr = t.virtual ? `data-inst="${esc(t.installmentId)}"` : `data-edit="${esc(t.id)}"`;
-    html += `<button class="tx" ${attr}><span class="dot ${catTint(state.categories[t.categoryId])}">${catMark(state.categories[t.categoryId], cn)}</span>
-      <span class="mid"><b>${t.type === "expense" && !t.virtual && isFixed(t) ? `<span class="fxtag">固定</span>` : ""}${esc(t.title || cn)}</b><span class="subl">${nwTag(t)}<span class="subt">${esc(sub)}</span></span></span>
+    html += `<button class="tx lrow" ${attr}><span class="cic ${catTint(state.categories[t.categoryId])}" aria-hidden="true">${catMark(state.categories[t.categoryId], cn)}</span>
+      <span class="mid"><b><span class="tt">${t.type === "expense" && !t.virtual && isFixed(t) ? `<span class="fxtag">固定</span>` : ""}${esc(t.title || cn)}</span><i class="lead" aria-hidden="true"></i></b><span class="subl">${nwTag(t)}<span class="subt">${esc(sub)}</span></span></span>
       <span class="amt${plus?" inc":""}">${plus?"+":"−"}${moneyShort(t.amount)}${t.fx ? `<small class="famt">${esc(fxText(t.fx))}</small>` : ""}</span></button>`;
   });
   return html;
@@ -2558,10 +2574,10 @@ let listMode = null, calDay = null;
 function viewList(){
   const list = txIn(viewPeriod);
   const listMode = curListMode();
-  const seg = `<div class="seg lseg" role="tablist" aria-label="明細顯示方式">
+  const seg = `<div class="ptabs lseg" role="tablist" aria-label="明細顯示方式">
       <button role="tab" data-lseg="list" aria-pressed="${listMode==="list"}" aria-selected="${listMode==="list"}">列表</button>
       <button role="tab" data-lseg="cal" aria-pressed="${listMode==="cal"}" aria-selected="${listMode==="cal"}">月曆</button></div>`;
-  const head = periodNav() + `<div class="weekline"><span>支出 <b class="num">${money(sumOut(list))}</b></span><span>收入 <b class="num">${money(sumIncome(list))}</b></span></div>` + seg;
+  const head = seg + periodNav() + `<div class="weekline"><span>支出 <b class="num">${money(sumOut(list))}</b></span><span>收入 <b class="num">${money(sumIncome(list))}</b></span></div>`;
   if(listMode !== "cal") return head + `<div class="section"><div class="card txlist">${txRows(list,true)}</div></div>`;
   return head + calendarView(list);
 }
@@ -2608,7 +2624,7 @@ function fixedAutoTester(){
   return t => !!t.recurringId || recs.some(r => r.categoryId === t.categoryId && (norm(r.title) === norm(t.title) || r.amount === t.amount));
 }
 function reportMode(){
-  return `<div class="seg mini rmode" role="tablist" aria-label="月報或年報"><button role="tab" data-act="mmode" aria-pressed="${!reportYear}" aria-selected="${!reportYear}">月報</button><button role="tab" data-act="ymode" aria-pressed="${reportYear}" aria-selected="${reportYear}">年報</button></div>`;
+  return `<div class="ptabs rmode" role="tablist" aria-label="月報或年報"><button role="tab" data-act="mmode" aria-pressed="${!reportYear}" aria-selected="${!reportYear}">月報</button><button role="tab" data-act="ymode" aria-pressed="${reportYear}" aria-selected="${reportYear}">年報</button></div>`;
 }
 function viewReport(){
   if(reportYear) return reportMode() + viewYear(viewPeriod.y);
