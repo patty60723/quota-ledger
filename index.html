@@ -23,10 +23,11 @@
 </head>
 <body>
 <title>慢慢花手帳</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=LXGW+WenKai+TC:wght@700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<link rel="preload" href="fonts/figtree.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+/* numbers: Figtree (variable, latin only) shipped with the app; Chinese text uses the device's own font */
+@font-face{font-family:"Figtree";src:url("fonts/figtree.woff2") format("woff2");font-weight:300 900;font-style:normal;font-display:swap;
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 /* spacing scale: use these instead of one-off values */
 :root{--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-10:40px;--space-12:48px}
 :root{
@@ -40,9 +41,9 @@
   --card-shadow:0 1px 2px rgba(70,63,58,.05),0 6px 20px rgba(70,63,58,.07);
   --t1:#F4DED6; --t1f:#A4574A; --t2:#E0E7D8; --t2f:#5B6E4C; --t3:#DCE6EE; --t3f:#46647F; --t4:#F0E5CF; --t4f:#8A6526;
   --t5:#E7E0EC; --t5f:#6B5A7D; --t6:#E6E2DC; --t6f:#5E5650; --t7:#F2DCE1; --t7f:#9A4D60; --t8:#D8EAE4; --t8f:#3E6F63;
-  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
-  --f-display:"LXGW WenKai TC","Noto Serif TC","Kaiti TC",serif;
-  --f-num:"Figtree","Noto Sans TC","PingFang TC",system-ui,sans-serif;
+  --f-body:"PingFang TC","Microsoft JhengHei","Noto Sans TC","Noto Sans CJK TC",system-ui,sans-serif;
+  --f-display:var(--f-body);
+  --f-num:"Figtree","PingFang TC","Microsoft JhengHei","Noto Sans TC","Noto Sans CJK TC",system-ui,sans-serif;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -1422,11 +1423,87 @@ header.top .srch + .more{margin-left:0}
 .utabs button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .utabs button:active{transform:none}
 .utabs.rseg + .section{margin-top:var(--space-5)}
+
+/* ---------- unified spec (v84): one size per component type ----------
+   type: body 14/1.65 · page title 28/700 · section 16/700 · row name 14/600 · row amount 16/600 · row meta 12 · button 14/600 · sheet input 16
+   space: gutter 20 (16 under 360) · home sections 24 · inside 12/16 · quick-add gap 8
+   shape: summary card 24 pad / 20 radius · card 16 · small card 12 · button & field 10 · 1px lines
+   touch: button 44 · icon & confirm buttons 44×44 · 記一筆 52×52 r16 · save 52 · nav 84 · sheet top 24 · focus ring 3 + 3 */
+:root{--gutter:20px;--r-hero:20px;--r-card:16px;--r-small:12px;--r-ctl:10px;--nav-h:84px}
+@media (max-width:359px){:root{--gutter:16px}}
+body{font-size:14px;line-height:1.65}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.inp:focus,select:focus,.amtin:focus{outline:3px solid var(--accent);outline-offset:3px}
+.toggle input[type=checkbox]:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.pacebtn:focus-visible{outline:3px solid var(--hero-ink);outline-offset:-3px}
+/* gutter */
+.wrap{padding-inline:var(--gutter)}
+.sheet{padding-inline:var(--gutter)}
+.obin{padding-inline:var(--gutter)}
+.insrow{margin-inline:calc(var(--gutter) * -1);padding-inline:var(--gutter);scroll-padding-inline:var(--gutter)}
+.gdcards{margin-inline:calc(var(--gutter) * -1)}
+.pkyears{margin-inline:calc(var(--gutter) * -1);padding-inline:var(--gutter)}
+/* titles */
+#app > header.top .ttl,header.top .ttl,.obh,.obwel h1{font-size:28px;font-weight:700;line-height:1.25}
+.hhead h2,.section-head h2,.section > h2{font-size:16px;font-weight:700}
+/* rows: name 14/600, amount 16/600, meta 12 */
+.tx .mid b,.tx.lrow .mid b,.trow .meta b,.catrow > b,.bc .n,.prow .meta b,.tagrow .meta b,.jl .k b,.favmain b{font-size:14px;font-weight:600}
+.tx .amt,.tx.lrow .amt,.upr b,.jl .num,.catrow > .small.num,.catrow > .num:not(.sub){font-size:16px;font-weight:600}
+.tx .mid span,.tx .mid .subt,.tx.lrow .subl,.nwpill,.trow .meta > span,.catrow .sub,.bc .bm,.tagrow .meta > span,.jl .k span,.favmain .sub,.setrow .k span{font-size:12px}
+.tx,.tx.lrow,.drows .tx.lrow{padding-block:16px;min-height:76px}
+/* name, leader and amount share the first line (22px), details sit under it */
+.tx.lrow{align-items:start;align-content:center}
+.tx.lrow .cic,.tx.lrow .amt{align-self:start}
+.tx.lrow .cic{height:22px}
+.tx.lrow .mid b{line-height:22px}
+.tx.lrow .amt{padding-top:0;line-height:22px}
+.tx.lrow .lead{transform:translateY(-5px)}
+/* buttons and fields */
+.btn,.btn.small{font-size:14px;font-weight:600;border-radius:var(--r-ctl)}
+.btn{min-height:44px}
+.btn[data-save],.sheet .rowbtns .btn.primary,.obfoot .btn.block,.gdfoot .btn{min-height:52px;border-radius:var(--r-ctl)}
+select,.inp,.amtin,textarea.backup,.chip,.ipk,.iconbtn,.iconbtn.sm,.nwb,.calcbtn,.amount .calcbtn,.calc .keys button{border-radius:var(--r-ctl)}
+.sheet .inp,.sheet select,.sheet .amtin,.sheet input:not([type=checkbox]):not([type=radio]),.sheet textarea{font-size:16px}
+.sheet .amount input:not([type=checkbox]):not([type=radio]){font-size:34px}
+.sheet input[type=date]{padding-inline:var(--space-2)}
+.iconbtn,header.top .more,header.top .srch{width:44px;height:44px}
+.okbtn{width:44px;height:44px;min-width:44px;min-height:44px;border-radius:var(--r-ctl)}
+/* cards */
+.card,.hcard,.ins,.ytotal,.section > .budsum{border-radius:var(--r-card)}
+.home .qchip,.mini,.ys,.budsum,.cdsum{border-radius:var(--r-small)}
+.hero,.insight,.section > .budsum{padding:24px}
+.hero,.insight{border-radius:var(--r-hero)}
+.home{gap:24px}
+.hsec{gap:12px}
+.home .quickrow{gap:8px}
+/* home: the amount scales with the screen, 44 to 64 */
+.hbig{font-size:clamp(44px,13vw,64px)}
+@media (max-width:380px){.hero{padding:24px}.hbig{font-size:44px}}
+/* page tabs use the body font now: no extra letter spacing */
+.ptabs button{letter-spacing:.02em}
+/* sheets */
+.sheet{border-radius:24px 24px 0 0}
+/* bottom nav: four tabs and 記一筆 in the middle; the active tab is coloured, no pill */
+nav.tabs .in{height:var(--nav-h);grid-template-columns:repeat(5,1fr);align-items:center}
+nav.tabs button{min-height:0;height:100%;justify-content:center;gap:4px;padding:0;font-size:12px;font-weight:500;color:var(--muted)}
+nav.tabs button .ic{width:26px;height:26px;padding:0;border-radius:0;background:none !important}
+nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
+.navgap{display:block}
+.fab{position:fixed;z-index:6;left:50%;right:auto;bottom:env(safe-area-inset-bottom,0px);transform:translateX(-50%);width:auto;min-width:64px;height:var(--nav-h);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0;border:0;border-radius:0;background:none;box-shadow:none;color:var(--muted);font-size:12px;font-weight:500;line-height:1.2}
+.fab:active:not(:disabled){transform:translateX(-50%) scale(.97)}
+.fabsq{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--fab-bg);color:var(--fab-ink)}
+.fabsq .ic{width:26px;height:26px;stroke-width:2}
+.fablbl{color:var(--muted)}
+.on-settings .fab{display:flex;visibility:hidden}
+/* room below the last item: just the nav now that 記一筆 lives in it */
+.wrap{padding-bottom:calc(var(--nav-h) + var(--space-6) + env(safe-area-inset-bottom,0px))}
+.toast{bottom:calc(var(--nav-h) + var(--space-4) + env(safe-area-inset-bottom,0px))}
 </style>
 
 <div class="wrap" id="app"></div>
 <nav class="tabs" aria-label="主選單"><div class="in" id="tabs"></div></nav>
-<button class="fab" id="fab" aria-label="記一筆"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+<button class="fab" id="fab"><span class="fabsq" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><span class="fablbl">記一筆</span></button>
 <div id="overlay"></div>
 <div id="toastHost"></div>
 
@@ -2141,7 +2218,9 @@ function toast(msg, actions, ms){
 }
 
 function renderTabs(){
-  $("#tabs").innerHTML = TABS.map(([k,g,l]) => `<button data-tab="${k}" ${k===tab?'aria-current="page"':""}>${icon(g)}${l}</button>`).join("");
+  // the middle column is left for the 記一筆 button, which sits on top of the nav
+  const tb = TABS.map(([k,g,l]) => `<button data-tab="${k}" ${k===tab?'aria-current="page"':""}>${icon(g)}${l}</button>`);
+  $("#tabs").innerHTML = tb.slice(0, 2).join("") + `<span class="navgap" aria-hidden="true"></span>` + tb.slice(2).join("");
 }
 
 // Theme: "system" follows the phone (or, inside claude.ai, whatever the host page set); light/dark force it.

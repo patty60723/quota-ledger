@@ -14,7 +14,8 @@ const APP_SHELL = [
   "./icons/icon-96.png",
   "./icons/wordmark.png",
   "./icons/wordmark-dark.png",
-  "./icons/icon.svg"
+  "./icons/icon.svg",
+  "./fonts/figtree.woff2"
 ];
 // Third-party files are cached separately; failing to fetch them must not block install.
 const EXTRA = ["https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"];
