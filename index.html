@@ -1404,6 +1404,17 @@ header.top .srch + .more{margin-left:0}
 .ptabs button:active{transform:none}
 .ptabs.rmode,.ptabs.lseg{margin:var(--space-2) 0 var(--space-3)}
 .ptabs.fseg{margin:var(--space-1) 0 var(--space-3)}
+/* day blocks: date column on the left like a planner page, the day's records to the right */
+.dayblk{display:grid;grid-template-columns:52px minmax(0,1fr);border-top:1px solid var(--line)}
+.dayblk:first-child{border-top:0}
+.dcol{display:flex;flex-direction:column;justify-content:space-between;padding:var(--space-3) 0 var(--space-3) var(--space-3);border-right:1px solid var(--line);min-width:0}
+.dcol > span{display:flex;flex-direction:column;line-height:1.15}
+.dcol .dm{font-size:11px;color:var(--muted)}
+.dcol .dd{font-family:var(--f-num);font-size:24px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.dcol .dw{font-size:12px;color:var(--muted);margin-top:2px}
+.dcol .dsum{font-size:11px;color:var(--muted);margin-top:var(--space-2);overflow-wrap:anywhere}
+.drows{min-width:0;padding:var(--space-1) 0}
+.drows .tx.lrow{padding:var(--space-2) var(--space-4) var(--space-2) var(--space-3)}
 .ptabs.fseg small{font-family:var(--f-num);font-weight:500}
 /* text switch: a second-level choice inside a page, a word with an underline, quieter than the page tabs */
 .utabs{display:flex;gap:var(--space-5);padding:0 var(--space-1);margin:var(--space-5) 0 0}
@@ -2223,11 +2234,18 @@ function txRows(list, withDays, keepOrder){
   if(!list.length) return `<div class="empty">這一期還沒有紀錄。按右下角「＋」記第一筆。</div>`;
   const sorted = keepOrder ? list : [...list].sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0));
   let html = "", lastDay = null; const isFixed = fixedTester();
+  // with days: each day is a block, a date column on the left (day, weekday, the day's spending at the bottom) and its records on the right;
+  // the month shows too when the list runs over more than one month (search, a category's records)
+  const manyMonths = withDays && new Set(sorted.map(t => t.date.slice(0, 7))).size > 1;
   sorted.forEach(t => {
     if(withDays && t.date !== lastDay){
+      if(lastDay) html += `</div></div>`;
       lastDay = t.date; const d = parseYmd(t.date);
-      const dayOut = sumOut(sorted.filter(x=>x.date===t.date));
-      html += `<div class="daygrp"><span>${d.getMonth()+1} 月 ${d.getDate()} 日（${WEEK[d.getDay()]}）</span><span class="num">支出 ${moneyShort(dayOut)}</span></div>`;
+      const dayL = sorted.filter(x=>x.date===t.date), dayOut = sumOut(dayL);
+      // the day's total only says something new when there's more than one record; 萬 keeps it inside the narrow column
+      const dsum = dayOut && dayL.length > 1 ? (dayOut >= 10000 * unitF() ? (dayOut / unitF() / 10000).toLocaleString("zh-TW", { maximumFractionDigits: 1 }) + "萬" : moneyShort(dayOut)) : "";
+      html += `<div class="dayblk"><div class="dcol"><span class="sr">${d.getMonth()+1} 月 ${d.getDate()} 日（${WEEK[d.getDay()]}）${dayOut ? `，支出 ${moneyShort(dayOut)}` : ""}</span>
+        <span aria-hidden="true">${manyMonths ? `<small class="dm">${d.getMonth()+1} 月</small>` : ""}<b class="dd num">${d.getDate()}</b><small class="dw">週${WEEK[d.getDay()]}</small></span>${dsum ? `<small class="dsum num" aria-hidden="true">${dsum}</small>` : ""}</div><div class="drows">`;
     }
     const plus = t.type==="income" || t.type==="refund"; const cn = catName(t.categoryId);
     const jn = t.jarId && state.jars[t.jarId] ? `「${esc(state.jars[t.jarId].name)}」` : "";
@@ -2239,6 +2257,7 @@ function txRows(list, withDays, keepOrder){
       <span class="mid"><b><span class="tt">${t.type === "expense" && !t.virtual && isFixed(t) ? `<span class="fxtag">固定</span>` : ""}${esc(t.title || cn)}</span><i class="lead" aria-hidden="true"></i></b><span class="subl">${nwTag(t)}<span class="subt">${esc(sub)}</span></span></span>
       <span class="amt${plus?" inc":""}">${plus?"+":"−"}${moneyShort(t.amount)}${t.fx ? `<small class="famt">${esc(fxText(t.fx))}</small>` : ""}</span></button>`;
   });
+  if(withDays && lastDay) html += `</div></div>`;
   return html;
 }
 
