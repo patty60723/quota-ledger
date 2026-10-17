@@ -3348,7 +3348,7 @@ function openEntry(existing, refundOf, prefill){
         : `<div class="seg" role="group" aria-label="收支"><button data-type="expense" aria-pressed="${type==="expense"}">支出</button><button data-type="income" aria-pressed="${type==="income"}">收入</button></div>`}
       <label class="amount">${inst ? `<span>${instMode === "per" ? "每期" : "總額"}</span>` : !fxOk ? `<span>${SYM()}</span>`
         : `<span class="curpick${fxCur ? " fx" : ""}">${esc(ac().sym)}${icon("chev")}<select id="e-cur" aria-label="貨幣">${Object.entries(CURS).map(([k, c]) => `<option value="${k}" ${k === (fxCur || ledgerCode()) ? "selected" : ""}>${esc(c.sym)} ${esc(c.name)}${k === ledgerCode() ? "（記帳貨幣）" : ""}</option>`).join("")}</select></span>`}<input id="e-amt" inputmode="${calcOpen ? "none" : IM(ac())}" pattern="[0-9]*" placeholder="0" value="${fxCur ? amtIn(fxAmt, ac()) : amtIn(t.amount)}" aria-label="金額" ${calcOpen ? "readonly" : ""}><button type="button" class="calcbtn" data-calc aria-label="計算機" aria-expanded="${calcOpen}">${icon("calc")}</button></label>
-      ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+", ...(ac().dp ? ["."] : [])].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加",".":"小數點"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq${ac().dp ? " w3" : ""}" data-k="=">＝ 填入金額</button></div></div>` : ""}
+      ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+","."].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加",".":"小數點"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq w3" data-k="=">＝ 填入金額</button></div></div>` : ""}
       ${fxCur ? `<div class="fxconv">
         <label class="frate">1 ${esc(CURS[fxCur].name)} =<input class="inp num" id="e-rate" inputmode="decimal" value="${fxRate ?? ""}" placeholder="匯率" aria-label="匯率">${esc(curC().name)}</label>
         ${!existing && !state.settings.fxRates?.[fxCur] ? `<p class="fref" id="e-rateref">參考匯率</p>` : ""}
@@ -3419,9 +3419,10 @@ function openEntry(existing, refundOf, prefill){
       fxCur = k === ledgerCode() ? null : k; fxPaid = false; fxRate = fxCur ? fxRateFor(fxCur) : null; calcOpen = false;
       if(fxCur) fxAmt = amtOf(typed, ac()); else t.amount = amtOf(typed);
       draw(sheet); if(fxCur && !fxRate) $("#e-rate", sheet)?.focus(); });
-    // calculator: builds an expression from the keys, keeps the amount field showing the result (rounded, never negative)
+    // calculator: builds an expression from the keys, keeps the amount field showing the result (rounded, never negative).
+    // Decimals are allowed in every currency (e.g. × 1.1 for a 10% service charge); only the result is rounded to the currency's unit
     const showCalc = () => { const r = calcEval(calcExpr); const box = $("#e-expr", sheet); if(!box) return;
-      box.innerHTML = calcExpr ? `${esc(calcExpr.replace(/[+−×÷]/g, " $& "))}${r !== null && /[+−×÷]/.test(calcExpr) ? (r < 0 ? `（結果小於 0，不能當金額）` : ` = <b>${moneyShort(Math.round(r * unitF(ac())), ac())}</b>`) : ""}` : "輸入算式，例如 350 + 120 − 50";
+      box.innerHTML = calcExpr ? `${esc(calcExpr.replace(/[+−×÷]/g, " $& "))}${r !== null && /[+−×÷]/.test(calcExpr) ? (r < 0 ? `（結果小於 0，不能當金額）` : ` = <b>${moneyShort(Math.round(r * unitF(ac())), ac())}</b>${Math.abs(r * unitF(ac()) - Math.round(r * unitF(ac()))) > 1e-9 ? `（四捨五入）` : ""}`) : ""}` : "輸入算式，例如 350 + 120 − 50";
       if(r !== null){ const v = Math.max(0, Math.round(r * unitF(ac()))); amt.value = v ? amtIn(v, ac()) : ""; takeAmt(); hint(); } };
     $("[data-calc]", sheet).addEventListener("click", () => { calcOpen = !calcOpen; if(calcOpen) calcExpr = amt.value || ""; draw(sheet); });
     sheet.querySelectorAll("[data-k]").forEach(b => b.addEventListener("click", () => { const k = b.dataset.k;
