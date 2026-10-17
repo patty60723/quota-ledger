@@ -389,7 +389,7 @@ await test("貨幣：美元的計算機可以算小數", async () => {
   return p;
 });
 
-await test("貨幣：新台幣不能填小數，但計算機可以用小數（例如 × 1.1 算服務費），結果四捨五入", async () => {
+await test("貨幣：新台幣不能填小數；計算機可以用小數（例如 × 1.1 算服務費），結果有小數時不自動進位，先問要記成多少", async () => {
   const p = await openApp();
   await p.click("#fab"); await p.fill("#e-amt", "12.5");
   ok(await p.$eval("#e-amt", e => e.value) === "12", `貼上 12.5 變成「${await p.$eval("#e-amt", e => e.value)}」`);
@@ -397,13 +397,25 @@ await test("貨幣：新台幣不能填小數，但計算機可以用小數（�
   await p.click(".sheet [data-calc]"); ok(await p.$('.sheet .calc [data-k="."]'), "新台幣的計算機沒有小數點");
   for(const k of ["C", "1", "2", "3", "4", "×", "1", ".", "1"]) await p.click(`.sheet .calc [data-k="${k}"]`);
   const ex = await text(p, "#e-expr");
-  ok(/1234 × 1\.1 = 1,357（四捨五入）/.test(ex), `1234 × 1.1 顯示「${ex}」`);
+  ok(/1234 × 1\.1 = 1,357\.4$/.test(ex), `1234 × 1.1 顯示「${ex}」`);
+  ok(await p.$eval("#e-amt", e => e.value) === "", "結果有小數時就自動填了整數");
   await p.click('.sheet .calc [data-k="="]'); await p.waitForTimeout(150);
-  ok(await p.$eval("#e-amt", e => e.value) === "1357", `1234 × 1.1 填入「${await p.$eval("#e-amt", e => e.value)}」`);
+  ok(await p.$(".sheet .calc"), "按「＝ 填入金額」沒問就關掉計算機");
+  const pk = await p.$$eval(".sheet #e-pick [data-pick]", l => l.map(b => b.innerText.trim()));
+  ok(pk.join("/") === "1,357/1,358", `要記成多少的選項是「${pk.join("/")}」`);
+  await p.click('.sheet #e-pick [data-pick="1358"]'); await p.waitForTimeout(150);
+  ok(await p.$eval("#e-amt", e => e.value) === "1358", `選 1,358 後金額是「${await p.$eval("#e-amt", e => e.value)}」`);
+  ok(!(await p.$(".sheet .calc")), "選好後計算機沒有關");
+  // pressing 儲存 with a result that still has decimals asks first and saves nothing
+  const before = (await stored(p)).months["2026-09"].length;
   await p.click(".sheet [data-calc]");
   for(const k of ["C", "1", "0", "0", "÷", "3"]) await p.click(`.sheet .calc [data-k="${k}"]`);
-  await p.click('.sheet .calc [data-k="="]'); await p.waitForTimeout(150);
-  ok(await p.$eval("#e-amt", e => e.value) === "33", "100 ÷ 3 沒有四捨五入成 33");
+  ok(/= ≈ 33\.33$/.test(await text(p, "#e-expr")), `100 ÷ 3 顯示「${await text(p, "#e-expr")}」`);
+  await p.click('.sheet [data-cat="c-food"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(200);
+  ok(await p.$(".sheet #e-pick:not([hidden])"), "按儲存時沒有先問要記成多少");
+  ok((await stored(p)).months["2026-09"].length === before, "還沒選就存起來了");
+  await p.click('.sheet #e-pick [data-pick="33"]'); await p.waitForTimeout(150);
+  ok(await p.$eval("#e-amt", e => e.value) === "33", "100 ÷ 3 選 33 後金額不對");
   await p.click(".sheet [data-x]"); await p.waitForTimeout(200);
   await p.click("#fab"); await p.selectOption("#e-cur", "JPY"); await p.waitForTimeout(150); await p.fill("#e-amt", "1200.5");
   ok(await p.$eval("#e-amt", e => e.value) === "1200", "日圓外幣也能填小數");

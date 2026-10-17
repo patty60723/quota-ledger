@@ -1499,6 +1499,10 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 /* room below the last item: just the nav now that 記一筆 lives in it */
 .wrap{padding-bottom:calc(var(--nav-h) + var(--space-6) + env(safe-area-inset-bottom,0px))}
 .toast{bottom:calc(var(--nav-h) + var(--space-4) + env(safe-area-inset-bottom,0px))}
+/* calculator: result finer than the currency's unit, pick the lower or higher amount */
+.calcpick{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-3);border-radius:var(--r-small);background:var(--warn-soft)}
+.calcpick p{margin:0;font-size:14px;color:var(--ink)}
+.calcpick .btn{background:var(--surface);font-size:16px}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -3348,7 +3352,7 @@ function openEntry(existing, refundOf, prefill){
         : `<div class="seg" role="group" aria-label="收支"><button data-type="expense" aria-pressed="${type==="expense"}">支出</button><button data-type="income" aria-pressed="${type==="income"}">收入</button></div>`}
       <label class="amount">${inst ? `<span>${instMode === "per" ? "每期" : "總額"}</span>` : !fxOk ? `<span>${SYM()}</span>`
         : `<span class="curpick${fxCur ? " fx" : ""}">${esc(ac().sym)}${icon("chev")}<select id="e-cur" aria-label="貨幣">${Object.entries(CURS).map(([k, c]) => `<option value="${k}" ${k === (fxCur || ledgerCode()) ? "selected" : ""}>${esc(c.sym)} ${esc(c.name)}${k === ledgerCode() ? "（記帳貨幣）" : ""}</option>`).join("")}</select></span>`}<input id="e-amt" inputmode="${calcOpen ? "none" : IM(ac())}" pattern="[0-9]*" placeholder="0" value="${fxCur ? amtIn(fxAmt, ac()) : amtIn(t.amount)}" aria-label="金額" ${calcOpen ? "readonly" : ""}><button type="button" class="calcbtn" data-calc aria-label="計算機" aria-expanded="${calcOpen}">${icon("calc")}</button></label>
-      ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+","."].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加",".":"小數點"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq w3" data-k="=">＝ 填入金額</button></div></div>` : ""}
+      ${calcOpen ? `<div class="calc"><div class="expr" id="e-expr" aria-live="polite"></div><div class="keys">${["7","8","9","÷","4","5","6","×","1","2","3","−","C","0","⌫","+","."].map(k => `<button type="button" data-k="${k}" class="${"÷×−+".includes(k) ? "op" : ""}" aria-label="${{"C":"清除","⌫":"刪除一格","÷":"除","×":"乘","−":"減","+":"加",".":"小數點"}[k] || k}">${k}</button>`).join("")}<button type="button" class="eq w3" data-k="=">＝ 填入金額</button></div><div class="calcpick" id="e-pick" role="group" aria-live="polite" hidden></div></div>` : ""}
       ${fxCur ? `<div class="fxconv">
         <label class="frate">1 ${esc(CURS[fxCur].name)} =<input class="inp num" id="e-rate" inputmode="decimal" value="${fxRate ?? ""}" placeholder="匯率" aria-label="匯率">${esc(curC().name)}</label>
         ${!existing && !state.settings.fxRates?.[fxCur] ? `<p class="fref" id="e-rateref">參考匯率</p>` : ""}
@@ -3419,15 +3423,29 @@ function openEntry(existing, refundOf, prefill){
       fxCur = k === ledgerCode() ? null : k; fxPaid = false; fxRate = fxCur ? fxRateFor(fxCur) : null; calcOpen = false;
       if(fxCur) fxAmt = amtOf(typed, ac()); else t.amount = amtOf(typed);
       draw(sheet); if(fxCur && !fxRate) $("#e-rate", sheet)?.focus(); });
-    // calculator: builds an expression from the keys, keeps the amount field showing the result (rounded, never negative).
-    // Decimals are allowed in every currency (e.g. × 1.1 for a 10% service charge); only the result is rounded to the currency's unit
+    // calculator: builds an expression from the keys and keeps the amount field showing the result (never negative).
+    // Decimals are allowed in every currency (e.g. × 1.1 for a 10% service charge). It never rounds on its own: a result finer than
+    // the currency's unit (1,357.4 in NT$) leaves the amount empty, and 「＝ 填入金額」 or 儲存 asks whether to record the lower or higher amount
+    const split = r => { const x = r * unitF(ac()), lo = Math.floor(x + 1e-9), hi = Math.ceil(x - 1e-9); return lo === hi ? null : { lo, hi }; };
+    const exactTxt = r => { const shown = +r.toFixed(ac().dp + 2); return (Math.abs(shown - r) > 1e-9 ? "≈ " : "") + shown.toLocaleString("zh-TW", { maximumFractionDigits: ac().dp + 2 }); };
+    const pending = () => { if(!calcOpen) return null; const r = calcEval(calcExpr); return r !== null && r > 0 ? split(r) : null; };
+    const showPick = on => { const box = $("#e-pick", sheet); if(!box) return; const sp = on && pending(); box.hidden = !sp; if(!sp) return;
+      const r = calcEval(calcExpr);
+      box.innerHTML = `<p><b class="num">${exactTxt(r)}</b> 有小數，金額${ac().dp ? "只記到小數兩位" : "只記到整數"}。要記成多少？</p>
+        <div class="rowbtns">${[sp.lo, sp.hi].map(v => `<button type="button" class="btn" data-pick="${v}"><span class="num">${moneyShort(v, ac())}</span></button>`).join("")}</div>`;
+      box.querySelectorAll("[data-pick]").forEach(b => b.addEventListener("click", () => { const v = +b.dataset.pick;
+        amt.value = amtIn(v, ac()); takeAmt(); calcExpr = amt.value; calcOpen = false; draw(sheet); }));
+      box.scrollIntoView({ block: "nearest" }); };
     const showCalc = () => { const r = calcEval(calcExpr); const box = $("#e-expr", sheet); if(!box) return;
-      box.innerHTML = calcExpr ? `${esc(calcExpr.replace(/[+−×÷]/g, " $& "))}${r !== null && /[+−×÷]/.test(calcExpr) ? (r < 0 ? `（結果小於 0，不能當金額）` : ` = <b>${moneyShort(Math.round(r * unitF(ac())), ac())}</b>${Math.abs(r * unitF(ac()) - Math.round(r * unitF(ac()))) > 1e-9 ? `（四捨五入）` : ""}`) : ""}` : "輸入算式，例如 350 + 120 − 50";
-      if(r !== null){ const v = Math.max(0, Math.round(r * unitF(ac()))); amt.value = v ? amtIn(v, ac()) : ""; takeAmt(); hint(); } };
+      const sp = r !== null && r > 0 ? split(r) : null;
+      box.innerHTML = calcExpr ? `${esc(calcExpr.replace(/[+−×÷]/g, " $& "))}${r !== null && (/[+−×÷]/.test(calcExpr) || sp) ? (r < 0 ? `（結果小於 0，不能當金額）` : ` = <b>${sp ? exactTxt(r) : moneyShort(Math.round(r * unitF(ac())), ac())}</b>`) : ""}` : "輸入算式，例如 350 + 120 − 50";
+      showPick(false);
+      if(r !== null){ const v = sp ? 0 : Math.max(0, Math.round(r * unitF(ac()))); amt.value = v ? amtIn(v, ac()) : ""; takeAmt(); hint(); } };
     $("[data-calc]", sheet).addEventListener("click", () => { calcOpen = !calcOpen; if(calcOpen) calcExpr = amt.value || ""; draw(sheet); });
     sheet.querySelectorAll("[data-k]").forEach(b => b.addEventListener("click", () => { const k = b.dataset.k;
       if(k === "C") calcExpr = ""; else if(k === "⌫") calcExpr = calcExpr.slice(0, -1);
-      else if(k === "="){ const r = calcEval(calcExpr); calcExpr = r !== null ? amtIn(Math.max(0, Math.round(r * unitF(ac()))), ac()) : calcExpr; calcOpen = false; showCalc(); draw(sheet); return; }
+      else if(k === "="){ if(pending()){ showPick(true); return; }
+        const r = calcEval(calcExpr); calcExpr = r !== null ? amtIn(Math.max(0, Math.round(r * unitF(ac()))), ac()) : calcExpr; calcOpen = false; showCalc(); draw(sheet); return; }
       else if("+−×÷".includes(k)){ if(!calcExpr) return; calcExpr = /[+−×÷]$/.test(calcExpr) ? calcExpr.slice(0, -1) + k : calcExpr + k; }
       else if(k === "."){ if(/(^|[+−×÷])\d*\.\d*$/.test(calcExpr)) return; calcExpr += /(^|[+−×÷])$/.test(calcExpr) ? "0." : "."; }
       else calcExpr += k;
@@ -3479,6 +3497,7 @@ function openEntry(existing, refundOf, prefill){
     });
     const saveBtn = $("[data-save]", sheet);
     saveBtn && saveBtn.addEventListener("click", () => {
+      if(pending()){ showPick(true); toast("計算結果有小數，先選要記成多少"); return; }
       const v = inst ? amtOf(amt.value) : ledgerAmt(); const date = $("#e-date", sheet).value;
       if(fxCur && !fxAmt){ toast("請輸入金額"); amt.focus(); return; }
       if(fxCur && !v){ toast("請填匯率"); $("#e-rate", sheet)?.focus(); return; }
