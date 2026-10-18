@@ -584,6 +584,36 @@ await test("這期發現：買了好幾次會預估整期並跟上期比；分�
   return p;
 });
 
+await test("明細帳本列：沒有對應圖示的類別顯示類別色小圓點，不顯示名稱第一個字；購物、自我成長有圖示", async () => {
+  const d = structuredClone(FIXTURE);
+  const cats = [["c-x1", "雜項"], ["c-x2", "購物"], ["c-x3", "自我成長"]];
+  cats.forEach(([id, name], i) => { d.categories[id] = { id, name, type: "expense", monthlyLimit: null, warn: false, sort: 20 + i, archived: false }; });
+  cats.forEach(([id, name], i) => d.months["2026-09"].push({ id: "tx-" + id, date: "2026-09-13", type: "expense", categoryId: id, amount: 100 + i, title: name + "測試", note: "", createdAt: 1789000000000 + i }));
+  const p = await openApp({ data: d, tab: "list" });
+  const marks = await p.$$eval(".tx.lrow", l => l.filter(r => /測試/.test(r.innerText)).map(r => { const c = r.querySelector(".cic");
+    return { t: r.querySelector(".tt").innerText, dot: !!c.querySelector(".cdot"), svg: !!c.querySelector("svg"), text: c.innerText.trim() }; }));
+  const by = Object.fromEntries(marks.map(m => [m.t, m]));
+  ok(by["雜項測試"]?.dot && !by["雜項測試"].text, `雜項的帳本列顯示「${by["雜項測試"]?.text}」，不是小圓點`);
+  ok(by["購物測試"]?.svg, "購物沒有圖示");
+  ok(by["自我成長測試"]?.svg, "自我成長沒有圖示");
+  return p;
+});
+await test("想買：類別有年度預算時，會超出或已經超出就不顯示「可以買」", async () => {
+  const used = FIXTURE.months["2026-09"].filter(t => t.categoryId === "c-med" && t.type === "expense").reduce((a, t) => a + t.amount, 0);
+  const label = async lim => {
+    const d = structuredClone(FIXTURE); d.categories["c-med"].yearlyLimit = lim;
+    d.wishes.w2 = { id: "w2", name: "護膝", url: "", categoryId: "c-med", need: "want", price: 500, deadline: "", note: "", addedOn: "2026-09-01", createdAt: 1788300000000 };
+    const p = await openApp({ data: d, tab: "wish" });
+    const card = await p.$$eval(".card.wish", l => (l.find(c => /護膝/.test(c.innerText)) || {}).innerText?.replace(/\s+/g, " ") || "");
+    if(p.errors.length) throw new Error("頁面錯誤：" + p.errors.join(" / "));
+    await p.context().close(); return card;
+  };
+  ok(used > 0, "測試資料沒有醫療支出");
+  const fine = await label(used + 10000); ok(/可以買/.test(fine) && !/年度/.test(fine), `年度預算夠時：「${fine.slice(0, 60)}」`);
+  const will = await label(used + 100); ok(/會超出年度預算/.test(will) && !/可以買/.test(will), `買了會超出年度預算時：「${will.slice(0, 60)}」`);
+  ok(/今年已花 NT\$/.test(will) && /會超出 NT\$400/.test(will), `沒有寫出今年已花多少、會超出多少：「${will}」`);
+  const over = await label(used - 1); ok(/年度已超支/.test(over) && !/可以買/.test(over), `已經超過年度預算時：「${over.slice(0, 60)}」`);
+});
 await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {
   const p = await openApp({ width: 320, theme: "dark" });
   for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }

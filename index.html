@@ -1503,6 +1503,7 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .calcpick{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-3);border-radius:var(--r-small);background:var(--warn-soft)}
 .calcpick p{margin:0;font-size:14px;color:var(--ink)}
 .calcpick .btn{background:var(--surface);font-size:16px}
+.tx.lrow .cic .cdot{display:block;width:8px;height:8px;border-radius:50%;background:currentColor}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1634,7 +1635,7 @@ const CAT_ICONS = [
   [/水電|瓦斯|電費|水費/, "utility"], [/網路|寬頻/, "wifi"], [/手機|電話|電信/, "phone"], [/寵物|貓|狗/, "paw"],
   [/日常|用品|生活|雜貨/, "basket"], [/美容|美髮|剪髮|保養|化妝/, "scissors"], [/保險/, "shield"], [/稅|規費|罰單/, "receipt"],
   [/醫療|健康|藥|看診/, "medical"], [/退貨|退款|銷帳/, "refund"], [/薪資|收入|獎金|紅利|股利|利息|接案|兼職/, "coin"],
-  [/房貸|房租|租金|房/, "house"], [/捐款|捐|公益/, "give"], [/訂閱|會員/, "repeat"], [/學習|書|課|教育|學費/, "book"]
+  [/房貸|房租|租金|房/, "house"], [/捐款|捐|公益/, "give"], [/訂閱|會員/, "repeat"], [/學習|書|課|教育|學費|成長|進修/, "book"], [/購物|網購|逛街|百貨/, "bag"]
 ];
 function catIconName(name){ const hit = CAT_ICONS.find(([re]) => re.test(name || "")); return hit ? hit[1] : null; }
 // a category's own pick wins; "text" means show the first character; otherwise match by name
@@ -2336,7 +2337,9 @@ function txRows(list, withDays, keepOrder){
     const extra = [kind, t.pendingOverspend ? "超支待處理" : "", t.note].filter(Boolean).join(" · ");
     const sub = withDays ? [cn, extra].filter(Boolean).join(" · ") : [`${t.date.slice(5).replace("-","/")}`, cn, kind].filter(Boolean).join(" · ");
     const attr = t.virtual ? `data-inst="${esc(t.installmentId)}"` : `data-edit="${esc(t.id)}"`;
-    html += `<button class="tx lrow" ${attr}><span class="cic ${catTint(state.categories[t.categoryId])}" aria-hidden="true">${catMark(state.categories[t.categoryId], cn)}</span>
+    // small icon in the category colour; a category without one gets a dot of that colour (a lone first character read as a stray word here)
+    const tc = state.categories[t.categoryId];
+    html += `<button class="tx lrow" ${attr}><span class="cic ${catTint(tc)}" aria-hidden="true">${catIconFor(tc) ? catMark(tc, cn) : `<i class="cdot"></i>`}</span>
       <span class="mid"><b><span class="tt">${t.type === "expense" && !t.virtual && isFixed(t) ? `<span class="fxtag">固定</span>` : ""}${esc(t.title || cn)}</span><i class="lead" aria-hidden="true"></i></b><span class="subl">${nwTag(t)}<span class="subt">${esc(sub)}</span></span></span>
       <span class="amt${plus?" inc":""}">${plus?"+":"−"}${moneyShort(t.amount)}${t.fx ? `<small class="famt">${esc(fxText(t.fx))}</small>` : ""}</span></button>`;
   });
@@ -3982,13 +3985,19 @@ function openFavorite(f){
 
 /* ---------- wishlist (慾望清單) ---------- */
 const dayDiff = (a, b) => Math.round((parseYmd(b) - parseYmd(a)) / 864e5);
+// the category's yearly limit (年度預算), for a wish bought today: null when there's no limit or buying stays within it
+function wishYear(w){
+  const c = state.categories[w.categoryId]; if(!c || !c.yearlyLimit || !w.price) return null;
+  const used = yearUsed(c, +todayStr().slice(0, 4)), lim = c.yearlyLimit;
+  return used + w.price > lim ? { c, used, lim, already: used > lim, over: used + w.price - lim } : null;
+}
 function wishScore(w){
   const created = w.addedOn || todayStr(); const days = Math.max(0, dayDiff(created, todayStr()));
   const parts = { need: w.need==="need" ? 40 : 10, wait: Math.round(Math.min(days, 30) / 30 * 20), budget: 0, deadline: 0 };
   const c = state.categories[w.categoryId];
   if(w.price){
     const avail = c && c.monthlyLimit ? budgetOf(c, curPeriod()).avail : Infinity;
-    parts.budget = w.price <= avail ? 25 : w.price <= avail + poolBalance() ? 10 : 0;
+    parts.budget = wishYear(w) ? 0 : w.price <= avail ? 25 : w.price <= avail + poolBalance() ? 10 : 0;
   }
   if(w.deadline){ const d = dayDiff(todayStr(), w.deadline); parts.deadline = d <= 7 ? 15 : d <= 30 ? 8 : 0; }
   return { total: parts.need + parts.wait + parts.budget + parts.deadline, parts, days };
@@ -4006,7 +4015,9 @@ function wishBudgetLine(w){
 // a plain answer instead of a score: can I buy it now?
 const WISH_COOL = 7;
 function wishStatus(w, s){
-  const [cls] = wishBudgetLine(w);
+  const [cls] = wishBudgetLine(w); const yr = wishYear(w);
+  // the yearly limit counts too: a category can have room this month and still be past its limit for the year
+  if(yr) return ["impact", yr.already ? "年度已超支" : "會超出年度預算", yr.already ? `${esc(yr.c.name)}今年已經超過年度預算` : `買了${esc(yr.c.name)}今年會超過年度預算`];
   if(cls === "warn" || cls === "over") return ["impact", "會影響本期預算", "買了這一期的預算會超出"];
   if(!w.price || !w.categoryId) return ["wait", "再等等", "先填價格和類別，才能判斷預算夠不夠"];
   const soon = w.deadline && dayDiff(todayStr(), w.deadline) <= 7;
@@ -4049,13 +4060,15 @@ function viewWish(){
     const meta = [catName(w.categoryId), w.need==="need" ? "需要" : "想要"].join(" · ");
     const c = state.categories[w.categoryId]; const avail = c && c.monthlyLimit ? budgetOf(c, curPeriod()).avail : null;
     const impact = w.price && avail !== null ? `<p class="wimpact">買了之後，${esc(c.name)}本期可用 <span class="num">${avail < 0 ? "−" : ""}${SYM()}${moneyShort(Math.abs(avail))}</span> → <b class="num${avail - w.price < 0 ? " bad" : ""}">${avail - w.price < 0 ? "−" : ""}${SYM()}${moneyShort(Math.abs(avail - w.price))}</b></p>` : "";
+    const yr = wishYear(w);
+    const yline = yr ? `<p class="wimpact">${esc(c.name)}今年已花 <span class="num">${SYM()}${moneyShort(yr.used)}</span>，年度預算 <span class="num">${SYM()}${moneyShort(yr.lim)}</span>；買了${yr.already ? "共" : "會"}超出 <b class="num bad">${SYM()}${moneyShort(yr.over)}</b></p>` : "";
     return `<div class="card wish">
       <div class="w0"><span class="wst ${st[0]}">${st[1]}</span><span class="num wprice${w.price ? "" : " none"}">${w.price ? SYM() + moneyShort(w.price) : "未填價格"}</span></div>
       <div class="wmain"><b>${esc(w.name)}</b><span class="wmeta">${esc(meta)}</span><span class="wmeta">${s.days ? `已放 ${s.days} 天` : "今天加入"}</span>${w.deadline ? due(w.deadline) : ""}</div>
-      ${impact}
+      ${impact}${yline}
       <details class="why"><summary>為什麼？${icon("chev","sm")}</summary>
         <p>${st[2]}。</p>
-        <div class="hint ${cls}">${line}</div>
+        <div class="hint ${cls}">${line}</div>${yr ? `<div class="hint over">${esc(c.name)}年度預算 ${moneyShort(yr.lim)}，今年已花 ${moneyShort(yr.used)}，買了會花到 <b class="num">${moneyShort(yr.used + w.price)}</b></div>` : ""}
         <p class="small muted num">參考分數 ${s.total}：需要 ${s.parts.need} · 冷靜期 ${s.parts.wait} · 預算 ${s.parts.budget} · 期限 ${s.parts.deadline}</p>
       </details>
       <div class="wacts"><button class="wdrop" data-wishdrop="${esc(w.id)}">不買了</button>${w.url ? `<a class="btn small" href="${esc(w.url)}" target="_blank" rel="noopener">看商品</a>` : ""}<button class="btn small" data-wishedit="${esc(w.id)}">編輯</button><button class="btn small primary" data-wishbuy="${esc(w.id)}">買了</button></div>
@@ -4063,7 +4076,7 @@ function viewWish(){
   }).join("") : `<div class="card"><div class="empty">想買的東西先放這裡，過幾天還想要再買。按「新增」加第一個。</div></div>`;
   const cnt = k => open.filter(o => o.st[0] === k).length;
   return `<div class="section" style="margin-top:8px"><div class="section-head"><h2>想買清單</h2><button class="btn small addbtn" data-act="wish-new">${icon("plus")}新增</button></div>
-      ${open.length ? `<p class="small muted" style="margin:0">可以買 ${cnt("ok")} · 再等等 ${cnt("wait")} · 會影響本期預算 ${cnt("impact")}</p>` : ""}
+      ${open.length ? `<p class="small muted" style="margin:0">可以買 ${cnt("ok")} · 再等等 ${cnt("wait")} · 會影響預算 ${cnt("impact")}</p>` : ""}
       ${savedYear ? `<p class="wsaved">今年冷靜後不買，省下 <b class="num">${SYM()}${moneyShort(savedYear)}</b></p>` : ""}
       <div class="wishes">${cards}</div></div>
     ${decided.length ? `<div class="section"><details class="card bought"><summary><b>已決定</b> <span class="muted small">${decided.length} 個 · 買了 ${nBought} · 不買了 ${dropped.length}${savedAll ? `，省下 ${SYM()}${moneyShort(savedAll)}` : ""}</span></summary>
