@@ -614,6 +614,16 @@ await test("想買：類別有年度預算時，會超出或已經超出就不�
   ok(/今年已花 NT\$/.test(will) && /會超出 NT\$400/.test(will), `沒有寫出今年已花多少、會超出多少：「${will}」`);
   const over = await label(used - 1); ok(/年度已超支/.test(over) && !/可以買/.test(over), `已經超過年度預算時：「${over.slice(0, 60)}」`);
 });
+await test("記一筆：預算提示寫出還剩多少，也寫出占預算的百分比；超出時寫已用百分比", async () => {
+  const p = await openApp();
+  await p.click("#fab"); await p.fill("#e-amt", "100"); await p.click('.sheet [data-cat="c-food"]'); await p.waitForTimeout(150);
+  const h1 = await text(p, "#e-hint");
+  ok(/還剩 NT\$ ?3,900（預算的 65%）/.test(h1), `餐飲記 100 的提示是「${h1}」`);
+  await p.fill("#e-amt", "4500"); await p.waitForTimeout(150);
+  const h2 = await text(p, "#e-hint");
+  ok(/會超出 NT\$ ?500（預算已用 108%）/.test(h2), `餐飲記 4,500 的提示是「${h2}」`);
+  return p;
+});
 await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {
   const p = await openApp({ width: 320, theme: "dark" });
   for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }

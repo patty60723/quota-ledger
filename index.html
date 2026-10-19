@@ -1506,6 +1506,7 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .tx.lrow .cic .cdot{display:block;width:8px;height:8px;border-radius:50%;background:currentColor}
 /* "fine" hints are a soft green with ink text, like the 可以買 tag; accent-soft read as a warning in the pink palettes */
 .hint.ok{background:color-mix(in srgb,var(--nw-need) 14%,transparent);color:var(--ink)}
+.hint .num{white-space:nowrap}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -3403,7 +3404,9 @@ function openEntry(existing, refundOf, prefill){
       if(c.monthlyLimit){
         const b = budgetOf(c, p, t.id); const left = b.avail - sign*nowAmt; const pct = b.cap ? 1 - left / b.cap : 1;
         const cls = left < 0 ? (c.warn ? "over" : "") : pct >= warnAt() && c.warn ? "warn" : "ok";
-        lines.push([cls, left >= 0 ? `記下後，${esc(c.name)}在 ${L.title} 還剩 <b class="num">${money(left)}</b>` : `記下後，${esc(c.name)}在 ${L.title} 會超出 <b class="num">${money(-left)}</b>`]);
+        // the share of the period's budget makes the amount easier to feel (NT$3,900 of 6,000 vs of 30,000)
+        const share = r => { const x = r * 100; return x > 0 && x < 1 ? "不到 1%" : `${Math.round(x)}%`; };
+        lines.push([cls, left >= 0 ? `記下後，${esc(c.name)}在 ${L.title} 還剩 <b class="num">${money(left)}</b>${b.cap ? `（預算的 ${share(left / b.cap)}）` : ""}` : `記下後，${esc(c.name)}在 ${L.title} 會超出 <b class="num">${money(-left)}</b>${b.cap ? `（預算已用 ${share(1 - left / b.cap)}）` : ""}`]);
       }
       if(!isRefund && c.warn){
         if(c.perTxLimit && v > c.perTxLimit) lines.push(["warn", `超過每筆上限 ${moneyShort(c.perTxLimit)}`]);
