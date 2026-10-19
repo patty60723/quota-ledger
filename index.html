@@ -3406,7 +3406,9 @@ function openEntry(existing, refundOf, prefill){
         const cls = left < 0 ? (c.warn ? "over" : "") : pct >= warnAt() && c.warn ? "warn" : "ok";
         // the share of the period's budget makes the amount easier to feel (NT$3,900 of 6,000 vs of 30,000)
         const share = r => { const x = r * 100; return x > 0 && x < 1 ? "不到 1%" : `${Math.round(x)}%`; };
-        lines.push([cls, left >= 0 ? `記下後，${esc(c.name)}在 ${L.title} 還剩 <b class="num">${money(left)}</b>${b.cap ? `（預算的 ${share(left / b.cap)}）` : ""}` : `記下後，${esc(c.name)}在 ${L.title} 會超出 <b class="num">${money(-left)}</b>${b.cap ? `（預算已用 ${share(1 - left / b.cap)}）` : ""}`]);
+        // kept to one line: the period is named only when the record goes into another one (e.g. catching up on last month)
+        const when = samePeriod(p, curPeriod()) ? "" : ` ${p.y !== curPeriod().y ? `${p.y} 年 ` : ""}${p.m} 月`;
+        lines.push([cls, left >= 0 ? `記下後，${esc(c.name)}${when}還剩 <b class="num">${money(left)}</b>${b.cap ? `（${share(left / b.cap)}）` : ""}` : `記下後，${esc(c.name)}${when}超出 <b class="num">${money(-left)}</b>${b.cap ? `（已用 ${share(1 - left / b.cap)}）` : ""}`]);
       }
       if(!isRefund && c.warn){
         if(c.perTxLimit && v > c.perTxLimit) lines.push(["warn", `超過每筆上限 ${moneyShort(c.perTxLimit)}`]);
