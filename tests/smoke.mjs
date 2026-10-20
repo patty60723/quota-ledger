@@ -564,7 +564,10 @@ await test("存成常用：同名同金額 30 天內第 4 次才問，第 3 次�
   const p = await openApp({ data: d });
   const rec = async () => { await p.click("#fab"); await p.waitForSelector("#e-amt"); await p.fill("#e-amt", "65"); await p.fill("#e-title", "咖啡"); await p.click('.sheet [data-cat="c-food"]'); await p.click(".sheet [data-save]"); await p.waitForTimeout(250); };
   await rec(); ok(!/要存成常用嗎/.test(await p.evaluate(() => document.body.innerText)), "30 天內第 3 次就問了");
-  await rec(); ok(await p.waitForFunction(() => /「咖啡」65 最近記了 4 次/.test(document.body.innerText), null, { timeout: 3000 }).then(() => true, () => false), "30 天內第 4 次沒有問");
+  await rec();
+  const asked = await p.waitForFunction(() => /「咖啡」65 最近記了 4 次/.test(document.body.innerText), null, { timeout: 3000 }).then(() => true, () => false);
+  if(!asked){ const st = await p.evaluate(() => ({ n: JSON.parse(localStorage.getItem("ledger.v1")).months["2026-09"].filter(t => t.title === "咖啡").length, toast: document.querySelector("#toastHost").innerText, sheet: document.querySelector(".sheet")?.innerText.slice(0, 80) || "" }));
+    ok(false, `30 天內第 4 次沒有問（9 月咖啡 ${st.n} 筆，提示「${st.toast}」，畫面「${st.sheet}」）`); }
   return p;
 });
 
@@ -625,6 +628,36 @@ await test("記一筆：預算提示簡短寫出還剩多少和百分比；超�
   await p.fill("#e-amt", "100"); await p.fill("#e-date", "2026-08-20"); await p.dispatchEvent("#e-date", "change"); await p.waitForTimeout(150);
   const h3 = await text(p, "#e-hint");
   ok(/^記下後，餐飲 8 月還剩/.test(h3), `記到 8 月的提示是「${h3}」`);
+  return p;
+});
+await test("看懂圓餅：「其他」點開會列出包含的類別和金額，點類別看紀錄；只多一類時直接寫類別名稱", async () => {
+  const build = n => { const d = structuredClone(FIXTURE);
+    for(let i = 0; i < n; i++){ const id = "c-e" + i; d.categories[id] = { id, name: "小類" + i, type: "expense", monthlyLimit: null, warn: false, sort: 30 + i, archived: false };
+      d.months["2026-09"].push({ id: "t-e" + i, date: "2026-09-10", type: "expense", categoryId: id, amount: 50 + i, title: "小類" + i, note: "", createdAt: 1789100000000 + i }); }
+    return d; };
+  const open = async d => { const p = await openApp({ data: d, tab: "report" }); await p.click('[data-rview="pie"]'); await p.waitForTimeout(200); return p; };
+  // 3 daily categories in the fixture (房租 is fixed) + 5 small ones = 8: five shown, 其他 3 類
+  let p = await open(build(5));
+  const row = await text(p, ".dl.dother");
+  ok(/其他 3 類/.test(row), `其他那列是「${row}」`);
+  ok(await p.$eval("#dsub", e => e.hidden), "其他一開始就展開了");
+  await p.click(".dl.dother"); await p.waitForTimeout(150);
+  const subs = await p.$$eval("#dsub .dl", l => l.map(e => e.innerText.replace(/\s+/g, " ").trim()));
+  ok(subs.length === 3 && subs.every(t => /小類\d/.test(t)), `展開後是「${subs.join(" / ")}」`);
+  const sum = subs.reduce((a, t) => a + +t.match(/小類\d (\d+)/)[1], 0);
+  ok(row.includes(String(sum)), `其他 ${row} 跟展開的合計 ${sum} 對不上`);
+  await p.click("#dsub .dl"); await p.waitForTimeout(250);
+  ok(/小類/.test(await text(p, ".sheet .hd")), "點其他裡的類別沒有打開它的紀錄");
+  await p.context().close();
+  // tapping the grey slice opens it too
+  p = await open(build(5));
+  await p.dispatchEvent(".donut .arc[data-dother]", "click"); await p.waitForTimeout(150);
+  ok(!(await p.$eval("#dsub", e => e.hidden)), "點灰色那塊沒有展開其他");
+  await p.context().close();
+  // 3 + 3 = 6: the sixth is shown by name, no 其他
+  p = await open(build(3));
+  ok(!(await p.$(".dl.dother")), "只多一類還是顯示「其他 1 類」");
+  ok((await p.$$(".dleg > .dl")).length === 6, "六個類別沒有全部列出");
   return p;
 });
 await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {

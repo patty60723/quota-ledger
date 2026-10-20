@@ -1507,6 +1507,16 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 /* "fine" hints are a soft green with ink text, like the 可以買 tag; accent-soft read as a warning in the pink palettes */
 .hint.ok{background:color-mix(in srgb,var(--nw-need) 14%,transparent);color:var(--ink)}
 .hint .num{white-space:nowrap}
+/* donut legend: 其他 opens to show its categories, indented under it */
+.dl .dchev{display:inline-grid;place-items:center;vertical-align:-3px;margin-left:2px;color:var(--faint)}
+.dl .dchev .ic{width:16px;height:16px;transition:transform .15s}
+.dl.dother[aria-expanded="true"] .dchev .ic{transform:rotate(90deg)}
+.dsub{display:flex;flex-direction:column;margin-left:24px;border-left:2px solid var(--line)}
+.dsub[hidden]{display:none}
+.dleg .dl{grid-template-columns:auto minmax(0,1fr) auto 42px}
+.dsub .dl{grid-template-columns:0 minmax(0,1fr) auto 42px;padding-left:var(--space-3);font-size:13px;min-height:40px;border-top:0}
+.dsub .dl .v{font-weight:500}
+.donut .arc[data-dother]{cursor:pointer}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -2865,21 +2875,26 @@ function viewYear(Y){
       ${refHtml ? `<div class="card ydetail"><div class="ydh"><h3>各類別全年花費</h3>${yNote ? `<p class="ynote">${yNote}</p>` : ""}</div>${refHtml}</div>` : ""}</div>`;
 }
 
-// 支出分類 as a donut: the five biggest categories plus 其他, with a legend that carries names, amounts and shares
-let rankView = "rank", rankAll = false;
+// 支出分類 as a donut: the five biggest categories plus 其他, with a legend that carries names, amounts and shares.
+// 其他 opens (its legend row or its grey slice) to list what's in it; a lone sixth category is shown by name instead
+let rankView = "rank", rankAll = false, donutOther = false;
 try{ rankAll = localStorage.getItem("ledger.rankscope") === "all"; }catch(e){}
 try{ if(localStorage.getItem("ledger.rankview") === "pie") rankView = "pie"; }catch(e){}
 function donut(rows, out){
   if(!rows.length || out <= 0) return `<div class="empty">這一期沒有支出。</div>`;
   const top = rows.slice(0, 5).map(([id, v], i) => ({ id, v, name: catName(id), cls: `s${i+1}` }));
-  const rest = rows.slice(5).reduce((a, [, v]) => a + v, 0);
-  if(rest > 0) top.push({ id: null, v: rest, name: `其他 ${rows.length - 5} 類`, cls: "so" });
+  const others = rows.slice(5), rest = others.reduce((a, [, v]) => a + v, 0);
+  if(others.length === 1) top.push({ id: others[0][0], v: others[0][1], name: catName(others[0][0]), cls: "so" });
+  else if(rest > 0) top.push({ id: null, v: rest, name: `其他 ${others.length} 類`, cls: "so", other: true });
   const total = top.reduce((a, x) => a + x.v, 0);
   const R = 76, C = 2 * Math.PI * R, gap = top.length > 1 ? 2 : 0;
   let at = 0;
-  const arcs = top.map(x => { const len = x.v / total * C; const seg = `<circle class="arc ${x.cls}" cx="100" cy="100" r="${R}" stroke-dasharray="${Math.max(0.5, len - gap).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-at).toFixed(2)}"${x.id ? ` data-rank="${esc(x.id)}"` : ""}><title>${esc(x.name)} ${moneyShort(x.v)}（${Math.round(x.v / out * 100)}%）</title></circle>`; at += len; return seg; }).join("");
+  const arcs = top.map(x => { const len = x.v / total * C; const seg = `<circle class="arc ${x.cls}" cx="100" cy="100" r="${R}" stroke-dasharray="${Math.max(0.5, len - gap).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-at).toFixed(2)}"${x.id ? ` data-rank="${esc(x.id)}"` : x.other ? " data-dother" : ""}><title>${esc(x.name)} ${moneyShort(x.v)}（${Math.round(x.v / out * 100)}%）</title></circle>`; at += len; return seg; }).join("");
   const leg = top.map(x => { const inner = `<span class="sw ${x.cls}"></span><span class="nm">${esc(x.name)}</span><span class="v num">${moneyShort(x.v)}</span><small class="num">${Math.round(x.v / out * 100)}%</small>`;
-    return x.id ? `<button class="dl" data-rank="${esc(x.id)}" aria-label="看${esc(x.name)}的所有支出">${inner}</button>` : `<div class="dl">${inner}</div>`; }).join("");
+    if(x.id) return `<button class="dl" data-rank="${esc(x.id)}" aria-label="看${esc(x.name)}的所有支出">${inner}</button>`;
+    // 其他: the row opens the list of what's in it; each of those opens its records like the rows above
+    return `<button class="dl dother" data-dother aria-expanded="${donutOther}" aria-controls="dsub"><span class="sw ${x.cls}"></span><span class="nm">${esc(x.name)}<span class="dchev" aria-hidden="true">${icon("chev")}</span></span><span class="v num">${moneyShort(x.v)}</span><small class="num">${Math.round(x.v / out * 100)}%</small></button>
+      <div class="dsub" id="dsub"${donutOther ? "" : " hidden"}>${others.map(([id, v]) => `<button class="dl" data-rank="${esc(id)}" aria-label="看${esc(catName(id))}的所有支出"><span></span><span class="nm">${esc(catName(id))}</span><span class="v num">${moneyShort(v)}</span><small class="num">${Math.round(v / out * 100)}%</small></button>`).join("")}</div>`; }).join("");
   return `<div class="donut"><svg viewBox="0 0 200 200" role="img" aria-label="支出分類圓餅圖，合計 ${money(out)}">${arcs}
       <text x="100" y="94" text-anchor="middle" class="dt">合計</text><text x="100" y="118" text-anchor="middle" class="dv num">${moneyShort(out)}</text></svg>
     <div class="dleg">${leg}</div></div>`;
@@ -4495,6 +4510,10 @@ function restoreBackup(obj){
 document.addEventListener("click", e => {
   const nf = e.target.closest("[data-nwf]");
   if(nf && !nf.closest(".sheet")){ openNwTagger(viewPeriod, nf.dataset.nwf); return; }
+  const dov = e.target.closest("[data-dother]");
+  if(dov){ donutOther = !donutOther; const row = $(".dother"), sub = $("#dsub");
+    if(row && sub){ row.setAttribute("aria-expanded", donutOther); sub.hidden = !donutOther; if(donutOther && dov.tagName !== "BUTTON") sub.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+    return; }
   const rk = e.target.closest("[data-rank]");
   if(rk && !rk.closest(".sheet")){ openCatDetail(rk.dataset.rank, viewPeriod); return; }
   const bs = e.target.closest("[data-bseg]");
