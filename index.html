@@ -1517,6 +1517,8 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .dsub .dl{grid-template-columns:0 minmax(0,1fr) auto 42px;padding-left:var(--space-3);font-size:13px;min-height:40px;border-top:0}
 .dsub .dl .v{font-weight:500}
 .donut .arc[data-dother]{cursor:pointer}
+/* 固定 sits before the name, outside its clipped box (the name shortens with …, the tag must not lose its top) */
+.tx.lrow .fxtag{flex-shrink:0;align-self:center;top:0;margin-right:0}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -2353,7 +2355,7 @@ function txRows(list, withDays, keepOrder){
     // small icon in the category colour; a category without one gets a dot of that colour (a lone first character read as a stray word here)
     const tc = state.categories[t.categoryId];
     html += `<button class="tx lrow" ${attr}><span class="cic ${catTint(tc)}" aria-hidden="true">${catIconFor(tc) ? catMark(tc, cn) : `<i class="cdot"></i>`}</span>
-      <span class="mid"><b><span class="tt">${t.type === "expense" && !t.virtual && isFixed(t) ? `<span class="fxtag">固定</span>` : ""}${esc(t.title || cn)}</span><i class="lead" aria-hidden="true"></i></b><span class="subl">${nwTag(t)}<span class="subt">${esc(sub)}</span></span></span>
+      <span class="mid"><b>${t.type === "expense" && !t.virtual && isFixed(t) ? `<span class="fxtag">固定</span>` : ""}<span class="tt">${esc(t.title || cn)}</span><i class="lead" aria-hidden="true"></i></b><span class="subl">${nwTag(t)}<span class="subt">${esc(sub)}</span></span></span>
       <span class="amt${plus?" inc":""}">${plus?"+":"−"}${moneyShort(t.amount)}${t.fx ? `<small class="famt">${esc(fxText(t.fx))}</small>` : ""}</span></button>`;
   });
   if(withDays && lastDay) html += `</div></div>`;
@@ -3571,7 +3573,8 @@ function openEntry(existing, refundOf, prefill){
       if(!existing && !opened) suggestFavorite(rec);
     });
     hint();
-    if(!existing) setTimeout(()=>amt.focus(), 50);
+    // start on the amount, unless a field in the sheet already has the cursor (a quick tap on 摘要 must not be pulled back)
+    if(!existing) setTimeout(() => { const a = document.activeElement; if(!(a && sheet.contains(a) && a.matches("input, select, textarea"))) amt.focus(); }, 50);
   };
   openSheet("", draw);
 }

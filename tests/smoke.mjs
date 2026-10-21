@@ -660,6 +660,23 @@ await test("看懂圓餅：「其他」點開會列出包含的類別和金額�
   ok((await p.$$(".dleg > .dl")).length === 6, "六個類別沒有全部列出");
   return p;
 });
+await test("明細帳本列：「固定」標籤完整顯示，不會被名稱的截斷框切到", async () => {
+  const p = await openApp({ width: 320, tab: "list" });
+  const r = await p.$$eval(".tx.lrow .fxtag", l => l.map(t => { const b = t.getBoundingClientRect(), clip = t.closest(".tt");
+    const x = b.left + b.width / 2, top = document.elementFromPoint(x, b.top + 1);
+    return { inClip: !!clip, topVisible: !!top && (top === t || t.contains(top)) }; }));
+  ok(r.length > 0, "測試資料沒有固定支出");
+  ok(r.every(x => !x.inClip && x.topVisible), `固定標籤被切到：${JSON.stringify(r)}`);
+  return p;
+});
+await test("記一筆：打開後馬上點摘要打字，游標不會被拉回金額", async () => {
+  const p = await openApp();
+  // open and tap 摘要 in the same moment (a fast tap), then wait past the sheet's own start-on-amount delay
+  await p.evaluate(() => { document.getElementById("fab").click(); document.getElementById("e-title").focus(); }); await p.waitForTimeout(150);
+  await p.keyboard.type("咖啡");
+  ok(await p.$eval("#e-title", e => e.value) === "咖啡", `摘要是「${await p.$eval("#e-title", e => e.value)}」，字被打到別的欄位`);
+  return p;
+});
 await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {
   const p = await openApp({ width: 320, theme: "dark" });
   for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }
