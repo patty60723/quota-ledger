@@ -677,6 +677,28 @@ await test("記一筆：打開後馬上點摘要打字，游標不會被拉回�
   ok(await p.$eval("#e-title", e => e.value) === "咖啡", `摘要是「${await p.$eval("#e-title", e => e.value)}」，字被打到別的欄位`);
   return p;
 });
+await test("想買：買了 → 可以連結同類別最近 30 天已記的帳；名稱不同記成改買、不算省下，也不會多記一筆", async () => {
+  const d = structuredClone(FIXTURE);
+  d.wishes.w3 = { id: "w3", name: "按摩", url: "", categoryId: "c-med", need: "want", price: 900, deadline: "", note: "", addedOn: "2026-09-14", createdAt: 1788500000000 };
+  const p = await openApp({ data: d, tab: "wish" });
+  const count = async () => Object.values((await stored(p)).months).flat().length;
+  const before = await count();
+  // 藍牙耳機 is 娛樂: the 9/12 演唱會 (娛樂) is offered, 餐飲 records are not
+  await p.click('[data-wishbuy="w1"]'); await p.waitForTimeout(200);
+  const offered = await p.$$eval(".sheet [data-wlink]", l => l.map(b => b.innerText.replace(/\s+/g, " ").trim()));
+  ok(offered.length === 1 && /演唱會/.test(offered[0]), `可以連結的紀錄是「${offered.join(" / ")}」`);
+  ok(await p.$(".sheet [data-wnew]"), "沒有「記一筆新的」");
+  await p.click(".sheet [data-wlink]"); await p.waitForTimeout(250);
+  const w = (await stored(p)).wishes.w1;
+  ok(w.purchasedOn === "2026-09-12" && w.altTitle === "演唱會" && w.paid === 2500, `連結後的願望：${JSON.stringify(w)}`);
+  ok(await count() === before, "連結已記的帳還多記了一筆");
+  const done = await p.$eval(".bought", e => e.textContent.replace(/\s+/g, " "));
+  ok(/改買「演唱會」/.test(done) && !/省下/.test(done), `已決定區是「${done}」`);
+  // 按摩 (醫療) was added 9/14, after the only 醫療 record (9/8): nothing to link, so 買了 goes straight to 記一筆
+  await p.click('[data-wishbuy="w3"]'); await p.waitForTimeout(200);
+  ok(await p.$(".sheet #e-amt") && !(await p.$(".sheet [data-wlink]")), "沒有可連結的紀錄時沒有直接打開記一筆");
+  return p;
+});
 await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {
   const p = await openApp({ width: 320, theme: "dark" });
   for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }
