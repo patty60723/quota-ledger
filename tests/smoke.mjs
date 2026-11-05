@@ -724,6 +724,24 @@ await test("存錢罐進度：首頁一個存錢罐一張可滑動的卡片，�
   ok(/存錢罐目前存了 NT\$3,500，用掉 NT\$300/.test(ins), `看懂摘要是「${ins}」`);
   return p;
 });
+await test("分期列表：已繳完的收在「已繳完 N 筆」裡，頁籤只算還在繳的", async () => {
+  const d = structuredClone(FIXTURE);
+  const inst = (id, title, n, start, date) => ({ id, title, categoryId: "c-fun", total: n * 1000, n, per: 1000, first: 1000, date, startPeriod: start, status: "active", createdAt: 1 });
+  d.installments = { i1: inst("i1", "防水鞋", 3, "2026-08", "2026-08-03"), i2: inst("i2", "課程一", 2, "2026-05", "2026-05-02"), i3: inst("i3", "課程二", 2, "2026-07", "2026-07-02") };
+  const p = await openApp({ data: d });
+  await p.click('[data-act="more"]'); await p.click('[data-m="fixed"]'); await p.click('[data-fseg="inst"]'); await p.waitForTimeout(200);
+  ok(/^分期 1$/.test(await text(p, '[data-fseg="inst"]')), `頁籤是「${await text(p, '[data-fseg="inst"]')}」`);
+  const shown = await p.$$eval(".card.setlist > .catrow", l => l.map(e => e.querySelector("b").innerText));
+  ok(shown.join() === "防水鞋", `沒收起的是「${shown.join()}」`);
+  ok(/已繳完 2 筆/.test(await text(p, ".instdone > summary")) && !(await p.$eval(".instdone", e => e.open)), "已繳完的沒有收起來");
+  await p.click(".instdone > summary"); await p.waitForTimeout(150);
+  const done = await p.$$eval(".instdone .catrow b", l => l.map(e => e.innerText));
+  ok(done.join() === "課程二,課程一", `展開後是「${done.join()}」，最近繳完的應該在上面`);
+  // opening an installment and closing it redraws the page: the list stays open
+  await p.click('.instdone [data-inst="i3"]'); await p.waitForTimeout(200); await p.click(".sheet [data-x]"); await p.waitForTimeout(200);
+  ok(await p.$eval(".instdone", e => e.open), "關掉分期後已繳完又收起來了");
+  return p;
+});
 await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {
   const p = await openApp({ width: 320, theme: "dark" });
   for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }

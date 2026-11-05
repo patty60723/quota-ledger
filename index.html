@@ -1531,6 +1531,12 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .jcard .jbar i{display:block;height:100%;border-radius:inherit;background:var(--nw-need)}
 .jcard .jsub{font-size:12px;color:var(--muted)}
 .hhead h2 .hsm.num{font-family:var(--f-num)}
+/* 分期: finished ones fold under 已繳完 N 筆 */
+.instdone > summary{list-style:none;cursor:pointer;display:flex;justify-content:center;align-items:center;gap:4px}
+.instdone > summary::-webkit-details-marker{display:none}
+.instdone > summary::after{content:"";width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform .15s}
+.instdone[open] > summary::after{transform:rotate(-135deg) translateY(-1px)}
+.instdone[open] > summary{border-bottom:1px solid var(--line)}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -3219,6 +3225,9 @@ function instTotals(){
   }
   return { now, later };
 }
+// still being paid: not paid off or cancelled, and its last period hasn't come yet (an "active" record can be all paid)
+const instOngoing = i => i.status === "active" && monthsBetween(fromKey(i.startPeriod), curPeriod()) + 1 < i.n;
+let instDoneOpen = false;
 function instStatus(i){
   if(i.status==="paidoff") return "已提前還清";
   if(i.status==="cancelled") return "已取消";
@@ -3250,11 +3259,17 @@ function viewSettings(){
       <button class="favmain" data-favedit="${esc(f.id)}"><b>${esc(f.name)}</b><span class="sub">${esc(catName(f.categoryId))} · ${f.amount ? moneyShort(f.amount) : "每次輸入金額"} · 用了 ${f.uses||0} 次${favUsable(f)?"":" · 類別已停用"}</span></button>
       <button class="iconbtn sm" data-favmove="${esc(f.id)}:-1" aria-label="往上" ${i===0?"disabled":""}>${icon("up")}</button><button class="iconbtn sm" data-favmove="${esc(f.id)}:1" aria-label="往下" ${i===favs.length-1?"disabled":""}>${icon("down")}</button></div>`).join("")
     : `<div class="empty">還沒有常用項目。</div>`;
-  const insts = Object.values(state.installments).sort((a,b)=>(a.status==="active"?0:1)-(b.status==="active"?0:1) || b.date.localeCompare(a.date));
-  const instHtml = insts.length ? insts.map(i => `<button class="catrow${i.status==="active"?"":" arch"}" data-inst="${esc(i.id)}">
+  // still being paid first (newest first); finished ones (paid up, paid off, cancelled) fold away below, last to finish first
+  const insts = Object.values(state.installments);
+  const instEnd = i => i.status !== "active" && i.endPeriod ? i.endPeriod : pkey(shift(fromKey(i.startPeriod), i.n - 1));
+  const instOn = insts.filter(instOngoing).sort((a, b) => b.date.localeCompare(a.date));
+  const instOff = insts.filter(i => !instOngoing(i)).sort((a, b) => instEnd(b).localeCompare(instEnd(a)) || b.date.localeCompare(a.date));
+  const instRow = i => `<button class="catrow${instOngoing(i) ? "" : " arch"}" data-inst="${esc(i.id)}">
       <b>${esc(i.title)}</b><span class="num small">${moneyShort(i.total)}</span>
-      <span class="sub">${esc(catName(i.categoryId))} · ${i.n} 期 · ${instStatus(i)}${i.skip ? ` · 從第 ${i.skip + 1} 期開始記` : ""}</span></button>`).join("")
-    : `<div class="empty">還沒有分期。記帳時打開「分期／分攤」就會出現在這裡。</div>`;
+      <span class="sub">${esc(catName(i.categoryId))} · ${i.n} 期 · ${instStatus(i)}${i.skip ? ` · 從第 ${i.skip + 1} 期開始記` : ""}</span></button>`;
+  const instHtml = !insts.length ? `<div class="empty">還沒有分期。記帳時打開「分期／分攤」就會出現在這裡。</div>`
+    : (instOn.length ? instOn.map(instRow).join("") : `<div class="empty">目前沒有進行中的分期。</div>`)
+      + (instOff.length ? `<details class="instdone"${instDoneOpen ? " open" : ""}><summary class="budfoot">${instOff.every(i => i.status === "active") ? "已繳完" : "已結束"} ${instOff.length} 筆</summary>${instOff.map(instRow).join("")}</details>` : "");
   const instSum = instTotals();
   const imp = importPreview ? `<div class="note" style="border-top:0">
       <b style="color:var(--ink)">匯入預覽：${esc(importPreview.fileName)}</b>
@@ -3287,7 +3302,7 @@ function viewSettings(){
 `,
     fixed: `<div class="ptabs fseg" role="tablist" aria-label="固定收支與分期">
       <button role="tab" data-fseg="rec" aria-pressed="${fixSeg==="rec"}" aria-selected="${fixSeg==="rec"}">固定收支 <small class="num">${recs.length}</small></button>
-      <button role="tab" data-fseg="inst" aria-pressed="${fixSeg==="inst"}" aria-selected="${fixSeg==="inst"}">分期 <small class="num">${insts.filter(i => i.status==="active").length}</small></button></div>
+      <button role="tab" data-fseg="inst" aria-pressed="${fixSeg==="inst"}" aria-selected="${fixSeg==="inst"}">分期 <small class="num">${instOn.length}</small></button></div>
     ${fixSeg === "rec" ? `<div class="section"><div class="section-head"><h2>固定收支${infoBtn("rec", "固定收支怎麼運作")}</h2><button class="btn small addbtn" data-act="rec-new">${icon("plus")}新增</button></div>${infoPop("rec", "到了每月收支日，會出現在首頁「需要注意」等你確認。確認後才算進帳；金額不同可以先改再確認，這個月沒有就按略過。")}${recPend ? `<button class="recgo" data-tab="home"><span>有 <b class="num">${recPend}</b> 筆固定收支待確認</span><span>到首頁確認${icon("chev","sm")}</span></button>` : ""}<div class="card setlist">${recHtml}</div></div>`
     : `<div class="section"><h2>分期</h2>${instSum.now || instSum.later ? `<p class="small muted" style="margin:0 0 var(--space-2)">這期要付 <b class="num" style="color:var(--ink)">${SYM()}${moneyShort(instSum.now)}</b> · 之後還有 <span class="num">${SYM()}${moneyShort(instSum.later)}</span></p>` : ""}<div class="card setlist">${instHtml}</div><p class="small muted" style="margin:var(--space-2) 0 0">也可以用來分攤預付的費用，例如一次繳兩個月的課程</p></div>`}
 `,
@@ -4569,6 +4584,8 @@ function restoreBackup(obj){
 }
 
 /* ---------- events ---------- */
+// the folded 已繳完 list keeps its state across redraws
+document.addEventListener("toggle", e => { if(e.target.classList?.contains("instdone")) instDoneOpen = e.target.open; }, true);
 document.addEventListener("click", e => {
   const nf = e.target.closest("[data-nwf]");
   if(nf && !nf.closest(".sheet")){ openNwTagger(viewPeriod, nf.dataset.nwf); return; }
