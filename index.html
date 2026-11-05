@@ -4520,6 +4520,14 @@ function demoLedger(){
   add(yday, "expense", "d-fun", 2200, "演唱會門票", "want"); add(yday, "expense", "d-home", 1500, "吸塵器濾網", "need");
   const instStart = new Date(now.getFullYear(), now.getMonth() - 2, 8);
   const installments = { "d-i1": { id: "d-i1", title: "換手機", categoryId: "d-tech", total: 18000, n: 12, per: 1500, first: 1500, date: ymd(instStart), startPeriod: ym(instStart.getFullYear(), instStart.getMonth() + 1), status: "active", createdAt: instStart.getTime(), nw: "need" } };
+  // more installments so every state shows: one still being paid, two paid up (fold under 已繳完), one paid off early (已結束)
+  const instAt = (k, d) => new Date(now.getFullYear(), now.getMonth() - k, d);
+  const inst = (id, title, categoryId, per, n, at, extra) => ({ id, title, categoryId, total: per * n, n, per, first: per, date: ymd(at), startPeriod: ym(at.getFullYear(), at.getMonth() + 1), status: "active", createdAt: at.getTime(), ...extra });
+  installments["d-i2"] = inst("d-i2", "防水鞋", "d-cloth", 863, 3, instAt(1, 3));
+  installments["d-i3"] = inst("d-i3", "羽球課程", "d-fun", 2025, 2, instAt(4, 6));
+  installments["d-i4"] = inst("d-i4", "管理費", "d-home", 2252, 2, instAt(3, 2));
+  const padAt = instAt(5, 15), padEnd = instAt(2, 1);
+  installments["d-i5"] = inst("d-i5", "平板", "d-tech", 1000, 10, padAt, { status: "paidoff", endPeriod: ym(padEnd.getFullYear(), padEnd.getMonth() + 1) });
   const since = ymd(start);
   const jars = {
     "d-j1": { id: "d-j1", name: "旅行", freq: "month", amount: 3000, day: 1, base: 0, since, goal: 30000, createdAt: start.getTime() },

@@ -17,6 +17,7 @@
 - claude.ai artifact（只有擁有者能開）：
   - 正式版：<https://claude.ai/artifact/XMKGvqSFHY1mhPxUQnW71R>，內容是 `index.html` 的 `<body>` 部分。
   - 預覽版：<https://claude.ai/artifact/3aD9v3EVYYyjoMxAZrvTA9>，同樣用 body，標題改成「慢慢花手帳 預覽」，並把 `<!--ob-extra-->` 換成兩個預覽版才有的按鈕：「載入示範資料」（`data-act="demo-load"`，用 `demoLedger()` 以今天為準產生資料）與「試跑完整引導」（`data-act="ob-dry"`）。
+  - 兩個頁面都用 `tools/build-artifacts.sh OUTDIR` 產生（`OUTDIR/ledger`＝正式版、`OUTDIR/ledger2`＝預覽版），不要手動複製：預覽版的標題和兩個按鈕少了，預覽版就沒辦法載入示範資料。`fonts/figtree.woff2` 也要一起發佈在 `fonts/` 下。
   - 發佈時不要帶 capabilities，沿用原本的設定。
 
 ## 測試方式
