@@ -1526,6 +1526,7 @@ nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
 .jrow .jn{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3)}
 .jrow .jn b{font-size:14px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .jrow .jn .num{font-size:14px;font-weight:600;color:var(--muted)}
+.jrow .jn .num.jamt{font-size:16px;color:var(--ink)}
 .jrow .jbar{display:block;height:6px;border-radius:3px;background:var(--sunk);overflow:hidden}
 .jrow .jbar i{display:block;height:100%;border-radius:inherit;background:var(--nw-need)}
 .jrow .jsub{font-size:12px;color:var(--muted)}
@@ -2700,13 +2701,17 @@ function viewHome(){
   const next = up.length ? `<section class="hsec"><div class="hhead"><h2>接下來 <small class="hsm">兩週內</small></h2><button class="link" data-set="fixed">管理${icon("chev","sm")}</button></div>
       <div class="hcard">${up.map(u => { const dd = dayDiff(todayStr(), u.date); return `<div class="trow"><span class="qic ${u.jar ? "tint3" : catTint(u.cat)}">${u.wish ? icon("wish") : u.jar ? icon("jar") : catMark(u.cat, u.title)}</span><div class="meta"><b>${esc(u.title)}</b><span>${md(u.date)} · ${u.sub}</span></div><div class="upr"><b class="num${u.income ? " inc" : ""}">${u.jar ? `存 ${moneyShort(u.amount)}` : u.amount ? (u.income ? "+" : "−") + moneyShort(u.amount) : ""}</b><small>${dd === 1 ? "明天" : `${dd} 天後`}</small></div></div>`; }).join("")}
       ${upAll.length > 5 ? `<button class="budfoot" data-act="up-toggle">${upOpen ? "收起" : `還有 ${upAll.length - 5} 筆${upAll.slice(5).some(u => u.jar) ? "（含存錢罐）" : ""}`}</button>` : ""}</div></section>` : "";
-  // 存錢罐: only jars with a goal have progress to show; slow-moving, so it sits below 接下來
-  const goals = jarList().filter(j => j.goal && !j.deleted);
-  const jarsSec = goals.length ? `<section class="hsec"><div class="hhead"><h2>存錢罐</h2><button class="link" data-set="budget" data-bseg-go="save">管理${icon("chev","sm")}</button></div>
-      <div class="hcard">${goals.slice(0, 3).map(j => { const bal = jarBalance(j), pct = Math.min(100, Math.floor(bal / j.goal * 100)), d = jarGoalDate(j, bal);
+  // 存錢罐: slow-moving, so it sits below 接下來. A jar with a goal shows how far along it is;
+  // one without a goal shows what it holds and how it fills
+  const jarsShown = jarList().filter(j => !j.deleted);
+  const jarsSec = jarsShown.length ? `<section class="hsec"><div class="hhead"><h2>存錢罐</h2><button class="link" data-set="budget" data-bseg-go="save">管理${icon("chev","sm")}</button></div>
+      <div class="hcard">${jarsShown.slice(0, 3).map(j => { const bal = jarBalance(j);
+        if(!j.goal) return `<button class="jrow" data-jar="${esc(j.id)}"><span class="jn"><b>${esc(j.name)}</b><span class="num jamt">${SYM()}${moneyShort(bal)}</span></span>
+          <span class="jsub">${jarOn(j) ? esc(jarLine(j)) : "已停止存入"}</span></button>`;
+        const pct = Math.min(100, Math.floor(bal / j.goal * 100)), d = jarGoalDate(j, bal);
         return `<button class="jrow" data-jar="${esc(j.id)}"><span class="jn"><b>${esc(j.name)}</b><span class="num">${pct}%</span></span><span class="jbar" aria-hidden="true"><i style="width:${pct}%"></i></span>
           <span class="jsub"><span class="num">${SYM()}${moneyShort(bal)}／${moneyShort(j.goal)}</span>${bal >= j.goal ? " · 已存到目標" : d ? ` · 約 ${d.slice(0, 7).replace("-", "/")} 存到` : jarOn(j) ? "" : " · 已停止存入"}</span></button>`; }).join("")}
-      ${goals.length > 3 ? `<button class="budfoot" data-set="budget" data-bseg-go="save">還有 ${goals.length - 3} 個</button>` : ""}</div></section>` : "";
+      ${jarsShown.length > 3 ? `<button class="budfoot" data-set="budget" data-bseg-go="save">還有 ${jarsShown.length - 3} 個</button>` : ""}</div></section>` : "";
   const recent = realTx().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0)).slice(0,5);
   const rec = `<section class="hsec"><div class="hhead"><h2>最近</h2><button class="link" data-tab="list">看全部${icon("chev","sm")}</button></div>
       <div class="hcard txlist">${recent.length ? txRows(recent,false) : `<div class="empty">還沒有任何紀錄。按右下角「＋」記第一筆，或到右上角齒輪 →「資料與備份」匯入。</div>`}</div></section>`;

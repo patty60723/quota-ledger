@@ -699,7 +699,7 @@ await test("想買：買了 → 可以連結同類別最近 30 天已記的帳�
   ok(await p.$(".sheet #e-amt") && !(await p.$(".sheet [data-wlink]")), "沒有可連結的紀錄時沒有直接打開記一筆");
   return p;
 });
-await test("存錢罐進度：首頁只列有目標的存錢罐（進度與預計存到），看懂月報寫這期存了多少、用掉多少", async () => {
+await test("存錢罐進度：首頁列出存錢罐，有目標的顯示進度與預計存到、沒目標的顯示已存金額；看懂月報寫這期存了多少、用掉多少", async () => {
   const d = structuredClone(FIXTURE);
   // 旅行: 3,000 to start, 2,000 on the 5th each month from July (7/5, 8/5, 9/5) = 9,000; +500 one-off on 9/10; 300 covered an overspend in September
   d.jars = { j1: { id: "j1", name: "旅行", freq: "month", amount: 2000, day: 5, base: 3000, since: "2026-07-01", goal: 20000, createdAt: 1 },
@@ -708,8 +708,9 @@ await test("存錢罐進度：首頁只列有目標的存錢罐（進度與預�
                     a2: { id: "a2", kind: "jar", jarId: "j1", categoryId: "c-fun", period: "2026-09", amount: 300, at: new Date("2026-09-12T10:00:00").getTime() } };
   const p = await openApp({ data: d });
   const rows = await p.$$eval(".jrow", l => l.map(e => e.innerText.replace(/\s+/g, " ").trim()));
-  ok(rows.length === 1, `首頁存錢罐是「${rows.join(" / ")}」，沒目標的不該列出`);
+  ok(rows.length === 2, `首頁存錢罐是「${rows.join(" / ")}」`);
   ok(/旅行 46% NT\$9,200／20,000 · 約 2027\/03 存到/.test(rows[0]), `旅行那列是「${rows[0]}」`);
+  ok(/^緊急預備金 NT\$3,000 每月 5 號存 1,000$/.test(rows[1]), `沒有目標的那列是「${rows[1]}」`);
   await p.click('[data-tab="report"]'); await p.waitForTimeout(200);
   const ins = await text(p, ".insight");
   // this period: 9/5 automatic for both jars (2,000 + 1,000) + 500 one-off = 3,500 in; 300 used
