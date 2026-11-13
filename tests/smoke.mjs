@@ -742,6 +742,41 @@ await test("分期列表：已繳完的收在「已繳完 N 筆」裡，頁籤�
   ok(await p.$eval(".instdone", e => e.open), "關掉分期後已繳完又收起來了");
   return p;
 });
+await test("固定收支每 2 個月：平均分攤時確認會分到兩期；金額變了可以「以後都用」；不是繳費月不會出現；選全部算在繳費月就記一筆", async () => {
+  const d = structuredClone(FIXTURE);
+  d.recurring["r-mg"] = { id: "r-mg", title: "管理費", amount: 4504, type: "expense", categoryId: "c-food", day: 10, active: true, startMonth: "2026-09", every: 2, spread: true };
+  d.recurring["r-ins"] = { id: "r-ins", title: "保險年繳", amount: 12000, type: "expense", categoryId: "c-med", day: 12, active: true, startMonth: "2026-09", every: 12, spread: false };
+  d.recurring["r-odd"] = { id: "r-odd", title: "隔月清潔", amount: 800, type: "expense", categoryId: "c-food", day: 3, active: true, startMonth: "2026-08", every: 2, spread: true };
+  d.runs["r-odd_2026-08"] = { status: "skipped", at: 1 };   // August was its month (handled); September isn't
+  let p = await openApp({ data: d });
+  await p.click('[data-act="pend-toggle"]').catch(() => {}); await p.waitForTimeout(150);   // home lists 3 pending items until opened
+  const home = await p.evaluate(() => document.body.innerText);
+  ok(/管理費/.test(home) && /保險年繳/.test(home), "這個月要繳的沒有出現在需要注意");
+  ok(!/隔月清潔/.test(home), "不是繳費月的隔月清潔出現在首頁");
+  // 管理費 came to 4,600 this time
+  await p.fill("#pa-r-mg_2026-09", "4600"); await p.click('[data-confirm="r-mg_2026-09"]'); await p.waitForTimeout(250);
+  let st = await stored(p); const inst = Object.values(st.installments || {}).find(i => i.recurringId === "r-mg");
+  ok(inst && inst.total === 4600 && inst.n === 2 && inst.first === 2300 && inst.startPeriod === "2026-09", `管理費沒有分成兩期：${JSON.stringify(inst)}`);
+  ok(st.runs["r-mg_2026-09"]?.status === "confirmed", "確認後還是待確認");
+  ok(/以後都用 4,600/.test(await text(p, "#toastHost")), `金額變了沒有問：「${await text(p, "#toastHost")}」`);
+  await p.click("#toastHost .toastbtn"); await p.waitForTimeout(200);
+  ok((await stored(p)).recurring["r-mg"].amount === 4600, "按了以後都用，設定金額沒有變");
+  ok(/4,300/.test(await budgetRow(p, "餐飲")), `餐飲這期應該算 2,000 + 2,300：「${await budgetRow(p, "餐飲")}」`);
+  // 保險年繳 is counted in the month it's paid: one plain record
+  await p.click('[data-tab="home"]'); await p.waitForTimeout(150);
+  if(!(await p.$('[data-confirm="r-ins_2026-09"]'))){ await p.click('[data-act="pend-toggle"]'); await p.waitForTimeout(150); }
+  await p.click('[data-confirm="r-ins_2026-09"]'); await p.waitForTimeout(250);
+  st = await stored(p);
+  ok(st.months["2026-09"].some(t => t.recurringId === "r-ins" && t.amount === 12000) && !Object.values(st.installments || {}).some(i => i.recurringId === "r-ins"), "全部算在繳費月沒有記成一筆");
+  ok(!/以後都用/.test(await text(p, "#toastHost")), "金額沒變也問了以後都用");
+  // the list shows how often, the split, and when the off-month item comes next
+  await p.click('[data-act="more"]'); await p.click('[data-m="fixed"]'); await p.waitForTimeout(200);
+  const rows = await p.$$eval("[data-rec]", l => Object.fromEntries(l.map(e => [e.dataset.rec, e.innerText.replace(/\s+/g, " ")])));
+  ok(/每 2 個月 10 日 · 平均分攤/.test(rows["r-mg"]), `管理費那列是「${rows["r-mg"]}」`);
+  ok(/每年 9 月 12 日/.test(rows["r-ins"]) && !/平均分攤/.test(rows["r-ins"]), `保險那列是「${rows["r-ins"]}」`);
+  ok(/下次 10\/3/.test(rows["r-odd"]), `隔月清潔那列是「${rows["r-odd"]}」`);
+  return p;
+});
 await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {
   const p = await openApp({ width: 320, theme: "dark" });
   for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }

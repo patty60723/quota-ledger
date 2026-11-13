@@ -318,6 +318,8 @@ morning   = spendable + 今天已花（有上限類別）+ 今天沒上限類別
 - 檔頭加 BOM，Excel 打開中文才不會變亂碼；換行用 `\r\n`。手機能分享就用分享，其他情況下載。
 
 ### 10.7 固定收支的狀態標籤（`recStatus`）
+- 每 N 個月（`every`，預設 1）：`recDueIn(r, ym)` 從 `startMonth` 起每 N 個月為繳費月；`pendingRecurring`、`upcoming`、`todayPlan` 的預留、花費進度的固定支出線都只看繳費月。沒輪到的月份 `recStatus` 回「下次 M/D」（`recNextDue`）。
+- 平均分攤（`spread`，`every` > 1 的支出預設開）：`confirmRun` 改存一筆分期（`n = every`、`recurringId`），run 記 `installmentId`；分期每期的虛擬紀錄帶 `recurringId`，所以算固定支出、標成「固定 · 分攤」。`recShare` 是繳費那期要扛的份（首期 = 總額 − 每期 ×（N − 1）），預留只扣這一份。`recMonthly` 給列表合計和預估月收入用。
 依序判斷：已關閉 → 不標；`startMonth` 在本月之後 →「N 月開始」；`pendingRecurring()` 裡有這一項（任何月份收支日已過且沒有 run）→「待確認」或「待確認 N 筆」；本月有 run → 依狀態「本月已確認」或「本月略過」；其他 →「M/D 到期」。外觀：只有 `warn`（待確認）顯示成名稱旁的黃色標籤；其他狀態放在第二行的灰色小字（`.recst`），已確認前加 ✓。標籤留給需要處理的事。上方提示的筆數就是 `pendingRecurring().length`，所以和標籤一致。
 
 ### 10.8 「想要」近 6 期（`nwTake`）

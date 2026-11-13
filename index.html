@@ -1829,7 +1829,8 @@ function instPortions(inst){
     if(inst.status === "paidoff" && k === endIdx){ amt = 0; for(let j=k; j<inst.n; j++) amt += instAmount(inst, j); note = "提前還清"; }
     const p = shift(start, k);
     out.push({ id: `inst-${inst.id}-${k}`, date: k===0 ? inst.date : ymd(cycleStart(p.y,p.m)), type: "expense", categoryId: inst.categoryId, amount: amt,
-      title: `${inst.title}（分期 ${k+1}/${inst.n}）`, note, installmentId: inst.id, k, virtual: true, createdAt: inst.createdAt || 0 });
+      title: `${inst.title}（${inst.recurringId ? "分攤" : "分期"} ${k+1}/${inst.n}）`, note, installmentId: inst.id, k, virtual: true, createdAt: inst.createdAt || 0,
+      ...(inst.recurringId ? { recurringId: inst.recurringId } : {}) });
   }
   return out;
 }
@@ -2043,7 +2044,7 @@ function monthlyBudgetTotal(override){
 }
 // expected monthly income: active recurring income items, else last period's actual income
 function incomeEstimate(){
-  const rec = Object.values(state.recurring).filter(r => r.active && r.type === "income").reduce((s, r) => s + r.amount, 0);
+  const rec = Object.values(state.recurring).filter(r => r.active && r.type === "income").reduce((s, r) => s + recMonthly(r), 0);
   if(rec) return { amount: rec, source: "固定收入" };
   const last = sumIncome(txIn(shift(curPeriod(), -1)));
   return last ? { amount: last, source: "上一期收入" } : null;
@@ -2103,6 +2104,19 @@ function closePeriods(){
 }
 
 /* ---------- recurring ---------- */
+// how often a fixed item falls: every month (default), or every N months counted from startMonth (e.g. 管理費 every 2 months).
+// A multi-month expense can be split evenly over the months it covers (spread, the default) or counted in the month it's paid
+const recEvery = r => Math.max(1, +r.every || 1);
+function recDueIn(r, ym){
+  if(r.startMonth && ym < r.startMonth) return false;
+  const n = recEvery(r); return n === 1 || !r.startMonth || monthsBetween(fromKey(r.startMonth), fromKey(ym)) % n === 0;
+}
+const recSpread = r => recEvery(r) > 1 && r.type === "expense" && r.spread !== false;
+const recShare = (r, v) => recSpread(r) ? v - Math.floor(v / recEvery(r)) * (recEvery(r) - 1) : v;   // what the paying period carries
+const recMonthly = r => Math.round(r.amount / recEvery(r));
+function recNextDue(r, ym){ let p = fromKey(ym); for(let i = 0; i < 24; i++, p = shift(p, 1)) if(recDueIn(r, pkey(p))) return pkey(p); return null; }
+function recWhen(r){ const n = recEvery(r);
+  return n === 1 ? `每月 ${r.day} 日` : n === 12 ? `每年 ${+(r.startMonth || "0-1").split("-")[1]} 月 ${r.day} 日` : `每 ${n} 個月 ${r.day} 日`; }
 // this calendar month for one fixed item: [tag class, label], or null when it's switched off
 function recStatus(r){
   if(!r.active) return null;
@@ -2113,6 +2127,7 @@ function recStatus(r){
   if(owed) return ["warn", owed > 1 ? `待確認 ${owed} 筆` : "待確認"];
   const run = state.runs[`${r.id}_${ym}`];
   if(run) return run.status === "skipped" ? ["paid", "本月略過"] : ["paid", `${icon("check")}本月已確認`];
+  if(!recDueIn(r, ym)){ const nx = recNextDue(r, ym); return nx ? ["later", `下次 ${+nx.slice(5)}/${Math.min(r.day || 1, dim(+nx.slice(0, 4), +nx.slice(5)))}`] : null; }
   const due = ymd(new Date(now.getFullYear(), now.getMonth(), Math.min(r.day || 1, dim(now.getFullYear(), now.getMonth()+1))));
   return ["later", `${+due.slice(5,7)}/${+due.slice(8)} 到期`];
 }
@@ -2126,7 +2141,7 @@ function pendingRecurring(){
     while(`${y}-${pad(m)}` <= curYm && guard++ < 36){
       const due = ymd(new Date(y, m-1, Math.min(r.day||1, dim(y,m))));
       const key = `${r.id}_${y}-${pad(m)}`;
-      if(due <= today && !state.runs[key]) out.push({r, key, due});
+      if(due <= today && !state.runs[key] && recDueIn(r, `${y}-${pad(m)}`)) out.push({r, key, due});
       m++; if(m>12){m=1;y++;}
     }
   });
@@ -2374,7 +2389,7 @@ function txRows(list, withDays, keepOrder){
     }
     const plus = t.type==="income" || t.type==="refund"; const cn = catName(t.categoryId);
     const jn = t.jarId && state.jars[t.jarId] ? `「${esc(state.jars[t.jarId].name)}」` : "";
-    const kind = t.virtual ? "分期" : t.type==="refund" ? (t.jarId ? `退款 · 退回存錢罐${jn}` : "退款") : t.jarId ? `存錢罐${jn}支付` : "";
+    const kind = t.virtual ? (t.recurringId ? "固定 · 分攤" : "分期") : t.type==="refund" ? (t.jarId ? `退款 · 退回存錢罐${jn}` : "退款") : t.jarId ? `存錢罐${jn}支付` : "";
     const extra = [kind, t.pendingOverspend ? "超支待處理" : "", t.note].filter(Boolean).join(" · ");
     const sub = withDays ? [cn, extra].filter(Boolean).join(" · ") : [`${t.date.slice(5).replace("-","/")}`, cn, kind].filter(Boolean).join(" · ");
     const attr = t.virtual ? `data-inst="${esc(t.installmentId)}"` : `data-edit="${esc(t.id)}"`;
@@ -2553,6 +2568,11 @@ function homeBudgetInner(p){
   return `<div class="card budgets hcard">${hot.length ? budgetRows(p, hot) : ""}${foot}</div>`;
 }
 function confirmRun(item, v){
+  // split evenly over the months it covers: recorded as a 分攤 starting in the paying period, so each period carries its share
+  if(recSpread(item.r)){ const r = item.r, n = recEvery(r), per = Math.floor(v / n), at = Date.now();
+    const i = { id: uid(), title: r.title, categoryId: r.categoryId, total: v, n, per, first: v - per * (n - 1), date: item.due, startPeriod: pkey(periodOf(item.due)),
+      status: "active", recurringId: r.id, note: v !== r.amount ? `設定金額 ${r.amount}` : "", createdAt: at };
+    put.inst(i); put.run(item.key, { status: "confirmed", installmentId: i.id, at }); return; }
   const t = { id: uid(), date: item.due, type: item.r.type, categoryId: item.r.categoryId, amount: v, title: item.r.title, note: v!==item.r.amount ? `設定金額 ${item.r.amount}` : "", recurringId: item.r.id, createdAt: Date.now() };
   addTx(t); put.run(item.key, {status:"confirmed", transactionId: t.id, at: Date.now()});
 }
@@ -2574,9 +2594,10 @@ function todayPlan(p){
     for(let d = parseYmd(pa); ymd(d) <= pb; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)){
       const y = d.getFullYear(), m = d.getMonth() + 1, ym = `${y}-${pad(m)}`;
       const at = ymd(new Date(y, m-1, Math.min(r.day||1, dim(y,m))));
-      if(at < pa || at > pb || (r.startMonth && ym < r.startMonth) || state.runs[`${r.id}_${ym}`]) continue;
-      if(!hasBudget || ids.has(r.categoryId)) due[r.categoryId] = (due[r.categoryId]||0) + r.amount;
-      else unbDue += r.amount;
+      if(at < pa || at > pb || !recDueIn(r, ym) || state.runs[`${r.id}_${ym}`]) continue;
+      const v = recShare(r, r.amount);   // split evenly: this period only carries its share
+      if(!hasBudget || ids.has(r.categoryId)) due[r.categoryId] = (due[r.categoryId]||0) + v;
+      else unbDue += v;
     }
   });
   const reserved = Object.entries(due).reduce((sum, [id, v]) => sum + (hasBudget ? Math.min(v, Math.max(0, budgetOf(state.categories[id], p).avail)) : v), 0);
@@ -2620,7 +2641,7 @@ function upcoming(){
     if(!r.active) return;
     for(let k = 0; k < 2; k++){
       const d0 = new Date(now.getFullYear(), now.getMonth() + k, 1); const y = d0.getFullYear(), m = d0.getMonth() + 1; const ym = `${y}-${pad(m)}`;
-      if(r.startMonth && ym < r.startMonth) continue;
+      if(!recDueIn(r, ym)) continue;
       const due = ymd(new Date(y, m-1, Math.min(r.day||1, dim(y,m))));
       if(due > today && due <= lim && !state.runs[`${r.id}_${ym}`]) out.push({ date: due, title: r.title, sub: `固定${r.type==="income"?"收入":"支出"}`, amount: r.amount, income: r.type==="income", cat: state.categories[r.categoryId] });
     }
@@ -3130,8 +3151,8 @@ function burnData(p){
     if(!r.active || r.type !== "expense" || !ids.has(r.categoryId)) return;
     for(let d = parseYmd(pa); ymd(d) <= pb; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)){
       const y = d.getFullYear(), m = d.getMonth() + 1, ym = `${y}-${pad(m)}`, at = ymd(new Date(y, m - 1, Math.min(r.day || 1, dim(y, m))));
-      if(at < pa || at > pb || (r.startMonth && ym < r.startMonth) || state.runs[`${r.id}_${ym}`]?.status === "skipped") continue;
-      fixedAt[at] = (fixedAt[at] || 0) + r.amount; } });
+      if(at < pa || at > pb || !recDueIn(r, ym) || state.runs[`${r.id}_${ym}`]?.status === "skipped") continue;
+      fixedAt[at] = (fixedAt[at] || 0) + recShare(r, r.amount); } });
   const ti = Math.min(days.length - 1, days.findIndex(d => d >= today) < 0 ? days.length - 1 : days.findIndex(d => d >= today));
   const upTo = isCur ? ti : days.length - 1;
   const spent = days.slice(0, upTo + 1).reduce((s2, d) => s2 + (out[d] || 0), 0);
@@ -3247,11 +3268,11 @@ function viewSettings(){
   const recRow = r => { const st = recStatus(r);
     return `<button class="catrow${r.active?"":" arch"}" data-rec="${esc(r.id)}">
       <b class="nmrow"><span class="t">${esc(r.title)}</span>${st && st[0] === "warn" ? `<span class="tag warn">${st[1]}</span>` : ""}</b><span class="num small">${r.type==="income"?"+":"−"}${moneyShort(r.amount)}</span>
-      <span class="sub">每月 ${r.day} 日 · ${esc(catName(r.categoryId))}${r.active?"":" · 已關閉"}${st && st[0] !== "warn" ? ` · <span class="recst">${st[1]}</span>` : ""}</span></button>`; };
+      <span class="sub">${recWhen(r)}${recSpread(r) ? " · 平均分攤" : ""} · ${esc(catName(r.categoryId))}${r.active?"":" · 已關閉"}${st && st[0] !== "warn" ? ` · <span class="recst">${st[1]}</span>` : ""}</span></button>`; };
   const recPend = pendingRecurring().length;
   // many fixed items: group by expense / income, each with its monthly total
   const recGroup = (type, label) => { const l = recs.filter(r => r.type === type); if(!l.length) return "";
-    const sum = l.filter(r => r.active).reduce((a, r) => a + r.amount, 0);
+    const sum = l.filter(r => r.active).reduce((a, r) => a + recMonthly(r), 0);   // every-N-months items at their monthly average
     return `<div class="recgrp"><span>${label} ${l.length} 筆</span><span class="num">每月 ${type==="income"?"+":"−"}${moneyShort(sum)}</span></div>${l.map(recRow).join("")}`; };
   const recHtml = recs.length ? recGroup("expense", "支出") + recGroup("income", "收入") : `<div class="empty">還沒有固定收支。</div>`;
   const favs = favList();
@@ -3266,7 +3287,7 @@ function viewSettings(){
   const instOff = insts.filter(i => !instOngoing(i)).sort((a, b) => instEnd(b).localeCompare(instEnd(a)) || b.date.localeCompare(a.date));
   const instRow = i => `<button class="catrow${instOngoing(i) ? "" : " arch"}" data-inst="${esc(i.id)}">
       <b>${esc(i.title)}</b><span class="num small">${moneyShort(i.total)}</span>
-      <span class="sub">${esc(catName(i.categoryId))} · ${i.n} 期 · ${instStatus(i)}${i.skip ? ` · 從第 ${i.skip + 1} 期開始記` : ""}</span></button>`;
+      <span class="sub">${esc(catName(i.categoryId))} · ${i.n} 期 · ${instStatus(i)}${i.skip ? ` · 從第 ${i.skip + 1} 期開始記` : ""}${i.recurringId ? " · 固定收支平均分攤" : ""}</span></button>`;
   const instHtml = !insts.length ? `<div class="empty">還沒有分期。記帳時打開「分期／分攤」就會出現在這裡。</div>`
     : (instOn.length ? instOn.map(instRow).join("") : `<div class="empty">目前沒有進行中的分期。</div>`)
       + (instOff.length ? `<details class="instdone"${instDoneOpen ? " open" : ""}><summary class="budfoot">${instOff.every(i => i.status === "active") ? "已繳完" : "已結束"} ${instOff.length} 筆</summary>${instOff.map(instRow).join("")}</details>` : "");
@@ -3788,13 +3809,22 @@ function openRecurring(r){
     <div class="fields">
       <label class="full">項目<input class="inp" id="r-title" value="${esc(r.title)}" placeholder="例如：房貸"></label>
       <label>金額（${SYM()}）<input class="inp" id="r-amt" inputmode="${IM()}" value="${amtIn(r.amount)}"></label>
-      <label>每月幾號<select id="r-day">${Array.from({length:31},(_,i)=>`<option ${r.day===i+1?"selected":""}>${i+1}</option>`).join("")}</select></label>
+      <label>多久一次<select id="r-every">${[[1,"每月"],[2,"每 2 個月"],[3,"每 3 個月"],[6,"每半年"],[12,"每年"]].map(([v,l]) => `<option value="${v}" ${recEvery(r)===v?"selected":""}>${l}</option>`).join("")}</select></label>
+      <label>幾號<select id="r-day">${Array.from({length:31},(_,i)=>`<option ${r.day===i+1?"selected":""}>${i+1}</option>`).join("")}</select></label>
+      <label class="full" id="r-startrow" ${recEvery(r) > 1 ? "" : "hidden"}>從哪個月開始繳<input class="inp" type="month" id="r-start" value="${esc(r.startMonth || "")}"></label>
       <label>收支<select id="r-type"><option value="expense" ${r.type==="expense"?"selected":""}>支出</option><option value="income" ${r.type==="income"?"selected":""}>收入</option></select></label>
       <label>類別<select id="r-cat">${catOpts(r.type)}</select></label>
     </div>
     <div class="nwrow" id="r-nwrow" ${r.type==="expense"?"":"hidden"} role="radiogroup" aria-label="必要、需要或想要"><span>這筆是</span><div class="nwseg" id="r-nw"></div></div>
+    <div class="opts" id="r-spreadrow" role="radiogroup" aria-label="預算怎麼算" ${recEvery(r) > 1 && r.type === "expense" ? "" : "hidden"}>
+      <label class="opt"><span class="k"><b>平均分到涵蓋的每個月</b><span>例如每 2 個月 4,504：這個月和下個月各算 2,252，每個月的預算比較穩</span></span><input type="radio" name="r-spread" value="1" ${r.spread !== false ? "checked" : ""}></label>
+      <label class="opt"><span class="k"><b>全部算在繳費那個月</b><span>照錢實際出去的那天記，繳費那個月一次扣完</span></span><input type="radio" name="r-spread" value="0" ${r.spread === false ? "checked" : ""}></label>
+    </div>
     <label class="toggle"><input type="checkbox" id="r-active" ${r.active?"checked":""}>啟用</label>
     <div class="rowbtns">${isNew?"":`<button class="btn danger" data-del>刪除</button>`}<button class="btn primary" data-save>儲存</button></div>`, sheet => {
+    // 從哪個月開始 and 預算怎麼算 only matter for items that aren't monthly
+    const syncFreq = () => { const n = +$("#r-every", sheet).value; $("#r-startrow", sheet).hidden = n === 1; $("#r-spreadrow", sheet).hidden = n === 1 || $("#r-type", sheet).value !== "expense"; };
+    $("#r-every", sheet).addEventListener("change", syncFreq); $("#r-type", sheet).addEventListener("change", syncFreq);
     // 必要／需要／想要 for the records this item creates; not picked = the category's default
     let nw = r.nw || null;
     const drawNw = () => { const d = catNw(state.categories[$("#r-cat", sheet).value]); const cur = nw || (d === "ask" ? null : d);
@@ -3809,6 +3839,10 @@ function openRecurring(r){
       const title = $("#r-title", sheet).value.trim(); const amount = amtOf($("#r-amt", sheet).value);
       const categoryId = $("#r-cat", sheet).value;
       if(!title || !amount || !categoryId){ toast("請填項目、金額和類別"); return; }
+      const every = +$("#r-every", sheet).value, start = $("#r-start", sheet).value;
+      if(every > 1 && !/^\d{4}-\d{2}$/.test(start)){ toast("請選從哪個月開始繳"); return; }
+      // the start month anchors which months are due; a monthly item keeps the one it had
+      Object.assign(r, { every, spread: every > 1 ? $('[name="r-spread"]:checked', sheet)?.value !== "0" : undefined, ...(every > 1 ? { startMonth: start } : {}) });
       Object.assign(r, { title, amount, categoryId, day: +$("#r-day", sheet).value, type: $("#r-type", sheet).value, active: $("#r-active", sheet).checked, nw: $("#r-type", sheet).value === "expense" ? nw : null });
       put.rec(r); closeSheet(); render(); toast("已儲存");
     });
@@ -4476,6 +4510,9 @@ function demoLedger(){
   const start = new Date(now.getFullYear(), now.getMonth() - 3, 1);
   Object.values(recurring).forEach(r => r.startMonth = ym(start.getFullYear(), start.getMonth() + 1));
   const nextM = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  // every 2 months, split evenly, due a few days ago and not confirmed yet (try 確認 and 以後都用)
+  const thisM = ym(now.getFullYear(), now.getMonth() + 1);
+  recurring["d-r-mgmt"] = { id: "d-r-mgmt", title: "管理費", amount: 4504, type: "expense", categoryId: "d-home", day: Math.max(1, now.getDate() - 3), active: true, startMonth: thisM, every: 2, spread: true };
   recurring["d-r-music"] = { id: "d-r-music", title: "音樂串流", amount: 149, type: "expense", categoryId: "d-fun", day: 1, active: true, startMonth: ym(nextM.getFullYear(), nextM.getMonth() + 1) };
   let n = 0; const add = (date, type, categoryId, amount, title, nw, extra) => { const t = { id: `d-t${++n}`, date, type, categoryId, amount, title, note: "", nw, createdAt: stamp(date) + n, ...extra }; (months[date.slice(0, 7)] ||= []).push(t); };
   // two earlier years of plain history (everyday spending, rent and pay), so the month picker and 年報 have several years
@@ -4497,7 +4534,7 @@ function demoLedger(){
     // fixed items, showing every status this month: phone bill waiting, gym skipped, last month's water bill
     // never confirmed, Netflix due in a few days, music starting next month, an old plan switched off
     Object.values(recurring).forEach(r => {
-      if(!r.active || r.startMonth > ym(Y, M)) return;
+      if(!r.active || r.startMonth > ym(Y, M) || recEvery(r) > 1) return;   // the every-2-months 管理費 stays waiting
       if(k === 0 && r.id === "d-r-gym"){ runs[`${r.id}_${ym(Y, M)}`] = { status: "skipped", at: stamp(day(1)) }; return; }
       if(r.day > last || (k === 0 && r.id === "d-r-phone") || (k === 1 && r.id === "d-r-water")) return;
       add(day(r.day), r.type, r.categoryId, r.amount, r.title, r.type === "income" ? undefined : r.id === "d-r-nf" ? "want" : "must", { recurringId: r.id });
@@ -4655,7 +4692,10 @@ document.addEventListener("click", e => {
     if(el.dataset.skip){ put.run(key, {status:"skipped", at: Date.now()}); render(); toast("這個月已略過"); return; }
     const v = amtOf(document.getElementById("pa-"+key)?.value);
     if(!v){ toast("請輸入金額"); return; }
-    confirmRun(item, v); render(); toast(`已記下 ${item.r.title}`); return;
+    confirmRun(item, v); render();
+    // an amount that changed (e.g. a yearly raise) can become the item's amount from now on; records already kept don't change
+    if(v !== item.r.amount) toast(`已記下 ${item.r.title}，這次 ${moneyShort(v)}`, [[`以後都用 ${moneyShort(v)}`, () => { const r = state.recurring[item.r.id]; if(r){ put.rec({ ...r, amount: v }); render(); toast("之後都用這個金額"); } }]], 9000);
+    else toast(`已記下 ${item.r.title}`); return;
   }
   const a = el.dataset.act;
   if(a==="pickp"){ openPeriodPicker(); }
