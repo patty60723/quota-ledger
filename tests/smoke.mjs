@@ -777,6 +777,30 @@ await test("固定收支每 2 個月：平均分攤時確認會分到兩期；�
   ok(/下次 10\/3/.test(rows["r-odd"]), `隔月清潔那列是「${rows["r-odd"]}」`);
   return p;
 });
+await test("記一筆裡的快速記帳：從月曆點過去的日子新增，常用記到那一天；首頁的快速記帳記到今天", async () => {
+  const d = structuredClone(FIXTURE);
+  d.favorites = { f1: { id: "f1", name: "早餐", type: "expense", categoryId: "c-food", amount: 80, title: "早餐", note: "", uses: 5, createdAt: 1, order: 0 } };
+  let p = await openApp({ data: d, tab: "list" });
+  await p.click('[data-lseg="cal"]'); await p.waitForTimeout(200);
+  await p.click('[data-calday="2026-09-10"]'); await p.waitForTimeout(150);
+  await p.click('[data-act="cal-add"]'); await p.waitForSelector(".sheet .favbar"); await p.waitForTimeout(150);
+  ok(await p.$eval("#e-date", e => e.value) === "2026-09-10", "月曆點的日期沒有帶進記一筆");
+  await p.click('.sheet [data-favq="f1"]'); await p.waitForTimeout(250);
+  let rec = Object.values((await stored(p)).months).flat().filter(t => t.favoriteId === "f1");
+  ok(rec.length === 1 && rec[0].date === "2026-09-10", `快速記帳記到「${rec.map(t => t.date)}」，應該是 2026-09-10`);
+  ok(/9\/10 的 早餐/.test(await text(p, "#toastHost")), `提示是「${await text(p, "#toastHost")}」`);
+  await p.context().close();
+  // the date picked inside the sheet counts too; home's chip stays on today
+  p = await openApp({ data: d });
+  await p.click('.qchip[data-favq="f1"]'); await p.waitForTimeout(250);
+  rec = Object.values((await stored(p)).months).flat().filter(t => t.favoriteId === "f1");
+  ok(rec.length === 1 && rec[0].date === "2026-09-15", `首頁快速記帳記到「${rec.map(t => t.date)}」，應該是今天 2026-09-15`);
+  await p.click("#fab"); await p.waitForSelector(".sheet .favbar"); await p.fill("#e-date", "2026-09-03"); await p.dispatchEvent("#e-date", "change");
+  await p.click('.sheet [data-favq="f1"]'); await p.waitForTimeout(250);
+  rec = Object.values((await stored(p)).months).flat().filter(t => t.favoriteId === "f1" && t.date === "2026-09-03");
+  ok(rec.length === 1, "在記一筆裡改了日期再點快速記帳，沒有記到改的那天");
+  return p;
+});
 await test("深色模式、320 寬度：各分頁沒有錯誤", async () => {
   const p = await openApp({ width: 320, theme: "dark" });
   for(const t of ["home", "list", "wish", "report"]){ await p.click(`[data-tab="${t}"]`); await p.waitForTimeout(100); }

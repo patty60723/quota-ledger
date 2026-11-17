@@ -3582,7 +3582,7 @@ function openEntry(existing, refundOf, prefill){
     const delReal = $("[data-delreal]", sheet); delReal && delReal.addEventListener("click", () => { removeTx(existing, true); closeSheet(); render(); toast(delToast(existing)); });
     const delCancel = $("[data-delcancel]", sheet); delCancel && delCancel.addEventListener("click", () => { delMode = false; draw(sheet); });
     const ref = $("[data-refund]", sheet); ref && ref.addEventListener("click", () => openEntry(null, existing));
-    sheet.querySelectorAll("[data-favq]").forEach(b => b.addEventListener("click", () => { const f = state.favorites[b.dataset.favq]; f && quickRecord(f); }));
+    sheet.querySelectorAll("[data-favq]").forEach(b => b.addEventListener("click", () => { const f = state.favorites[b.dataset.favq]; f && quickRecord(f, $("#e-date", sheet)?.value); }));
     const sf = $("[data-savefav]", sheet);
     sf && sf.addEventListener("click", () => {
       if(!catId){ toast("先選一個類別"); return; }
@@ -4018,15 +4018,18 @@ function limitWarnings(c, date, amt, excludeId){
   return out;
 }
 // Fixed amount: record today right away with an undo. No amount: open the entry sheet prefilled.
-function quickRecord(f){
+// date: the day to record on; home's quick-add leaves it out (today), the 記一筆 sheet passes the date it is showing
+// (e.g. a past day opened from 明細), so a quick-add chip tapped there lands on that day, not today
+function quickRecord(f, date){
+  date = /^\d{4}-\d{2}-\d{2}$/.test(date || "") ? date : todayStr();
   if(!favUsable(f)){ closeSheet(); openFavorite(f); toast("這個常用的類別已停用，請改類別"); return; }
-  if(!f.amount){ openEntry(null, null, { type: f.type, categoryId: f.categoryId, title: f.title || f.name, note: f.note || "", favoriteId: f.id, nw: f.nw }); return; }
-  const t = { id: uid(), date: todayStr(), type: f.type, categoryId: f.categoryId, amount: f.amount, title: f.title || f.name, note: f.note || "", favoriteId: f.id, createdAt: Date.now() };
+  if(!f.amount){ openEntry(null, null, { type: f.type, categoryId: f.categoryId, title: f.title || f.name, note: f.note || "", favoriteId: f.id, nw: f.nw, date }); return; }
+  const t = { id: uid(), date, type: f.type, categoryId: f.categoryId, amount: f.amount, title: f.title || f.name, note: f.note || "", favoriteId: f.id, createdAt: Date.now() };
   if(f.nw && f.type === "expense") t.nw = f.nw;
   const warns = limitWarnings(state.categories[f.categoryId], t.date, t.amount, t.id);
   addTx(t); bumpFav(f.id, 1);
   closeSheet(); render();
-  toast(`已記下 ${f.name} ${moneyShort(f.amount)}${warns.length ? "（" + warns.join("、") + "）" : ""}`,
+  toast(`已記下${date === todayStr() ? "" : ` ${+date.slice(5, 7)}/${+date.slice(8)} 的`} ${f.name} ${moneyShort(f.amount)}${warns.length ? "（" + warns.join("、") + "）" : ""}`,
     [["復原", () => { closeSheet(); removeTx(t, true); bumpFav(f.id, -1); render(); toast("已復原"); }]], 5000);
   if(t.type==="expense") checkOverspend(subjectOf("tx", t.id));
 }
