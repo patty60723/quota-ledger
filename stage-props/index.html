@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>舞台道具排列</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top no-print">
+  <h1>🎭 舞台道具排列</h1>
+  <div class="evbar">
+    <select id="eventSelect" aria-label="選擇事件"></select>
+    <button data-act="ev-new">＋ 新事件</button>
+    <button data-act="ev-edit">編輯</button>
+    <button data-act="ev-dup">複製</button>
+    <button data-act="ev-del" class="danger">刪除</button>
+  </div>
+  <div class="datamenu">
+    <button data-act="export-data" title="下載全部資料（備份）">備份</button>
+    <label class="btn" title="從備份檔還原">還原<input type="file" id="importFile" accept=".json,application/json" hidden></label>
+  </div>
+</header>
+<nav class="tabs no-print" id="tabs">
+  <button data-tab="editor">排列舞台</button>
+  <button data-tab="props">道具庫</button>
+  <button data-tab="stages">舞台規格</button>
+  <button data-tab="output">輸出</button>
+</nav>
+<main id="main"></main>
+<dialog id="dlg"></dialog>
+<script src="app.js"></script>
+</body>
+</html>
